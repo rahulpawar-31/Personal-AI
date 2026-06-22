@@ -68,7 +68,25 @@ export async function initDB() {
       )
     `);
 
-    console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations)`);
+    // ── Per-user memory table ─────────────────────────────────────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_memory (
+        user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        data       JSONB    NOT NULL DEFAULT '{}',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ── Email cache table — persists triage results across restarts ───────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_cache (
+        user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        data       JSONB        NOT NULL DEFAULT '[]',
+        fetched_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations + user_memory)`);
   } catch (err) {
     console.error('[db] Postgres init failed:', err.message, '— falling back to JSON store');
     pool = null;

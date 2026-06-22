@@ -85,7 +85,7 @@ export default function AuthPage({ onAuth }) {
             onChange={e => setUsername(e.target.value)}
             required
             autoFocus
-            autoComplete="username"
+            autoComplete={isSignup ? 'off' : 'username'}
           />
           {isSignup && (
             <input

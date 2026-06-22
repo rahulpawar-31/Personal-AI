@@ -1,17 +1,17 @@
 // server/services/memory.js
-// Persistent memory store — survives server restarts
-// Stored in server/memory.json (gitignored)
+// Per-user persistent memory — Postgres (user_memory table) with JSON file fallback.
+// All exported functions take userId as the first argument.
 
 import fs   from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getPool } from './db.js';
 
-const __dirname     = path.dirname(fileURLToPath(import.meta.url));
-const MEMORY_PATH   = path.join(__dirname, '..', 'memory.json');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_MEMORY = {
   vipContacts:       [],
-  facts:             [],      // freeform facts the agent remembers: [{key, value, savedAt}]
+  facts:             [],
   voiceProfile: {
     tone:            'professional but friendly',
     sentenceLength:  'medium',
@@ -28,133 +28,191 @@ const DEFAULT_MEMORY = {
     stalenessThresholdCard:  5,
     maxLinkedInPostsPerWeek: 3,
   },
+  activityLog: [],
 };
 
-let _cache = null;
+// In-process cache: Map<userId, {data, dirty}>
+const _cache = new Map();
 
-function load() {
-  if (_cache) return _cache;
-  try {
-    if (fs.existsSync(MEMORY_PATH)) {
-      _cache = { ...DEFAULT_MEMORY, ...JSON.parse(fs.readFileSync(MEMORY_PATH, 'utf8')) };
-      return _cache;
+function jsonPath(userId) {
+  return path.join(__dirname, '..', `memory_${userId}.json`);
+}
+
+function legacyJsonPath() {
+  return path.join(__dirname, '..', 'memory.json');
+}
+
+function mergeWithDefaults(stored) {
+  const result = { ...DEFAULT_MEMORY, ...stored };
+  // Deep-merge nested objects so new default fields aren't dropped for existing users
+  if (stored.voiceProfile && typeof stored.voiceProfile === 'object') {
+    result.voiceProfile = { ...DEFAULT_MEMORY.voiceProfile, ...stored.voiceProfile };
+  }
+  if (stored.preferences && typeof stored.preferences === 'object') {
+    result.preferences = { ...DEFAULT_MEMORY.preferences, ...stored.preferences };
+  }
+  return result;
+}
+
+function readFromDisk(userId) {
+  const perUser = jsonPath(userId);
+  if (fs.existsSync(perUser)) {
+    try { return mergeWithDefaults(JSON.parse(fs.readFileSync(perUser, 'utf8'))); } catch {}
+  }
+  // First user (id=1) may have data in the old global memory.json
+  if (userId === 1 || userId === '1') {
+    const legacy = legacyJsonPath();
+    if (fs.existsSync(legacy)) {
+      try { return mergeWithDefaults(JSON.parse(fs.readFileSync(legacy, 'utf8'))); } catch {}
     }
+  }
+  return { ...DEFAULT_MEMORY };
+}
+
+function writeToDisk(userId, data) {
+  try { fs.writeFileSync(jsonPath(userId), JSON.stringify(data, null, 2)); } catch {}
+}
+
+async function loadFromDB(userId) {
+  const pool = getPool();
+  if (!pool) return null;
+  try {
+    const r = await pool.query('SELECT data FROM user_memory WHERE user_id = $1', [userId]);
+    if (r.rows[0]) return mergeWithDefaults(r.rows[0].data);
   } catch {}
-  _cache = { ...DEFAULT_MEMORY };
-  return _cache;
+  return null;
 }
 
-function save(memory) {
-  _cache = memory;
-  fs.writeFileSync(MEMORY_PATH, JSON.stringify(memory, null, 2));
+async function saveToDB(userId, data) {
+  const pool = getPool();
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO user_memory (user_id, data, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()`,
+    [userId, JSON.stringify(data)]
+  );
 }
 
-export function getMemory() {
-  return load();
+async function load(userId) {
+  if (_cache.has(userId)) return _cache.get(userId);
+  const fromDB = await loadFromDB(userId);
+  const data   = fromDB ?? readFromDisk(userId);
+  _cache.set(userId, data);
+  return data;
 }
 
-export function addVIP(email, name = '') {
-  const mem = load();
+async function save(userId, data) {
+  _cache.set(userId, data);
+  await saveToDB(userId, data); // throws on DB failure — callers surface the error
+  writeToDisk(userId, data);
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function getMemory(userId) {
+  return load(userId);
+}
+
+export async function addVIP(userId, email, name = '') {
+  const mem = await load(userId);
   if (!mem.vipContacts.find(v => v.email === email)) {
     mem.vipContacts.push({ email, name, addedAt: new Date().toISOString() });
-    save(mem);
+    await save(userId, mem);
   }
   return mem.vipContacts;
 }
 
-export function removeVIP(email) {
-  const mem = load();
+export async function removeVIP(userId, email) {
+  const mem = await load(userId);
   mem.vipContacts = mem.vipContacts.filter(v => v.email !== email);
-  save(mem);
+  await save(userId, mem);
   return mem.vipContacts;
 }
 
-export function recordApprovedDraft(original, edited, type = 'email') {
-  const mem = load();
+export async function recordApprovedDraft(userId, original, edited, type = 'email') {
+  const mem = await load(userId);
   mem.voiceProfile.approvedDrafts.push({
     type,
     original: original.slice(0, 300),
     edited:   edited.slice(0, 300),
     at:       new Date().toISOString(),
   });
-  // Keep last 50 approved drafts as training signal
-  if (mem.voiceProfile.approvedDrafts.length > 50) {
+  if (mem.voiceProfile.approvedDrafts.length > 50)
     mem.voiceProfile.approvedDrafts = mem.voiceProfile.approvedDrafts.slice(-50);
-  }
-  save(mem);
+  await save(userId, mem);
 }
 
-export function setProjectPriorities(priorities = []) {
-  const mem = load();
+export async function setProjectPriorities(userId, priorities = []) {
+  const mem = await load(userId);
   mem.projectPriorities = priorities;
-  save(mem);
+  await save(userId, mem);
   return priorities;
 }
 
-export function updatePreferences(prefs = {}) {
-  const mem = load();
+export async function updatePreferences(userId, prefs = {}) {
+  const mem = await load(userId);
   mem.preferences = { ...mem.preferences, ...prefs };
-  save(mem);
+  await save(userId, mem);
   return mem.preferences;
 }
 
-// Save an arbitrary fact the user tells the agent ("I work at Acme", "My stack is React")
-export function saveFact(key, value) {
-  const mem = load();
+export async function saveFact(userId, key, value) {
+  const mem = await load(userId);
   if (!mem.facts) mem.facts = [];
-  const existing = mem.facts.findIndex(f => f.key.toLowerCase() === key.toLowerCase());
+  const idx   = mem.facts.findIndex(f => f.key.toLowerCase() === key.toLowerCase());
   const entry = { key, value, savedAt: new Date().toISOString() };
-  if (existing >= 0) mem.facts[existing] = entry;
+  if (idx >= 0) mem.facts[idx] = entry;
   else mem.facts.push(entry);
-  // Keep last 100 facts
   if (mem.facts.length > 100) mem.facts = mem.facts.slice(-100);
-  save(mem);
+  await save(userId, mem);
   return mem.facts;
 }
 
-// Build a compact context string injected into the agent's system prompt
-export function buildContextSummary() {
-  const mem = load();
+export async function buildContextSummary(userId) {
+  const mem   = await load(userId);
   const lines = [];
-  if (mem.facts?.length)            lines.push('Facts: ' + mem.facts.map(f => `${f.key}=${f.value}`).join('; '));
-  if (mem.vipContacts?.length)      lines.push('VIPs: ' + mem.vipContacts.map(v => v.email).join(', '));
+  if (mem.facts?.length)             lines.push('Facts: ' + mem.facts.map(f => `${f.key}=${f.value}`).join('; '));
+  if (mem.vipContacts?.length)       lines.push('VIPs: ' + mem.vipContacts.map(v => v.email).join(', '));
   if (mem.projectPriorities?.length) lines.push('Priorities: ' + mem.projectPriorities.join(', '));
   return lines.join(' | ');
 }
 
-export function isVIP(emailAddress) {
-  const mem = load();
+export async function isVIP(userId, emailAddress) {
+  const mem = await load(userId);
   return mem.vipContacts.some(v =>
     emailAddress.toLowerCase().includes(v.email.toLowerCase())
   );
 }
 
-// ─── Activity log ─────────────────────────────────────────────────────────────
+export async function logActivity(userId, intent, params = {}, status = 'success', error = null) {
+  try {
+    const mem = await load(userId);
+    if (!mem.activityLog) mem.activityLog = [];
 
-export function logActivity(intent, params = {}, status = 'success', error = null) {
-  const mem = load();
-  if (!mem.activityLog) mem.activityLog = [];
+    const { title, to, repo, date, days, time, startDate, endDate } = params;
+    const slim = Object.fromEntries(
+      Object.entries({ title, to, repo, date, days, time, startDate, endDate })
+        .filter(([, v]) => v != null)
+    );
 
-  const { title, to, repo, date, days, time, startDate, endDate } = params;
-  const slim = Object.fromEntries(
-    Object.entries({ title, to, repo, date, days, time, startDate, endDate })
-      .filter(([, v]) => v != null)
-  );
+    mem.activityLog.push({
+      at:     new Date().toISOString(),
+      intent,
+      params: slim,
+      status,
+      ...(error ? { error } : {}),
+    });
 
-  mem.activityLog.push({
-    at:     new Date().toISOString(),
-    intent,
-    params: slim,
-    status,
-    ...(error ? { error } : {}),
-  });
-
-  if (mem.activityLog.length > 500) mem.activityLog = mem.activityLog.slice(-500);
-  save(mem);
+    if (mem.activityLog.length > 500) mem.activityLog = mem.activityLog.slice(-500);
+    await save(userId, mem);
+  } catch (err) {
+    console.error('[memory] logActivity failed:', err.message);
+  }
 }
 
-export function getActivityLog(limit = 50) {
-  const mem = load();
+export async function getActivityLog(userId, limit = 50) {
+  const mem = await load(userId);
   return (mem.activityLog ?? []).slice(-limit).reverse();
 }
 

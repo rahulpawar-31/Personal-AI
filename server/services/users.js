@@ -47,12 +47,34 @@ export async function loginUser(username, password) {
   return { id: user.id, username: user.username, email: user.email ?? null };
 }
 
+// Short-lived access token — sent in response body, stored in localStorage by frontend.
 export function signToken(user) {
-  return jwt.sign({ userId: user.id, username: user.username }, getJwtSecret(), { expiresIn: '90d' });
+  return jwt.sign({ userId: user.id, username: user.username }, getJwtSecret(), { expiresIn: '15m' });
+}
+
+// Long-lived refresh token — sent as httpOnly cookie only.
+export function signRefreshToken(user) {
+  return jwt.sign({ userId: user.id, username: user.username, type: 'refresh' }, getJwtSecret(), { expiresIn: '30d' });
 }
 
 export function verifyToken(token) {
   return jwt.verify(token, getJwtSecret());
+}
+
+// Set the httpOnly refresh cookie on a response.
+export function setRefreshCookie(res, user) {
+  res.cookie('refresh_token', signRefreshToken(user), {
+    httpOnly:  true,
+    sameSite:  'lax',
+    secure:    !!process.env.RAILWAY_PUBLIC_DOMAIN,
+    maxAge:    30 * 24 * 60 * 60 * 1000, // 30 days in ms
+    path:      '/api/auth/refresh',
+  });
+}
+
+// Clear the refresh cookie on logout.
+export function clearRefreshCookie(res) {
+  res.clearCookie('refresh_token', { httpOnly: true, sameSite: 'lax', path: '/api/auth/refresh' });
 }
 
 export async function getUserById(id) {

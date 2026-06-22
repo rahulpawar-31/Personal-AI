@@ -457,7 +457,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
         flexShrink: 0,
         marginTop: 12,
         background: 'var(--bg)',
-        border: '1.5px solid var(--border)',
+        border: '1.5px solid #000',
         borderRadius: 16,
         padding: '10px 10px 10px 14px',
         display: 'flex', alignItems: 'flex-end', gap: 8,
@@ -465,11 +465,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
         transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
         onFocusCapture={e => {
-          e.currentTarget.style.borderColor = 'var(--accent)';
-          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(29,158,117,0.10), 0 2px 8px rgba(0,0,0,0.06)';
+          e.currentTarget.style.borderColor = '#000';
+          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)';
         }}
         onBlurCapture={e => {
-          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.borderColor = '#000';
           e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.06)';
         }}
       >

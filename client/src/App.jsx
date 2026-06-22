@@ -174,7 +174,7 @@ export default function App() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const googleToken = params.get('google_token');
+    const googleToken = new URLSearchParams(window.location.hash.slice(1)).get('google_token');
     if (googleToken) {
       localStorage.setItem('devos_token', googleToken);
       window.history.replaceState({}, '', '/');
