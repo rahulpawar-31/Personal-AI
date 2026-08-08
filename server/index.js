@@ -6,8 +6,7 @@ import { fileURLToPath } from 'url';
 import path    from 'path';
 import fs      from 'fs';
 
-import { initDB, getPool } from './services/db.js';
-import * as userService    from './services/users.js';
+import { initDB, getPool, dbFindByUsername, dbSetAdmin } from './services/db.js';
 import * as integrations   from './services/integrations.js';
 import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
@@ -65,8 +64,19 @@ app.get(/^(?!\/api).*/, (req, res) => {
 // ─── Startup migrations ───────────────────────────────────────────────────────
 
 async function migrateEnvCredentials() {
-  const adminUser = await userService.getUserById(1).catch(() => null);
-  if (!adminUser) return;
+  const ownerUsername = process.env.OWNER_USERNAME;
+  if (!ownerUsername) {
+    console.warn('[migration] OWNER_USERNAME not set — skipping env credential migration. Set OWNER_USERNAME to your account username to enable this.');
+    return;
+  }
+
+  const adminUser = await dbFindByUsername(ownerUsername).catch(() => null);
+  if (!adminUser) {
+    console.warn(`[migration] No account found for OWNER_USERNAME "${ownerUsername}" yet — skipping env credential migration until it signs up.`);
+    return;
+  }
+
+  await dbSetAdmin(adminUser.id, true);
 
   const candidates = [
     ['github',   'GITHUB_TOKEN',         process.env.GITHUB_TOKEN],
