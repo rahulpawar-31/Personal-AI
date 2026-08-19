@@ -3,6 +3,63 @@ import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 
 const STORAGE_KEY = 'devos_chat_history';
+const storageKeyFor = userId => userId ? `devos_chat_history_${userId}` : STORAGE_KEY;
+
+const PENDING_ACTION_LABELS = {
+  add_task:     'Add task',
+  create_event: 'Create calendar event',
+  create_issue: 'Create GitHub issue',
+  create_note:  'Save Notion note',
+  save_memory:  'Remember fact',
+};
+
+function pendingActionSummary(item) {
+  const p = item.params || {};
+  switch (item.actionType) {
+    case 'add_task':     return p.title;
+    case 'create_event': return `${p.title} — ${p.date}`;
+    case 'create_issue': return `${p.title}${p.repo ? ` in ${p.repo}` : ''}`;
+    case 'create_note':  return p.title;
+    case 'save_memory':  return `${p.memKey} = ${p.memValue}`;
+    default:              return JSON.stringify(p);
+  }
+}
+
+function PendingActionCard({ item, onResolved }) {
+  const [busy, setBusy] = useState(false);
+
+  async function act(path) {
+    setBusy(true);
+    try {
+      const r = await apiFetch(`/api/actions/${item.id}/${path}`, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      toast(path === 'approve' ? 'Action approved' : 'Action rejected', 'success');
+      onResolved(item.id);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ border: '1px solid var(--border)', background: '#f8fffe', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+        Agent wants to: <strong>{PENDING_ACTION_LABELS[item.actionType] ?? item.actionType}</strong>
+      </div>
+      <div style={{ fontSize: 13, marginBottom: 8, wordBreak: 'break-word' }}>{pendingActionSummary(item)}</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => act('approve')} disabled={busy} className="primary" style={{ fontSize: 12, padding: '6px 14px' }}>
+          {busy ? 'Working…' : 'Approve'}
+        </button>
+        <button onClick={() => act('reject')} disabled={busy} style={{ fontSize: 12, padding: '6px 10px' }}>
+          Reject
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -42,18 +99,37 @@ const CONNECTED_TOOLS = [
   { key: 'linkedin', label: 'LinkedIn',         dot: '#0A66C2' },
 ];
 
-export default function ChatPanel({ onAction, health = {}, connected = false }) {
+export default function ChatPanel({ onAction, health = {}, connected = false, user }) {
+  const storageKey = storageKeyFor(user?.id);
   const [messages,    setMessages]    = useState(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []; } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(storageKey)) ?? []; } catch { return []; }
   });
   const [input,      setInput]      = useState('');
   const [loading,    setLoading]    = useState(false);
   const [statusText, setStatusText] = useState('');
   const [useAgent,   setUseAgent]   = useState(() => localStorage.getItem('devos_use_agent') !== 'false');
   const [listening,  setListening]  = useState(false);
+  const [pending,    setPending]    = useState([]);
   const bottomRef      = useRef(null);
   const textareaRef    = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Re-load history once the real per-user key is known (first render may still
+  // be on the generic fallback key while the user is loading).
+  useEffect(() => {
+    if (!user?.id) return;
+    try { setMessages(JSON.parse(localStorage.getItem(storageKey)) ?? []); } catch { setMessages([]); }
+  }, [user?.id]);
+
+  async function refreshPending() {
+    try {
+      const r = await apiFetch('/api/actions/pending');
+      if (!r.ok) return;
+      setPending(await r.json());
+    } catch { /* ignore — non-critical */ }
+  }
+
+  useEffect(() => { refreshPending(); }, []);
 
   const SpeechRecognition = typeof window !== 'undefined' &&
     (window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -91,9 +167,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
   }
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-100)));
+    localStorage.setItem(storageKey, JSON.stringify(messages.slice(-100)));
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, storageKey]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -129,6 +205,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
         if (!r.ok) throw new Error(data.error ?? 'Server error');
         setMessages(m => [...m, { role: 'assistant', content: data.reply || '(no reply)', intents: data.intents, at: Date.now() }]);
         (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
+        refreshPending();
       } catch (err) {
         setMessages(m => [...m, { role: 'assistant', content: 'Agent error: ' + err.message, at: Date.now() }]);
       } finally {
@@ -218,7 +295,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
 
   function clearHistory() {
     setMessages([]);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
     // Also wipe the server-side rolling summary so the agent starts fresh
     apiFetch('/api/chat/agent/clear', { method: 'POST' }).catch(() => {});
   }
@@ -451,6 +528,19 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
 
         <div ref={bottomRef} />
       </div>
+
+      {/* Pending agent actions awaiting approval */}
+      {pending.length > 0 && (
+        <div style={{ flexShrink: 0, marginBottom: 4 }}>
+          {pending.map(item => (
+            <PendingActionCard
+              key={item.id}
+              item={item}
+              onResolved={id => setPending(p => p.filter(x => x.id !== id))}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Input area */}
       <div style={{

@@ -11,6 +11,7 @@ import * as integrations   from './services/integrations.js';
 import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
 import { setupCronJobs }   from './lib/digest.js';
+import { publicOrigin }    from './lib/env.js';
 
 import authRoutes        from './routes/auth.js';
 import accountRoutes     from './routes/account.js';
@@ -22,6 +23,7 @@ import githubRoutes      from './routes/github.js';
 import digestRoutes      from './routes/digest.js';
 import webhooksRoutes    from './routes/webhooks.js';
 import contentRoutes     from './routes/content.js';
+import actionsRoutes     from './routes/actions.js';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -29,9 +31,7 @@ const PORT = process.env.PORT ?? 3001;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3001',
-  process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : null,
+  publicOrigin(),
 ].filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
@@ -50,6 +50,7 @@ app.use(githubRoutes);
 app.use(digestRoutes);
 app.use(webhooksRoutes);
 app.use(contentRoutes);
+app.use(actionsRoutes);
 
 // ─── Serve React build in production ─────────────────────────────────────────
 

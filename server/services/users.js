@@ -2,6 +2,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdatePasswordHash, dbDeleteUser, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
+import { isHttps } from '../lib/env.js';
 
 export { dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser };
 
@@ -66,7 +67,7 @@ export function setRefreshCookie(res, user) {
   res.cookie('refresh_token', signRefreshToken(user), {
     httpOnly:  true,
     sameSite:  'lax',
-    secure:    !!process.env.RAILWAY_PUBLIC_DOMAIN,
+    secure:    isHttps(),
     maxAge:    30 * 24 * 60 * 60 * 1000, // 30 days in ms
     path:      '/api/auth/refresh',
   });

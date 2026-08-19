@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import * as integrations from './integrations.js';
 import { getPool } from './db.js';
 import { decrypt } from './encryption.js';
+import { publicOrigin } from '../lib/env.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const TOKENS_DIR = path.join(__dirname, '..', 'tokens');
@@ -55,9 +56,7 @@ function migrateLegacy() {
 migrateLegacy();
 
 export function createOAuth2Client() {
-  const baseURL = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : 'http://localhost:3001';
+  const baseURL = publicOrigin() ?? 'http://localhost:3001';
 
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -154,6 +153,18 @@ export function isConnected(userId) {
   }
 }
 
+// Disconnect Google for a user — clears both the local token file cache and
+// the DB-stored blob, so isConnected()/getAuthClient() stop seeing it as connected.
+export async function disconnectUser(userId) {
+  const tPath = tokenPath(userId);
+  if (fs.existsSync(tPath)) fs.unlinkSync(tPath);
+  try {
+    await integrations.deleteService(String(userId), 'google');
+  } catch (err) {
+    console.warn('[auth] Could not clear Google tokens from DB:', err.message);
+  }
+}
+
 export function getConnectedUserIds() {
   ensureTokensDir();
   try {
@@ -171,4 +182,4 @@ export function getAuthUrl(state = '') {
   return createOAuth2Client().generateAuthUrl(opts);
 }
 
-export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB };
+export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB, disconnectUser };

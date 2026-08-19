@@ -2,10 +2,19 @@
 // AES-256-GCM authenticated encryption for stored API keys.
 // ENCRYPTION_SECRET → 32-byte key via scrypt. Never store the secret in the DB.
 import crypto from 'crypto';
+import { isProduction } from '../lib/env.js';
 
 const SECRET = process.env.ENCRYPTION_SECRET;
 
 if (!SECRET) {
+  if (isProduction()) {
+    console.error(
+      '[encryption] ENCRYPTION_SECRET is not set in production. Refusing to start — ' +
+      'without it, stored credentials would be encrypted under a hardcoded key shipped in source. ' +
+      'Set ENCRYPTION_SECRET before deploying.'
+    );
+    process.exit(1);
+  }
   console.warn(
     '[encryption] ENCRYPTION_SECRET not set — using insecure dev fallback. ' +
     'Set this variable in Railway before storing real user keys.'

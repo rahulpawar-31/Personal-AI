@@ -160,8 +160,10 @@ export async function updatePreferences(userId, prefs = {}) {
 export async function saveFact(userId, key, value) {
   const mem = await load(userId);
   if (!mem.facts) mem.facts = [];
+  // Cap so one fact can't dominate the context re-injected into every future prompt.
+  const safeValue = String(value).slice(0, 300);
   const idx   = mem.facts.findIndex(f => f.key.toLowerCase() === key.toLowerCase());
-  const entry = { key, value, savedAt: new Date().toISOString() };
+  const entry = { key, value: safeValue, savedAt: new Date().toISOString() };
   if (idx >= 0) mem.facts[idx] = entry;
   else mem.facts.push(entry);
   if (mem.facts.length > 100) mem.facts = mem.facts.slice(-100);

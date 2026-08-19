@@ -8,21 +8,20 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
+import { publicOrigin, isHttps } from '../lib/env.js';
 
 function setNonceCookie(res, nonce) {
   res.cookie('oauth_nonce', nonce, {
     httpOnly: true,
     sameSite: 'lax',
-    secure:   !!process.env.RAILWAY_PUBLIC_DOMAIN,
+    secure:   isHttps(),
     maxAge:   10 * 60 * 1000,
   });
 }
 
 const router = Router();
 
-const frontendURL = () => process.env.RAILWAY_PUBLIC_DOMAIN
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : (process.env.APP_URL ?? 'http://localhost:5173');
+const frontendURL = () => publicOrigin() ?? (process.env.APP_URL ?? 'http://localhost:5173');
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 
@@ -62,19 +61,6 @@ router.get('/api/auth/google/signin', (req, res) => {
   const nonce = crypto.randomBytes(16).toString('hex');
   setNonceCookie(res, nonce);
   res.redirect(auth.getAuthUrl(`mode:signin:nonce:${nonce}`));
-});
-
-router.get('/api/auth/google', (req, res) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return res.redirect(`${frontendURL()}/`);
-  try {
-    const payload = userService.verifyToken(header.slice(7));
-    const fromSettings = req.query.from === 'settings';
-    const state = `uid:${payload.userId}${fromSettings ? ':from:settings' : ''}`;
-    res.redirect(auth.getAuthUrl(state));
-  } catch {
-    return res.redirect(`${frontendURL()}/`);
-  }
 });
 
 router.get('/api/auth/google/callback', async (req, res) => {
@@ -161,6 +147,15 @@ router.get('/api/auth/google/email', requireAuth, async (req, res) => {
 
 router.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ connected: auth.isConnected(req.user.userId) });
+});
+
+router.post('/api/auth/google/disconnect', requireAuth, async (req, res) => {
+  try {
+    await auth.disconnectUser(req.user.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Account auth ─────────────────────────────────────────────────────────────

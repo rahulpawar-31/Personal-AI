@@ -67,7 +67,7 @@ async function _runDigest(userId = null) {
     blockers:  digest.tasks.blockers.length    + ' blockers',
   });
 
-  await slack.sendDigest(digest);
+  await slack.sendDigest(digest, creds);
   return digest;
 }
 
@@ -91,10 +91,12 @@ export function setupCronJobs() {
       try {
         const conflicts = await calendar.scanConflicts(userId);
         if (conflicts.length) {
+          const creds = await getUserCreds(userId);
           await slack.sendAlert(
             `${conflicts.length} calendar conflict(s) today`,
             conflicts.map(c => `${c.eventA.title} ↔ ${c.eventB.title}`).join('\n'),
-            'high'
+            'high',
+            creds
           );
         }
         await calendar.blockFocusTime(userId);
