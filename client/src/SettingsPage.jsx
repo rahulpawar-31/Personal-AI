@@ -498,13 +498,15 @@ function MultiKeyRow({ service, label, description, fields: fieldDefs, saved, te
 
 // ─── Google row ───────────────────────────────────────────────────────────────
 
-function GoogleRow({ connected, email, onConnect, error }) {
+function GoogleRow({ connected, email, onConnect, onDisconnect, error }) {
   return (
     <IntegrationRow
       service="google" label="Google"
       connected={connected} keyHint={email}
       actionSlot={
-        <ToggleBtn expanded={false} connected={connected} onClick={onConnect} />
+        connected
+          ? <button onClick={onDisconnect} style={{ fontSize: 12, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Disconnect</button>
+          : <ToggleBtn expanded={false} connected={connected} onClick={onConnect} />
       }
     >
       {error && <ErrorMsg msg={error} />}
@@ -750,6 +752,17 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
     }
   }
 
+  async function handleGoogleDisconnect() {
+    setGoogleError(null);
+    try {
+      await apiFetch('/api/auth/google/disconnect', { method: 'POST' });
+      setGoogleConnected(false);
+      setGoogleEmail(null);
+    } catch {
+      setGoogleError('Network error — is the server running?');
+    }
+  }
+
   async function testAndSave(service, payload) {
     setTesting(service);
     setErrors(e => ({ ...e, [service]: null }));
@@ -879,6 +892,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
           connected={googleConnected}
           email={googleEmail}
           onConnect={handleGoogleConnect}
+          onDisconnect={handleGoogleDisconnect}
           error={googleError}
         />
       </IntegrationGroup>

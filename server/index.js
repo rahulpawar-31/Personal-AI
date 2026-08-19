@@ -22,6 +22,7 @@ import githubRoutes      from './routes/github.js';
 import digestRoutes      from './routes/digest.js';
 import webhooksRoutes    from './routes/webhooks.js';
 import contentRoutes     from './routes/content.js';
+import actionsRoutes     from './routes/actions.js';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -50,6 +51,7 @@ app.use(githubRoutes);
 app.use(digestRoutes);
 app.use(webhooksRoutes);
 app.use(contentRoutes);
+app.use(actionsRoutes);
 
 // ─── Serve React build in production ─────────────────────────────────────────
 

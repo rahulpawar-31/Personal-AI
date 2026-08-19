@@ -2,14 +2,22 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import auth   from '../services/auth.js';
 import slack  from '../services/slack.js';
+import github from '../services/github.js';
 import { getUserCreds } from '../lib/creds.js';
 
 const router = Router();
 
-async function findSlackUser() {
+// Find the connected user who actually owns `repoFullName` (via their stored
+// GITHUB_OWNER/GITHUB_REPO/GITHUB_REPOS) and has Slack configured. Returns
+// null — rather than guessing at some other connected user — if no owner matches.
+async function findOwnerCreds(repoFullName) {
+  if (!repoFullName) return null;
+  const target = repoFullName.toLowerCase();
   for (const uid of auth.getConnectedUserIds()) {
     const c = await getUserCreds(Number(uid));
-    if (c.SLACK_BOT_TOKEN && c.SLACK_USER_ID) return c;
+    if (!c.SLACK_BOT_TOKEN || !c.SLACK_USER_ID) continue;
+    const repos = github.getRepos(c).map(r => r.toLowerCase());
+    if (repos.includes(target)) return c;
   }
   return null;
 }
@@ -40,8 +48,11 @@ router.post('/api/webhook/github', async (req, res) => {
   const body  = req.body;
 
   try {
-    const creds = await findSlackUser();
-    if (!creds) return;
+    const creds = await findOwnerCreds(body.repository?.full_name);
+    if (!creds) {
+      console.log(`[webhook/github] no connected owner found for repo "${body.repository?.full_name ?? 'unknown'}" — skipping delivery`);
+      return;
+    }
 
     if (event === 'pull_request') {
       const pr     = body.pull_request;

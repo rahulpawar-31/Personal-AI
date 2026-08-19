@@ -4,8 +4,17 @@
 import crypto from 'crypto';
 
 const SECRET = process.env.ENCRYPTION_SECRET;
+const IS_PRODUCTION = !!process.env.RAILWAY_PUBLIC_DOMAIN;
 
 if (!SECRET) {
+  if (IS_PRODUCTION) {
+    console.error(
+      '[encryption] ENCRYPTION_SECRET is not set in production. Refusing to start — ' +
+      'without it, stored credentials would be encrypted under a hardcoded key shipped in source. ' +
+      'Set ENCRYPTION_SECRET in Railway before deploying.'
+    );
+    process.exit(1);
+  }
   console.warn(
     '[encryption] ENCRYPTION_SECRET not set — using insecure dev fallback. ' +
     'Set this variable in Railway before storing real user keys.'
