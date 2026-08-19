@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import * as integrations from './integrations.js';
 import { getPool } from './db.js';
 import { decrypt } from './encryption.js';
+import { publicOrigin } from '../lib/env.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const TOKENS_DIR = path.join(__dirname, '..', 'tokens');
@@ -55,9 +56,7 @@ function migrateLegacy() {
 migrateLegacy();
 
 export function createOAuth2Client() {
-  const baseURL = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : 'http://localhost:3001';
+  const baseURL = publicOrigin() ?? 'http://localhost:3001';
 
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
