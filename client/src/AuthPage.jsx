@@ -27,6 +27,10 @@ export default function AuthPage({ onAuth }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (username.includes('@')) {
+      setError('Username can\'t contain "@" — that looks like an email address. Put your email in the email field instead.');
+      return;
+    }
     setLoading(true);
     try {
       const body = { username, password };
@@ -80,15 +84,20 @@ export default function AuthPage({ onAuth }) {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input
+            name="username"
+            id="username"
+            type="text"
             placeholder="Username"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
             autoFocus
-            autoComplete={isSignup ? 'off' : 'username'}
+            autoComplete="username"
           />
           {isSignup && (
             <input
+              name="email"
+              id="email"
               type="email"
               placeholder="Email (optional)"
               value={email}
@@ -98,6 +107,8 @@ export default function AuthPage({ onAuth }) {
           )}
           <div style={{ position: 'relative' }}>
             <input
+              name="password"
+              id="password"
               type={showPwd ? 'text' : 'password'}
               placeholder="Password"
               value={password}
