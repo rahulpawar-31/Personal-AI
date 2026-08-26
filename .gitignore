@@ -10,3 +10,4 @@ server/fix-notion-token.mjs
 dist/
 .DS_Store
 .claude/
+.vercel
