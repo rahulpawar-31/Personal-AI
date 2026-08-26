@@ -55,8 +55,14 @@ function migrateLegacy() {
 
 migrateLegacy();
 
-export function createOAuth2Client() {
-  const baseURL = publicOrigin() ?? 'http://localhost:3001';
+// baseURLOverride: used when the OAuth flow was initiated from a different
+// browser-visible origin than this server's own (e.g. a CDN-fronted deploy
+// that proxies /api/* here) — the redirect_uri must match exactly between
+// the authorize and token-exchange steps, so the callback re-derives the
+// same override from the OAuth `state` param. Callers must validate it
+// against lib/env.js's isAllowedOrigin() before passing it in.
+export function createOAuth2Client(baseURLOverride) {
+  const baseURL = baseURLOverride ?? publicOrigin() ?? 'http://localhost:3001';
 
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -164,10 +170,10 @@ export function getConnectedUserIds() {
   }
 }
 
-export function getAuthUrl(state = '') {
+export function getAuthUrl(state = '', baseURLOverride) {
   const opts = { access_type: 'offline', scope: SCOPES, prompt: 'consent' };
   if (state) opts.state = state;
-  return createOAuth2Client().generateAuthUrl(opts);
+  return createOAuth2Client(baseURLOverride).generateAuthUrl(opts);
 }
 
 export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB };

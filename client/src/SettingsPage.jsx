@@ -734,7 +734,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
   async function handleGoogleConnect() {
     setGoogleError(null);
     try {
-      const r = await apiFetch('/api/auth/google/init?from=settings');
+      const r = await apiFetch(`/api/auth/google/init?from=settings&origin=${encodeURIComponent(window.location.origin)}`);
       if (r.status === 401) {
         setGoogleError('Your session expired. Please sign out and sign back in, then try again.');
         return;

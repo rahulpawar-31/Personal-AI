@@ -23,3 +23,23 @@ export function publicOrigin() {
 export function isHttps() {
   return publicOrigin()?.startsWith('https://') ?? false;
 }
+
+// Extra frontend origins allowed to embed the app or initiate OAuth — e.g. a
+// CDN-fronted deploy (Vercel) that proxies /api/* to this backend, so it has
+// a different browser-visible origin than publicOrigin(). Comma-separated.
+export function extraOrigins() {
+  return (process.env.EXTRA_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(s => s.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
+// True if `origin` (scheme + host) is this server's own public origin or one
+// of the explicitly-trusted extras above. Used to validate any client-supplied
+// origin before treating it as a redirect target (OAuth callback, etc.) —
+// never trust it unchecked, that's an open-redirect / host-injection risk.
+export function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  const clean = origin.replace(/\/+$/, '');
+  return clean === publicOrigin() || extraOrigins().includes(clean);
+}

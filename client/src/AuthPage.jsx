@@ -174,7 +174,7 @@ export default function AuthPage({ onAuth }) {
           <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
         </div>
 
-        <a href="/api/auth/google/signin" style={{ textDecoration: 'none', display: 'block' }}>
+        <a href={`/api/auth/google/signin?origin=${encodeURIComponent(window.location.origin)}`} style={{ textDecoration: 'none', display: 'block' }}>
           <button
             type="button"
             style={{
