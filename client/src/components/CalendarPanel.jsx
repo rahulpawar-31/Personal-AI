@@ -188,7 +188,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
 
               return (
                 <div key={di} style={{
-                  minHeight: 96,
+                  height: 128,
                   padding: '8px 8px 6px',
                   borderRight: di < 6 ? '1px solid var(--border)' : 'none',
                   background: isToday ? 'rgba(99,102,241,0.03)' : 'var(--bg)',
