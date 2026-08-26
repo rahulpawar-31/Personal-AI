@@ -1,0 +1,69 @@
+services:
+  - type: web
+    name: devos
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm install && npm install --prefix client && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PUBLIC_URL is not set here — Render's own RENDER_EXTERNAL_URL is picked
+      # up automatically (see server/lib/env.js). Only set PUBLIC_URL if you
+      # point a custom domain at this service.
+
+      # ── Required ────────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false
+      - key: ENCRYPTION_SECRET
+        sync: false
+      - key: OWNER_USERNAME
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+      # ── Google OAuth (Gmail + Calendar) — optional but recommended ─────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # ── Optional integrations ───────────────────────────────────────────
+      - key: NOTION_API_KEY
+        sync: false
+      - key: NOTION_TASKS_DB_ID
+        sync: false
+      - key: NOTION_NOTES_DB_ID
+        sync: false
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_USER_ID
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_OWNER
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: TRELLO_API_KEY
+        sync: false
+      - key: TRELLO_TOKEN
+        sync: false
+      - key: TRELLO_BOARD_ID
+        sync: false
+      - key: TODOIST_API_KEY
+        sync: false
+      - key: LINKEDIN_WEBHOOK_URL
+        sync: false
+      - key: USER_TIMEZONE
+        sync: false
+      - key: LANGSMITH_API_KEY
+        sync: false

@@ -9,9 +9,12 @@ export function isProduction() {
 
 // The externally-reachable origin (scheme + host, no trailing slash), or null
 // if unknown (e.g. plain local dev) — callers decide their own fallback.
+// Falls back to RENDER_EXTERNAL_URL, which Render injects automatically on
+// every Web Service — no manual PUBLIC_URL needed for that host specifically.
 export function publicOrigin() {
-  if (!process.env.PUBLIC_URL) return null;
-  return process.env.PUBLIC_URL.replace(/\/+$/, '');
+  const url = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL;
+  if (!url) return null;
+  return url.replace(/\/+$/, '');
 }
 
 // Cookies must only be marked Secure when actually served over HTTPS — an
