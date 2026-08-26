@@ -35,7 +35,11 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+// Capture the raw request body alongside the parsed one — needed to verify the
+// GitHub webhook HMAC signature, which is computed over the exact bytes GitHub
+// sent (re-serializing the parsed JSON can produce different bytes and always
+// fail verification).
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(cookieParser());
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

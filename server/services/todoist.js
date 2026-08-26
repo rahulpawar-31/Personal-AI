@@ -79,11 +79,24 @@ export async function updateTask(taskId, patches = {}, creds = {}) {
     const body = {};
     if (patches.title)   body.content    = patches.title;
     if (patches.dueDate) body.due_string = patches.dueDate;
-    const res = await fetch(`${BASE}/tasks/${taskId}`, {
-      method: 'POST', headers: headers(creds), body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text()}`);
-    return formatTask(await res.json());
+
+    let result = null;
+    if (Object.keys(body).length) {
+      const res = await fetch(`${BASE}/tasks/${taskId}`, {
+        method: 'POST', headers: headers(creds), body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text()}`);
+      result = formatTask(await res.json());
+    }
+
+    // Todoist's task-update endpoint doesn't accept completion status —
+    // it must go through the separate close/reopen endpoints.
+    if (patches.status) {
+      await updateTaskStatus(taskId, patches.status, creds);
+      result = { ...(result ?? { id: taskId }), status: patches.status };
+    }
+
+    return result ?? { id: taskId };
   } catch (err) {
     console.error('[todoist] updateTask:', err.message);
     throw err;

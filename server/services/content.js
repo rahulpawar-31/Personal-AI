@@ -5,8 +5,8 @@ import github  from './github.js';
 
 // ─── LinkedIn post generator ──────────────────────────────────────────────────
 
-export async function draftLinkedInPost(source) {
-  const { voiceProfile } = memory.getMemory();
+export async function draftLinkedInPost(source, userId) {
+  const { voiceProfile } = await memory.getMemory(userId);
 
   const voiceContext = voiceProfile.approvedDrafts.length
     ? `\nVoice examples (approved posts by this user):\n${voiceProfile.approvedDrafts.filter(d => d.type === 'linkedin').slice(-3).map(d => d.edited).join('\n---\n')}`
@@ -71,7 +71,7 @@ export async function suggestREADMEUpdates(currentReadme, recentPRs = []) {
 
 // ─── Note → content seed ──────────────────────────────────────────────────────
 
-export async function noteToContent(note) {
+export async function noteToContent(note, userId) {
   const classified = await llm.classify(
     `Raw note: "${note}"\nWhat content type would this make best? Options: linkedin_post, blog_draft, internal_doc, not_content`,
     '{ "contentType": "string", "reasoning": "string", "worthPublishing": true }'
@@ -80,7 +80,7 @@ export async function noteToContent(note) {
   if (!classified.worthPublishing) return null;
 
   if (classified.contentType === 'linkedin_post') {
-    return draftLinkedInPost(note);
+    return draftLinkedInPost(note, userId);
   }
 
   return { type: classified.contentType, source: note, note: classified.reasoning };

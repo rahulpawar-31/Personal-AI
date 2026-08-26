@@ -148,19 +148,28 @@ export async function scanConflicts(userId) {
   const events    = await getWeekEvents(userId);
   const conflicts = [];
 
-  for (let i = 0; i < events.length - 1; i++) {
+  // events are sorted by start time (getWeekEvents uses orderBy:'startTime'),
+  // so for a fixed `a`, gapMin only grows as `b` moves later — safe to break
+  // out of the inner loop once we're past both overlap and back-to-back range.
+  for (let i = 0; i < events.length; i++) {
     const a = events[i];
-    const b = events[i + 1];
-    if (!a.start || !a.end || !b.start) continue;
+    if (!a.start || !a.end) continue;
+    const aEnd = new Date(a.end).getTime();
 
-    const aEnd   = new Date(a.end).getTime();
-    const bStart = new Date(b.start).getTime();
-    const gapMin = (bStart - aEnd) / 60000;
+    for (let j = i + 1; j < events.length; j++) {
+      const b = events[j];
+      if (!b.start) continue;
 
-    if (gapMin < 0) {
-      conflicts.push({ type: 'overlap',      eventA: a, eventB: b, overlapMin: Math.abs(gapMin) });
-    } else if (gapMin < 10) {
-      conflicts.push({ type: 'back_to_back', eventA: a, eventB: b, gapMin });
+      const bStart = new Date(b.start).getTime();
+      const gapMin = (bStart - aEnd) / 60000;
+
+      if (gapMin < 0) {
+        conflicts.push({ type: 'overlap',      eventA: a, eventB: b, overlapMin: Math.abs(gapMin) });
+      } else if (gapMin < 10) {
+        conflicts.push({ type: 'back_to_back', eventA: a, eventB: b, gapMin });
+      } else {
+        break;
+      }
     }
   }
 

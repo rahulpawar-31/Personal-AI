@@ -113,7 +113,6 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
     setLoading(true);
     setStatusText('Connecting…');
 
-    const token = localStorage.getItem('devos_token');
     let assistantContent = '';
     let assistantAdded   = false;
 
@@ -139,10 +138,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
     }
 
     try {
-      const response = await fetch('/api/chat', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ message: text, history: messages.slice(-10) }),
+      const response = await apiFetch('/api/chat', {
+        method: 'POST',
+        body:   JSON.stringify({ message: text, history: messages.slice(-10) }),
       });
 
       if (!response.ok) {

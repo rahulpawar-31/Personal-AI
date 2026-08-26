@@ -70,7 +70,9 @@ router.get('/api/auth/google', (req, res) => {
   try {
     const payload = userService.verifyToken(header.slice(7));
     const fromSettings = req.query.from === 'settings';
-    const state = `uid:${payload.userId}${fromSettings ? ':from:settings' : ''}`;
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const state = `uid:${payload.userId}${fromSettings ? ':from:settings' : ''}:nonce:${nonce}`;
+    setNonceCookie(res, nonce);
     res.redirect(auth.getAuthUrl(state));
   } catch {
     return res.redirect(`${frontendURL()}/`);

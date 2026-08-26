@@ -223,9 +223,14 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
   async function archive(id, e) {
     e?.stopPropagation();
-    await apiFetch('/api/email/archive', { method: 'POST', body: JSON.stringify({ id }) });
-    setEmails(prev => prev.filter(x => x.id !== id));
-    if (openId === id) setOpenId(null);
+    try {
+      const r = await apiFetch('/api/email/archive', { method: 'POST', body: JSON.stringify({ id }) });
+      if (!r.ok) { toast('Could not archive email', 'error'); return; }
+      setEmails(prev => prev.filter(x => x.id !== id));
+      if (openId === id) setOpenId(null);
+    } catch {
+      toast('Could not archive email', 'error');
+    }
   }
 
   function onReplySent(id) {

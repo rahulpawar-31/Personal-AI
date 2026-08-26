@@ -104,7 +104,16 @@ async function load(userId) {
 
 async function save(userId, data) {
   _cache.set(userId, data);
-  await saveToDB(userId, data); // throws on DB failure — callers surface the error
+  try {
+    await saveToDB(userId, data); // throws on DB failure — callers surface the error
+  } catch (err) {
+    // Callers (addVIP, updatePreferences, etc.) mutate the cached object in
+    // place before calling save(), so it may already reflect this change
+    // even though the DB write just failed. Evict it so the next read goes
+    // back to the DB/disk instead of silently serving unpersisted data.
+    _cache.delete(userId);
+    throw err;
+  }
   writeToDisk(userId, data);
 }
 

@@ -102,6 +102,7 @@ export async function updatePassword(userId, currentPassword, newPassword) {
 }
 
 export async function deleteUser(userId, password) {
+  if (!password) throw new Error('Password is required');
   const user = await dbFindById(userId);
   if (!user) throw new Error('User not found');
   const fullUser = await dbFindByUsername(user.username);

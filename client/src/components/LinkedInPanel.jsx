@@ -70,7 +70,7 @@ export default function LinkedInPanel({ health = {} }) {
   useEffect(() => {
     apiFetch('/api/content/linkedin/history')
       .then(r => r.json())
-      .then(setHistory)
+      .then(d => setHistory(Array.isArray(d) ? d : []))
       .catch(() => {});
   }, [status]);
 

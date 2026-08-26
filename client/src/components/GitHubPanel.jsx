@@ -89,7 +89,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
     try {
       const q = activeRepo ? `?repo=${encodeURIComponent(activeRepo)}` : '';
       const data = await apiFetch(`/api/github/contributions${q}`).then(r => r.json());
-      setContributions(data);
+      setContributions(data && !data.error ? data : null);
     } catch { setContributions(null); }
     finally { setContribLoad(false); }
   }

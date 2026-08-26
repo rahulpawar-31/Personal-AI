@@ -35,7 +35,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
     try {
       const r = await apiFetch('/api/digest/run', { method: 'POST' });
       const data = await r.json();
-      setDigest(data);
+      if (r.ok) setDigest(data);
     } finally { setLoading(''); }
   }
 

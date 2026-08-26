@@ -49,7 +49,7 @@ router.get('/api/content/linkedin/history', requireAuth, async (req, res) => {
 
 router.post('/api/content/linkedin', requireAuth, async (req, res) => {
   try {
-    res.json(await content.draftLinkedInPost(req.body.source));
+    res.json(await content.draftLinkedInPost(req.body.source, req.user.userId));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

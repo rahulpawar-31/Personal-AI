@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api.js';
+import { toast } from '../toast.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -521,6 +522,7 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
   async function addTask(title) {
     const r = await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title }) });
     if (r.ok) load();
+    else toast('Could not add task', 'error');
   }
 
   async function addNote(title) {
@@ -528,12 +530,15 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
     if (r.ok) {
       const note = await r.json();
       setNotionNotes(prev => [note, ...prev]);
+    } else {
+      toast('Could not add note', 'error');
     }
   }
 
   async function toggleDone(id, status, source) {
     const next = status === 'Done' ? 'Not started' : 'Done';
-    await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id, status: next, source }) });
+    const r = await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id, status: next, source }) });
+    if (!r.ok) { toast('Could not update task', 'error'); return; }
     const up = ts => ts.map(x => x.id === id ? { ...x, status: next } : x);
     if (source === 'todoist') setTodoistTasks(up); else setNotionTasks(up);
   }
@@ -547,12 +552,14 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
 
     if (card.source === 'trello') {
       setTrelloCards(prev => prev.map(c => c.id === card.id ? { ...c, listId: targetColId } : c));
-      await apiFetch('/api/trello/move', { method: 'POST', body: JSON.stringify({ cardId: card.id, listId: targetColId }) });
+      const r = await apiFetch('/api/trello/move', { method: 'POST', body: JSON.stringify({ cardId: card.id, listId: targetColId }) });
+      if (!r.ok) toast('Could not move card — refresh to see the current state', 'error');
     } else {
       const newStatus = COL_STATUS[targetColId] ?? 'Not started';
       const up = ts => ts.map(c => c.id === card.id ? { ...c, status: newStatus } : c);
       if (card.source === 'todoist') setTodoistTasks(up); else setNotionTasks(up);
-      await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id: card.id, status: newStatus, source: card.source }) });
+      const r = await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id: card.id, status: newStatus, source: card.source }) });
+      if (!r.ok) toast('Could not update task — refresh to see the current state', 'error');
     }
     dragging.current = null;
   }

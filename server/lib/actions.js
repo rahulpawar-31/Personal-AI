@@ -408,7 +408,7 @@ export async function executeAction(intent, params, originalMessage = '', creds 
     }
 
     case 'draft_linkedin':
-      return params.source ? await content.draftLinkedInPost(params.source) : null;
+      return params.source ? await content.draftLinkedInPost(params.source, userId) : null;
 
     default:
       return null;

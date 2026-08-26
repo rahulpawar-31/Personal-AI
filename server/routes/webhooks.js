@@ -27,7 +27,8 @@ router.post('/api/webhook/github', async (req, res) => {
     return res.status(503).json({ error: 'Webhook not configured — set GITHUB_WEBHOOK_SECRET to enable.' });
   }
   const sig      = req.headers['x-hub-signature-256'] ?? '';
-  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(JSON.stringify(req.body)).digest('hex');
+  const payload  = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');
   const sigBuf   = Buffer.from(sig);
   const expBuf   = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {

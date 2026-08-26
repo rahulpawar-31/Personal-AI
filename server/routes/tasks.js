@@ -68,6 +68,7 @@ router.post('/api/tasks', requireAuth, async (req, res) => {
 router.post('/api/task/update', requireAuth, async (req, res) => {
   try {
     const { id, status, source } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
     const creds = await getUserCreds(req.user.userId);
     const isTodoist = source === 'todoist' || /^\d+$/.test(id);
     const result = isTodoist

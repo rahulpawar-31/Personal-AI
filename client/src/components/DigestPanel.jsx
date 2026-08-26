@@ -35,7 +35,9 @@ export default function DigestPanel({ refreshKey, onGoToSettings, health = {}, c
     setLoading(true);
     try {
       const r = await apiFetch('/api/digest/run', { method: 'POST' });
-      setDigest(await r.json());
+      const d = await r.json();
+      if (r.ok) setDigest(d);
+      else console.error('[digest] run failed:', d.error);
     } catch (e) {
       console.error(e);
     } finally {

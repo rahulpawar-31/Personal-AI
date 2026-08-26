@@ -61,7 +61,8 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
       const r = await apiFetch('/api/calendar');
       if (r.status === 401) {
         const body = await r.json().catch(() => ({}));
-        if (body.error === 'google_auth_required') { setAuthError(true); return; }
+        if (body.error === 'google_auth_required') setAuthError(true);
+        return;
       }
       const ev = await r.json();
       setEvents(Array.isArray(ev) ? ev : []);

@@ -85,7 +85,7 @@ export default function App() {
   }
 
   function fetchHealth() {
-    fetch('/api/health', { headers: { Authorization: `Bearer ${localStorage.getItem('devos_token')}` } })
+    apiFetch('/api/health')
       .then(r => r.json())
       .then(d => { setHealth(d); setConnected(d.google); })
       .catch(() => {});
@@ -114,7 +114,7 @@ export default function App() {
     setGithubRefreshKey(k => k + 1);
     setEmailRefreshKey(k => k + 1);
     setDigestRefreshKey(k => k + 1);
-    fetch('/api/health', { headers: { Authorization: `Bearer ${localStorage.getItem('devos_token')}` } })
+    apiFetch('/api/health')
       .then(r => r.json())
       .then(d => { setHealth(d); setConnected(d.google); })
       .catch(() => {});
@@ -149,7 +149,10 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('devos_token');
     if (token) {
-      fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } })
+      // Use apiFetch (not raw fetch) so an expired 15m access token gets a
+      // silent refresh attempt via the httpOnly refresh cookie before we
+      // give up and treat the session as logged out.
+      apiFetch('/api/users/me')
         .then(async r => {
           if (r.ok) return r.json();
           // Only clear the token on 401 (invalid/expired token).
