@@ -22,9 +22,9 @@ DevOS is a personal AI command centre that unifies every tool a professional use
 |---|---|
 | Server | Node.js ESM + Express 5, `server/index.js` |
 | Client | React + Vite, `client/src/App.jsx` |
-| Deployment | Railway (Nixpacks), single process serves API + React |
+| Deployment | Any Node host (Docker/VPS/PaaS), single process serves API + React |
 | LLM | Gemini + Groq via `server/services/llm.js` |
-| Database | PostgreSQL (Railway plugin) with `server/users.json` fallback |
+| Database | PostgreSQL (Neon) with `server/users.json` fallback |
 
 ### 2.2 Integrations Already Wired
 - **Google** — Gmail (read/send), Google Calendar (events)
@@ -169,7 +169,7 @@ A separate `/admin` route protected by a role flag (`is_admin` column on users):
 - Total user count, signups over time (simple table)
 - Per-user: which integrations connected, last login, account created date
 - Ability to delete a user account
-- System health: DB connection, env vars present, Railway status
+- System health: DB connection, env vars present, host status
 
 ---
 
@@ -201,9 +201,9 @@ Allow users to optionally share a workspace (team view):
 |---|---|
 | **Security** | All credentials encrypted at rest (AES-256, `server/services/encryption.js`). JWT secret via `JWT_SECRET` env var. No credential ever returned in plaintext via API |
 | **Performance** | Panel data loads within 2 s for users with ≤ 5 integrations connected |
-| **Uptime** | Railway auto-restart on crash. No planned downtime for credential saves |
+| **Uptime** | Host-level auto-restart on crash (e.g. `restart: on-failure` / a process manager). No planned downtime for credential saves |
 | **Privacy** | Zero cross-user data leakage. Enforced at DB query level (all queries include `WHERE user_id = $1`) |
-| **Scalability** | Postgres connection pooling (`pg.Pool`). Stateless server — any number of Railway replicas can serve any user |
+| **Scalability** | Postgres connection pooling (`pg.Pool`). Stateless server — any number of replicas can serve any user |
 
 ---
 

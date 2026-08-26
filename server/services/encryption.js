@@ -8,7 +8,7 @@ const SECRET = process.env.ENCRYPTION_SECRET;
 if (!SECRET) {
   console.warn(
     '[encryption] ENCRYPTION_SECRET not set — using insecure dev fallback. ' +
-    'Set this variable in Railway before storing real user keys.'
+    'Set this variable in your deployment environment before storing real user keys.'
   );
 }
 

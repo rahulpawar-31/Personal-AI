@@ -39,14 +39,14 @@ Affected panels refresh automatically
 |---|---|---|
 | Frontend | React 19 + Vite 6 | Fast HMR, minimal boilerplate |
 | Backend | Express 5 (Node, ESM) | Lightweight, easy SSE streaming |
-| Database | Neon Postgres + JSON fallback | Neon = serverless on Railway; JSON = zero infra locally |
+| Database | Neon Postgres + JSON fallback | Neon = managed serverless Postgres; JSON = zero infra locally |
 | Auth | JWT + Google OAuth2 | Stateless JWT; Google = SSO for devs already on Google Workspace |
 | Encryption | AES-256-GCM (scrypt) | Per-user API keys stored encrypted — unreadable even with DB access |
 | Primary LLM | Gemini 2.0 Flash | Free tier, 1M-token context, handles digest/changelog/content |
 | Fast LLM | Groq Llama 3.1 8B | Sub-second latency for chat triage and classification |
 | Agent framework | LangChain + LangGraph | Structured tool-calling loop, Zod-typed tools |
 | Tracing | LangSmith | Debug LLM calls in production — prompts, latency, token counts |
-| Deployment | Railway + Nixpacks | Zero-config deploy from git push, auto-restart on failure |
+| Deployment | Any Node host (Docker/VPS/PaaS) | `NODE_ENV` + `PUBLIC_URL` env vars — no platform lock-in |
 
 ---
 
@@ -132,7 +132,7 @@ The server boots in this order:
 
 1. **`tracing.js`** imported first — sets LangSmith env vars before any LangChain module loads
 2. **`initDB()`** — connects to Postgres or sets up JSON fallback; creates 4 tables: `users`, `user_integrations`, `user_memory`, `email_cache`
-3. **`auth.restoreAllFromDB()`** — re-hydrates Google token files from DB (Railway wipes the filesystem on every restart)
+3. **`auth.restoreAllFromDB()`** — re-hydrates Google token files from DB (guards against hosts with an ephemeral filesystem, wiped on every restart)
 4. **`migrateEnvCredentials()`** — imports any env var credentials into the DB for user ID 1 (idempotent)
 5. **`migrateJsonIntegrations()`** — one-time migration of `users.json` + `integrations.json` → Postgres on first boot
 6. **`setupCronJobs()`** — morning digest (9 AM) + calendar conflict check (7 AM)
@@ -254,7 +254,7 @@ App.jsx: same panel refresh logic as classic mode
 ### Data Storage — Two-tier
 
 ```
-Production (Railway):
+Production:
   Postgres (Neon)
   ├── users table            — id, username, email, bcrypt hash, google_id, is_admin
   ├── user_integrations      — user_id, service, key_name, key_value (AES encrypted)
@@ -641,7 +641,8 @@ TODOIST_API_KEY=...
 LINKEDIN_WEBHOOK_URL=https://...
 
 # Deployment
-RAILWAY_PUBLIC_DOMAIN=myapp.railway.app
+NODE_ENV=production
+PUBLIC_URL=https://your-domain-or-ip
 PORT=3001
 JWT_SECRET=<random string>
 USER_TIMEZONE=America/New_York
@@ -658,7 +659,7 @@ The 2000-line monolith is now a 160-line thin entry point. All routes live in `s
 `memory.json` (global, bleeds across accounts) replaced by a `user_memory` table in Postgres. Every function in `memory.js` now takes `userId` as its first argument. JSON file fallback (`memory_{userId}.json`) for local dev. Old `memory.json` is migrated for user ID 1 on first load.
 
 ### ⏳ 3. Real job queue
-`node-cron` is still used for digest scheduling. BullMQ + Redis would be more reliable (survives restarts, per-user scheduling, retries) but requires an external Redis instance. Flagged for when Railway Redis addon is added.
+`node-cron` is still used for digest scheduling. BullMQ + Redis would be more reliable (survives restarts, per-user scheduling, retries) but requires an external Redis instance. Flagged for when a managed Redis instance is added.
 
 ### ⏳ 4. Merge chat paths
 `/api/chat` (classic SSE) and `/api/chat/agent` (LangChain JSON) still co-exist. Merging to one streaming LangGraph SSE path is the right long-term direction but requires frontend changes. Kept both paths for now.

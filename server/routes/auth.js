@@ -8,21 +8,20 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
+import { publicOrigin, isHttps } from '../lib/env.js';
 
 function setNonceCookie(res, nonce) {
   res.cookie('oauth_nonce', nonce, {
     httpOnly: true,
     sameSite: 'lax',
-    secure:   !!process.env.RAILWAY_PUBLIC_DOMAIN,
+    secure:   isHttps(),
     maxAge:   10 * 60 * 1000,
   });
 }
 
 const router = Router();
 
-const frontendURL = () => process.env.RAILWAY_PUBLIC_DOMAIN
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : (process.env.APP_URL ?? 'http://localhost:5173');
+const frontendURL = () => publicOrigin() ?? (process.env.APP_URL ?? 'http://localhost:5173');
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 

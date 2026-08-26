@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import auth   from '../services/auth.js';
 import slack  from '../services/slack.js';
 import { getUserCreds } from '../lib/creds.js';
+import { publicOrigin } from '../lib/env.js';
 
 const router = Router();
 
@@ -15,9 +16,7 @@ async function findSlackUser() {
 }
 
 router.get('/api/webhook/info', (req, res) => {
-  const base = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : `http://localhost:${process.env.PORT ?? 3001}`;
+  const base = publicOrigin() ?? `http://localhost:${process.env.PORT ?? 3001}`;
   res.json({ url: `${base}/api/webhook/github`, secret: !!process.env.GITHUB_WEBHOOK_SECRET });
 });
 

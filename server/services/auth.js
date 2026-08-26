@@ -1,6 +1,6 @@
 // server/services/auth.js
 // Google OAuth2 — per-user token storage.
-// Primary store: Postgres (via user_integrations) — survives Railway restarts.
+// Primary store: Postgres (via user_integrations) — survives container restarts.
 // Fallback: tokens/{userId}.json — used for local dev and as in-memory cache.
 
 import { google } from 'googleapis';
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import * as integrations from './integrations.js';
 import { getPool } from './db.js';
 import { decrypt } from './encryption.js';
+import { publicOrigin } from '../lib/env.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const TOKENS_DIR = path.join(__dirname, '..', 'tokens');
@@ -55,9 +56,7 @@ function migrateLegacy() {
 migrateLegacy();
 
 export function createOAuth2Client() {
-  const baseURL = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : 'http://localhost:3001';
+  const baseURL = publicOrigin() ?? 'http://localhost:3001';
 
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -72,7 +71,7 @@ export async function getAuthClient(userId) {
 
   // Try local file first (fast path)
   if (!fs.existsSync(tPath)) {
-    // File missing (e.g. Railway restart before restoreAllFromDB finished) — fall back to DB
+    // File missing (e.g. container restart before restoreAllFromDB finished) — fall back to DB
     try {
       const raw = await integrations.getKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS');
       if (raw) {
@@ -116,7 +115,7 @@ export async function saveTokens(tokens, userId) {
 }
 
 // Called at server startup: restores Google token files from DB.
-// Fixes the Railway case where the container filesystem is wiped on every restart.
+// Fixes the case where the container filesystem is wiped on every restart.
 export async function restoreAllFromDB() {
   const pool = getPool();
   if (!pool) return; // local dev — filesystem is persistent
