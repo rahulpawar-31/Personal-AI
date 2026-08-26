@@ -54,6 +54,32 @@ export async function getTasks(filter = 'today | overdue', creds = {}) {
     return tasks.map(formatTask);
   } catch (err) {
     console.error('[todoist] getTasks:', err.message);
+    return []
+  }
+}
+
+// The active-tasks endpoint above structurally never returns completed tasks —
+// Todoist excludes them regardless of filter. Without this, a task closed via
+// updateTaskStatus() would vanish from every column (not just move to Done) as
+// soon as the board refetches, since it's gone from the active list. Bounded to
+// the last `days` so the Done column doesn't accumulate someone's entire
+// multi-year completion history.
+export async function getRecentlyCompleted(creds = {}, days = 30) {
+  if (!isConfigured(creds)) return [];
+  try {
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    const res = await fetch(
+      `${BASE}/tasks/completed_by_completion_date?since=${encodeURIComponent(since)}&limit=200`,
+      { headers: headers(creds) }
+    );
+    if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text().catch(() => '')}`);
+    const data  = await res.json();
+    const tasks = Array.isArray(data) ? data : (data.items ?? data.results ?? []);
+    // Completed-task items carry `content`/`completed_at` but not `is_completed` —
+    // formatTask() only checks is_completed/checked, so mark it explicit here.
+    return tasks.map(t => formatTask({ ...t, is_completed: true }));
+  } catch (err) {
+    console.error('[todoist] getRecentlyCompleted:', err.message);
     return [];
   }
 }
@@ -115,4 +141,4 @@ export async function deleteTask(taskId, creds = {}) {
   }
 }
 
-export default { createTask, getTasks, updateTaskStatus, updateTask, deleteTask, isConfigured };
+export default { createTask, getTasks, getRecentlyCompleted, updateTaskStatus, updateTask, deleteTask, isConfigured };

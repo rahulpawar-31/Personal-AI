@@ -37,7 +37,14 @@ router.get('/api/tasks', requireAuth, async (req, res) => {
     const creds = await getUserCreds(req.user.userId);
     const [nr, tr] = await Promise.allSettled([
       notionReady(creds)          ? notion.getTasks(creds)  : Promise.resolve([]),
-      todoist.isConfigured(creds) ? todoist.getTasks('today | overdue', creds) : Promise.resolve([]),
+      // Merge active + recently-completed: Todoist's active-tasks endpoint
+      // never returns closed tasks, so without this a task ticked Done would
+      // vanish from the board entirely on the next refresh instead of staying
+      // in the Done column (see getRecentlyCompleted in services/todoist.js).
+      todoist.isConfigured(creds)
+        ? Promise.all([todoist.getTasks('today | overdue', creds), todoist.getRecentlyCompleted(creds)])
+            .then(([active, completed]) => [...active, ...completed])
+        : Promise.resolve([]),
     ]);
     res.json({
       notion:  nr.status === 'fulfilled' ? nr.value : [],
