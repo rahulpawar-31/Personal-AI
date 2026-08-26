@@ -189,12 +189,13 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
             const name   = r.split('/')[1];
             const active = activeRepo === r;
             return (
-              <button key={r} onClick={() => { setActiveRepo(r); setContributions(null); setBranches([]); }} style={{
+              <button key={r} title={name} onClick={() => { setActiveRepo(r); setContributions(null); setBranches([]); }} style={{
                 fontSize: 12, padding: '4px 12px', borderRadius: 20,
                 background: active ? 'var(--text)' : 'var(--surface)',
                 color:      active ? 'var(--bg)'   : 'var(--muted)',
                 border:    `0.5px solid ${active ? 'var(--text)' : 'var(--border)'}`,
                 fontWeight: active ? 600 : 400,
+                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {name}
               </button>
