@@ -8,38 +8,52 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
-import { publicOrigin, isHttps, isAllowedOrigin } from '../lib/env.js';
-
-const NONCE_COOKIE_OPTS = { httpOnly: true, sameSite: 'lax', path: '/api/auth/google' };
-
-function setNonceCookie(res, nonce) {
-  res.cookie('oauth_nonce', nonce, { ...NONCE_COOKIE_OPTS, secure: isHttps(), maxAge: 10 * 60 * 1000 });
-}
+import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
 
 const router = Router();
 
 const frontendURL = () => publicOrigin() ?? (process.env.APP_URL ?? 'http://localhost:5173');
 
 // The browser page that starts the OAuth flow may be on a different origin
-// than this server (e.g. Vercel proxying /api/* here) — the nonce cookie set
-// on THAT origin is invisible to a callback that lands on THIS server's own
-// origin, which always fails the CSRF check below. So the client tells us
+// than this server (e.g. Vercel proxying /api/* here). So the client tells us
 // its current origin, we validate it against the trusted allow-list, and if
 // valid we run the *entire* OAuth round-trip (redirect_uri + final redirect)
-// through that same origin instead, keeping the cookie same-origin throughout.
+// through that same origin instead of this server's own.
 function resolveRequestOrigin(req) {
   const requested = req.query.origin;
   if (requested && isAllowedOrigin(requested)) return requested.replace(/\/+$/, '');
   return null;
 }
 
-// Carries the resolved origin through Google's redirect (which only echoes
-// back `code`/`state`, nothing else we pass) so the callback can reconstruct
-// the identical redirect_uri the token exchange requires, and know where to
-// send the user back. base64url keeps it free of the `:`/`/` the simple
-// colon-delimited state string already uses as delimiters.
-const encodeOrigin = origin => Buffer.from(origin).toString('base64url');
-const decodeOrigin = encoded => Buffer.from(encoded, 'base64url').toString();
+// OAuth CSRF protection without a cookie: the `state` param itself carries a
+// short-lived, HMAC-signed payload (mode/uid/fromSettings/origin/issued-at).
+// A cookie-based nonce has to survive an entire browser round-trip through
+// Google's redirect chain untouched — path/domain/SameSite/Secure/proxy
+// timing all have to line up. Signing the state has no such dependency:
+// whatever Google echoes back in `state` is exactly what we signed.
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+function signState(payload) {
+  const body = Buffer.from(JSON.stringify({ ...payload, t: Date.now() })).toString('base64url');
+  const sig  = crypto.createHmac('sha256', userService.getJwtSecret()).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+
+function verifyState(stateStr) {
+  const [body, sig] = String(stateStr ?? '').split('.');
+  if (!body || !sig) return null;
+  const expected = crypto.createHmac('sha256', userService.getJwtSecret()).update(body).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    if (typeof payload.t !== 'number' || Date.now() - payload.t > STATE_TTL_MS) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 
@@ -69,18 +83,15 @@ router.get('/api/health', requireAuth, async (req, res) => {
 
 router.get('/api/auth/google/init', requireAuth, (req, res) => {
   const fromSettings = req.query.from === 'settings';
-  const nonce  = crypto.randomBytes(16).toString('hex');
   const origin = resolveRequestOrigin(req) ?? frontendURL();
-  const state  = `uid:${req.user.userId}${fromSettings ? ':from:settings' : ''}:nonce:${nonce}:origin:${encodeOrigin(origin)}`;
-  setNonceCookie(res, nonce);
+  const state  = signState({ mode: 'connect', uid: req.user.userId, fromSettings, origin });
   res.json({ url: auth.getAuthUrl(state, origin) });
 });
 
 router.get('/api/auth/google/signin', (req, res) => {
-  const nonce  = crypto.randomBytes(16).toString('hex');
   const origin = resolveRequestOrigin(req) ?? frontendURL();
-  setNonceCookie(res, nonce);
-  res.redirect(auth.getAuthUrl(`mode:signin:nonce:${nonce}:origin:${encodeOrigin(origin)}`, origin));
+  const state  = signState({ mode: 'signin', origin });
+  res.redirect(auth.getAuthUrl(state, origin));
 });
 
 router.get('/api/auth/google', (req, res) => {
@@ -89,10 +100,8 @@ router.get('/api/auth/google', (req, res) => {
   try {
     const payload = userService.verifyToken(header.slice(7));
     const fromSettings = req.query.from === 'settings';
-    const nonce  = crypto.randomBytes(16).toString('hex');
     const origin = resolveRequestOrigin(req) ?? frontendURL();
-    const state  = `uid:${payload.userId}${fromSettings ? ':from:settings' : ''}:nonce:${nonce}:origin:${encodeOrigin(origin)}`;
-    setNonceCookie(res, nonce);
+    const state  = signState({ mode: 'connect', uid: payload.userId, fromSettings, origin });
     res.redirect(auth.getAuthUrl(state, origin));
   } catch {
     return res.redirect(`${frontendURL()}/`);
@@ -100,40 +109,26 @@ router.get('/api/auth/google', (req, res) => {
 });
 
 router.get('/api/auth/google/callback', async (req, res) => {
-  const stateStr = req.query.state ?? '';
+  // CSRF/tamper check + everything we need about the initiating request all
+  // come from this one signature verification — no cookie involved.
+  const state = verifyState(req.query.state);
 
-  // The token exchange requires the EXACT redirect_uri used at authorize
-  // time, so resolve the initiating origin from state before touching the
-  // OAuth2 client at all — not after, and re-validate it (defense in depth;
-  // the nonce check below is the real CSRF guard) so a tampered state value
-  // can't be used as an open-redirect target.
-  const encodedOrigin  = stateStr.match(/origin:([A-Za-z0-9_-]+)/)?.[1];
-  let originFromState  = null;
-  if (encodedOrigin) {
-    try { originFromState = decodeOrigin(encodedOrigin); } catch { /* malformed — ignore */ }
+  // Re-validate the origin (defense in depth; the signature above is the
+  // real CSRF guard) so a state that somehow verified with an untrusted
+  // origin can't be used as an open-redirect target.
+  const originAllowed = !!(state?.origin && isAllowedOrigin(state.origin));
+  const redirectBase  = originAllowed ? state.origin : frontendURL();
+
+  if (!state) {
+    console.warn('[auth/google/callback] invalid or expired OAuth state — possible CSRF attempt or a stale/reused link');
+    return res.redirect(`${redirectBase}/?auth_error=google_failed&detail=invalid_state`);
   }
-  const originAllowed = !!(originFromState && isAllowedOrigin(originFromState));
-  const redirectBase  = originAllowed ? originFromState : frontendURL();
 
   try {
     const client     = auth.createOAuth2Client(redirectBase);
     const { tokens } = await client.getToken(req.query.code);
 
-    // CSRF: verify the nonce embedded in state matches the httpOnly cookie
-    const nonceInState  = stateStr.match(/nonce:([a-f0-9]{32})/)?.[1];
-    const nonceInCookie = req.cookies?.oauth_nonce;
-    res.clearCookie('oauth_nonce', NONCE_COOKIE_OPTS);
-    if (!nonceInState || !nonceInCookie || nonceInState !== nonceInCookie) {
-      console.warn('[auth/google/callback] nonce mismatch — possible CSRF attempt', {
-        cookiePresent: !!nonceInCookie,
-        statePresent:  !!nonceInState,
-        hadOriginInState: !!encodedOrigin,
-        originAllowed,
-      });
-      return res.redirect(`${redirectBase}/?auth_error=google_failed&detail=invalid_state`);
-    }
-
-    if (stateStr.includes('mode:signin')) {
+    if (state.mode === 'signin') {
       client.setCredentials(tokens);
       const { google: googleapis } = await import('googleapis');
       const oauth2   = googleapis.oauth2({ version: 'v2', auth: client });
@@ -170,15 +165,13 @@ router.get('/api/auth/google/callback', async (req, res) => {
       return res.redirect(`${redirectBase}/#google_token=${token}`);
     }
 
-    const uidMatch = stateStr.match(/uid:(\d+)/);
-    const userId   = uidMatch ? parseInt(uidMatch[1], 10) : null;
+    const userId = typeof state.uid === 'number' ? state.uid : null;
     if (!userId) {
       console.error('[auth/google/callback] missing uid in OAuth state');
       return res.redirect(`${redirectBase}/?auth_error=google_failed`);
     }
     await auth.saveTokens(tokens, userId);
-    const fromSettings = stateStr.includes('from:settings');
-    res.redirect(`${redirectBase}${fromSettings ? '/settings?google_connected=true' : '/?connected=true'}`);
+    res.redirect(`${redirectBase}${state.fromSettings ? '/settings?google_connected=true' : '/?connected=true'}`);
   } catch (err) {
     console.error('[auth/google/callback] FULL ERROR:', err);
     const msg = encodeURIComponent(err.message ?? 'Unknown error');

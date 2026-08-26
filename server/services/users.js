@@ -11,7 +11,7 @@ if (!process.env.JWT_SECRET) {
   console.warn('[auth] JWT_SECRET not set — using temporary secret; tokens will invalidate on restart');
 }
 
-function getJwtSecret() {
+export function getJwtSecret() {
   return process.env.JWT_SECRET || _jwtFallback;
 }
 

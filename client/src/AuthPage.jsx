@@ -86,6 +86,13 @@ export default function AuthPage({ onAuth }) {
             required
             autoFocus
             autoComplete={isSignup ? 'off' : 'username'}
+            // Chrome ignores autoComplete="off" on a field it heuristically treats
+            // as a login username (text field followed by a password field) and
+            // autofills a saved email into it anyway. readOnly until focus blocks
+            // that suggestion dropdown from ever attaching; removed immediately on
+            // focus so typing is unaffected. Only needed on signup — login *wants*
+            // the saved-username autofill.
+            {...(isSignup ? { readOnly: true, onFocus: e => e.target.removeAttribute('readonly') } : {})}
           />
           {isSignup && (
             <input
