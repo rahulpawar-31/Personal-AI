@@ -1,3 +1,5 @@
+import { groupMainNavItems } from '../navGroups.js';
+
 const ICONS = {
   digest: (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -110,18 +112,7 @@ function ServiceDot({ label, ok }) {
   );
 }
 
-// Groups the flat nav list under subtle section labels so 9 items read
-// as a hierarchy instead of one undifferentiated list.
-const GROUP_ORDER = ['Overview', 'Inbox & calendar', 'Work', 'Social'];
-const GROUP_BY_ID = {
-  digest: 'Overview', chat: 'Overview',
-  comms: 'Inbox & calendar', calendar: 'Inbox & calendar',
-  tasks: 'Work', github: 'Work',
-  linkedin: 'Social', slack: 'Social',
-};
-
 export default function Sidebar({ view, setView, navItems, user, health, connected, onLogout, onConnectGoogle, mobileOpen = false, onCloseMobile }) {
-  const mainItems = navItems.filter(n => !['settings', 'admin'].includes(n.id));
   const bottomItems = navItems.filter(n => ['settings', 'admin'].includes(n.id));
 
   const services = [
@@ -137,12 +128,7 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
     onCloseMobile?.();
   }
 
-  // Bucket by group rather than relying on nav-array adjacency — Chat and
-  // Digest are both "Overview" but aren't next to each other in navItems,
-  // so a simple adjacency check would print the "Overview" label twice.
-  const grouped = GROUP_ORDER
-    .map(group => ({ group, items: mainItems.filter(n => GROUP_BY_ID[n.id] === group) }))
-    .filter(g => g.items.length > 0);
+  const grouped = groupMainNavItems(navItems);
 
   return (
     <>
