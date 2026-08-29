@@ -11,6 +11,15 @@ import { getUserCreds, notionReady } from './creds.js';
 
 export const _digestCache = new Map(); // uid → digest
 
+async function getTasksForDigest(creds) {
+  if (notionReady(creds)) return notion.getTasks(creds);
+  if (creds.TODOIST_API_KEY) {
+    const todoist = (await import('../services/todoist.js')).default;
+    return todoist.getTasks('today | overdue', creds);
+  }
+  return [];
+}
+
 async function _runDigest(userId = null) {
   console.log('[digest] starting all sub-agents...');
   const creds = userId ? await getUserCreds(userId) : {};
@@ -31,11 +40,7 @@ async function _runDigest(userId = null) {
       : Promise.resolve({ events: [], conflicts: [] }),
 
     Promise.all([
-      notionReady(creds) ? notion.getTasks(creds) : (
-        creds.TODOIST_API_KEY
-          ? (await import('../services/todoist.js')).default.getTasks('today | overdue', creds)
-          : []
-      ),
+      getTasksForDigest(creds),
       github.forEachRepo(repo => github.scanStalePRs(3, repo, creds), creds),
       trello.scanStaleCards(5, creds),
     ]).then(([tasks, stalePRs, staleCards]) => ({
@@ -62,9 +67,9 @@ async function _runDigest(userId = null) {
   };
 
   console.log('[digest] complete —', {
-    comms:     digest.comms.pending.length     + ' pending',
-    conflicts: digest.calendar.conflicts.length + ' conflicts',
-    blockers:  digest.tasks.blockers.length    + ' blockers',
+    comms:     `${digest.comms.pending.length} pending`,
+    conflicts: `${digest.calendar.conflicts.length} conflicts`,
+    blockers:  `${digest.tasks.blockers.length} blockers`,
   });
 
   await slack.sendDigest(digest, creds);
@@ -73,7 +78,7 @@ async function _runDigest(userId = null) {
 
 export async function runDigest(userId = null) {
   const digest = await _runDigest(userId);
-  if (userId != null) _digestCache.set(String(userId), digest);
+  if (userId !== null && userId !== undefined) _digestCache.set(String(userId), digest);
   return digest;
 }
 

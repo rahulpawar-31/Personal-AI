@@ -93,13 +93,8 @@ function buildTools({ executeAction, message, creds, userId }) {
 
 const SYSTEM_PROMPT = (connectedTools, memContext) => {
   const today = new Date().toDateString();
-  return (
-    `You are DevOS, a personal AI command-centre agent. ` +
-    `Today is ${today}. Connected tools: ${connectedTools || 'none yet'}. ` +
-    `Use the available tools to fetch real data or perform actions — never invent events, tasks, emails, PRs, or names. ` +
-    `If a tool returns an empty list, say so plainly. Keep replies concise and direct.` +
-    (memContext ? ` User context: ${memContext}` : '')
-  );
+  const memContextSuffix = memContext ? ` User context: ${memContext}` : '';
+  return `You are DevOS, a personal AI command-centre agent. Today is ${today}. Connected tools: ${connectedTools || 'none yet'}. Use the available tools to fetch real data or perform actions — never invent events, tasks, emails, PRs, or names. If a tool returns an empty list, say so plainly. Keep replies concise and direct.${memContextSuffix}`;
 };
 
 const WINDOW = 6; // full messages kept per turn
@@ -123,7 +118,7 @@ const rollingMemory = new Map();
 async function buildContext(history, userId, model) {
   if (history.length <= WINDOW) {
     return history.map(m =>
-      (m.role === 'assistant' || m.role === 'ai') ? new AIMessage(m.content) : new HumanMessage(m.content)
+      ((m.role === 'assistant' || m.role === 'ai') ? new AIMessage(m.content) : new HumanMessage(m.content))
     );
   }
 
@@ -160,7 +155,7 @@ async function buildContext(history, userId, model) {
     msgs.push(new AIMessage('Understood — I have the context from our earlier conversation.'));
   }
   msgs.push(...recent.map(m =>
-    (m.role === 'assistant' || m.role === 'ai') ? new AIMessage(m.content) : new HumanMessage(m.content)
+    ((m.role === 'assistant' || m.role === 'ai') ? new AIMessage(m.content) : new HumanMessage(m.content))
   ));
   return msgs;
 }
@@ -179,8 +174,8 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
   const MAX_TOOL_RETRIES = 2;
 
   let lastErr;
-  outer: for (const makeModel of candidates) {
-    for (let attempt = 0; attempt <= MAX_TOOL_RETRIES; attempt++) {
+  for (const makeModel of candidates) {
+    for (let attempt = 0; attempt <= MAX_TOOL_RETRIES; attempt += 1) {
       const model = makeModel();
       try {
         const agent       = createAgent({ model, tools, systemPrompt });
@@ -191,9 +186,12 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
           { messages },
           { runName: 'devos-agent', tags: ['devos', 'agent'], metadata: { userId: String(userId ?? 'anon') } }
         );
-        const msgs      = result.messages ?? [];
-        const last      = msgs[msgs.length - 1];
-        const reply     = last ? (typeof last.content === 'string' ? last.content : JSON.stringify(last.content)) : '';
+        const msgs = result.messages ?? [];
+        const last = msgs[msgs.length - 1];
+        let reply = '';
+        if (last) {
+          reply = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
+        }
         const toolsUsed = msgs.flatMap(m => (m.tool_calls ?? []).map(tc => tc.name));
         return { reply, toolsUsed };
       } catch (err) {
@@ -207,18 +205,21 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
         }
         // quota, tool format exhausted, or any other provider error → try next model
         console.warn(`[agent] ${model.constructor?.name ?? 'model'} failed — trying next (${err.message.slice(0, 60)})`);
-        continue outer; // jump to next candidate, skipping remaining attempts
+        break; // stop retrying this candidate — inner loop ends, outer loop advances
       }
     }
   }
 
   // All candidates exhausted — surface a readable message
   const raw = lastErr?.message ?? 'Unknown error';
-  const friendly = raw.includes('tool_use_failed') || raw.includes('failed_generation')
-    ? 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.'
-    : raw.includes('quota') || raw.includes('429') || raw.includes('rate')
-    ? 'All AI keys are currently rate-limited. Wait a minute then try again.'
-    : raw;
+  let friendly;
+  if (raw.includes('tool_use_failed') || raw.includes('failed_generation')) {
+    friendly = 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.';
+  } else if (raw.includes('quota') || raw.includes('429') || raw.includes('rate')) {
+    friendly = 'All AI keys are currently rate-limited. Wait a minute then try again.';
+  } else {
+    friendly = raw;
+  }
   throw new Error(friendly);
 }
 

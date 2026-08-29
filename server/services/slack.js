@@ -10,7 +10,7 @@ function getUserId(creds = {}) {
 }
 
 function isConfigured(creds = {}) {
-  return !!(creds.SLACK_BOT_TOKEN) && !!getUserId(creds);
+  return Boolean(creds.SLACK_BOT_TOKEN) && Boolean(getUserId(creds));
 }
 
 // ─── Send plain text DM ───────────────────────────────────────────────────────
@@ -25,7 +25,8 @@ export async function sendDM(text, creds = {}) {
     return res.ts;
   } catch (err) {
     const code = err.data?.error ?? err.code ?? '';
-    console.error(`[slack] sendDM failed${code ? ' (' + code + ')' : ''}: ${err.message}`);
+    const codeSuffix = code ? ` (${code})` : '';
+    console.error(`[slack] sendDM failed${codeSuffix}: ${err.message}`);
     if (err.data) console.error('[slack] sendDM response:', JSON.stringify(err.data));
     return null;
   }
@@ -71,7 +72,7 @@ export async function sendDigest(digest, creds = {}) {
     });
   }
   if (calendar?.events?.length) {
-    const nextEvent = calendar.events[0];
+    const [nextEvent] = calendar.events;
     blocks.push({
       type: 'section',
       text: { type: 'mrkdwn', text: `:calendar: Next: *${nextEvent.title}* at ${new Date(nextEvent.start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` },
@@ -104,7 +105,8 @@ export async function sendDigest(digest, creds = {}) {
     return res.ts;
   } catch (err) {
     const code = err.data?.error ?? err.code ?? '';
-    console.error(`[slack] sendDigest failed${code ? ' (' + code + ')' : ''}: ${err.message}`);
+    const codeSuffix = code ? ` (${code})` : '';
+    console.error(`[slack] sendDigest failed${codeSuffix}: ${err.message}`);
     if (err.data) console.error('[slack] sendDigest response:', JSON.stringify(err.data));
     return null;
   }

@@ -117,7 +117,8 @@ export async function createRecurringEvent(userId, title, days, time, durationMi
   if (start <= new Date()) start.setDate(start.getDate() + 1); // already passed today → tomorrow
 
   let tries = 0;
-  while (!jsDays.includes(start.getDay()) && tries++ < 7) {
+  while (!jsDays.includes(start.getDay()) && tries < 7) {
+    tries += 1;
     start.setDate(start.getDate() + 1);
   }
 
@@ -151,12 +152,12 @@ export async function scanConflicts(userId) {
   // events are sorted by start time (getWeekEvents uses orderBy:'startTime'),
   // so for a fixed `a`, gapMin only grows as `b` moves later — safe to break
   // out of the inner loop once we're past both overlap and back-to-back range.
-  for (let i = 0; i < events.length; i++) {
+  for (let i = 0; i < events.length; i += 1) {
     const a = events[i];
     if (!a.start || !a.end) continue;
     const aEnd = new Date(a.end).getTime();
 
-    for (let j = i + 1; j < events.length; j++) {
+    for (let j = i + 1; j < events.length; j += 1) {
       const b = events[j];
       if (!b.start) continue;
 
@@ -183,7 +184,7 @@ export async function blockFocusTime(userId, projectName = 'Deep work', minBlock
   const blocks   = [];
   const timezone = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  for (let i = 0; i < events.length - 1; i++) {
+  for (let i = 0; i < events.length - 1; i += 1) {
     const gapStart = new Date(events[i].end);
     const gapEnd   = new Date(events[i + 1].start);
     const gapMin   = (gapEnd - gapStart) / 60000;
@@ -250,7 +251,7 @@ export async function deleteEvent(userId, idOrTitle) {
     let eventId = idOrTitle;
     let title   = idOrTitle;
     // Heuristic: Google event IDs are long alphanumeric strings
-    if (!/^[a-zA-Z0-9_]{15,}$/.test(idOrTitle)) {
+    if (!/^\w{15,}$/.test(idOrTitle)) {
       const ev = await findByTitle(userId, idOrTitle);
       if (!ev) throw new Error(`No upcoming event found matching "${idOrTitle}"`);
       eventId = ev.id;
@@ -272,7 +273,7 @@ export async function updateEvent(userId, idOrTitle, patches = {}) {
   try {
     let eventId = idOrTitle;
     let current = null;
-    if (!/^[a-zA-Z0-9_]{15,}$/.test(idOrTitle)) {
+    if (!/^\w{15,}$/.test(idOrTitle)) {
       current = await findByTitle(userId, idOrTitle);
       if (!current) throw new Error(`No upcoming event found matching "${idOrTitle}"`);
       eventId = current.id;
