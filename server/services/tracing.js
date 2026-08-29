@@ -31,7 +31,7 @@ if (apiKey) {
 
 export function tracingStatus() {
   return {
-    enabled: !!(process.env.LANGSMITH_API_KEY || process.env.LANGCHAIN_API_KEY) &&
+    enabled: Boolean(process.env.LANGSMITH_API_KEY || process.env.LANGCHAIN_API_KEY) &&
              (process.env.LANGSMITH_TRACING === 'true' || process.env.LANGCHAIN_TRACING_V2 === 'true'),
     project: process.env.LANGSMITH_PROJECT || process.env.LANGCHAIN_PROJECT || null,
   };

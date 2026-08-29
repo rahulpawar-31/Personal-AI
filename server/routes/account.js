@@ -71,7 +71,7 @@ router.patch('/api/admin/users/:id/admin', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Cannot remove your own admin access' });
   }
   try {
-    await dbSetAdmin(targetId, !!req.body.isAdmin);
+    await dbSetAdmin(targetId, Boolean(req.body.isAdmin));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

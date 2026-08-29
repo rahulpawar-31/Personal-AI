@@ -166,8 +166,8 @@ function richTextToMd(richText = []) {
 }
 
 function blockToMd(block, counters = {}) {
-  const type = block.type;
-  const b    = block[type] ?? {};
+  const { type } = block;
+  const b        = block[type] ?? {};
   const text = richTextToMd(b.rich_text ?? []);
 
   switch (type) {
@@ -184,7 +184,7 @@ function blockToMd(block, counters = {}) {
     case 'quote':             return `> ${text}`;
     case 'code':              return `\`\`\`${b.language ?? ''}\n${text}\n\`\`\``;
     case 'divider':           return '---';
-    case 'callout':           return `> **${richTextToMd(b.icon ? [] : [])}** ${text}`;
+    case 'callout':           return `> **${richTextToMd([])}** ${text}`;
     case 'toggle':            return `- ${text}`;
     case 'image': {
       const url = b.type === 'external' ? b.external?.url : b.file?.url;

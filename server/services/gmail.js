@@ -75,10 +75,11 @@ function extractBody(payload) {
     const plainPart = findPart(payload.parts, 'text/plain');
     const htmlPart  = findPart(payload.parts, 'text/html');
 
-    const html = htmlPart?.body?.data  ? decode64(htmlPart.body.data)  : null;
-    const text = plainPart?.body?.data ? decode64(plainPart.body.data)
-               : html                  ? stripHtml(html)
-               : '';
+    const html = htmlPart?.body?.data ? decode64(htmlPart.body.data) : null;
+    let text;
+    if (plainPart?.body?.data) text = decode64(plainPart.body.data);
+    else if (html)             text = stripHtml(html);
+    else                        text = '';
 
     return { text, html };
   }
@@ -193,9 +194,10 @@ export async function archiveEmail(userId, messageId) {
 
 export async function getEmailsByDateRange(userId, startDate, endDate, maxResults = 30) {
   try {
-    const after  = toGmailDate(startDate);
-    const before = endDate ? toGmailDate(endDate) : null;
-    const q      = `in:inbox after:${after}${before ? ` before:${before}` : ''}`;
+    const after      = toGmailDate(startDate);
+    const before     = endDate ? toGmailDate(endDate) : null;
+    const beforePart = before ? ` before:${before}` : '';
+    const q          = `in:inbox after:${after}${beforePart}`;
 
     const g        = await gmail(userId);
     const res      = await g.users.messages.list({ userId: 'me', maxResults, q });

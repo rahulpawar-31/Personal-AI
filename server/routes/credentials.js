@@ -13,10 +13,14 @@ function extractNotionId(input) {
   return match ? match[0] : null;
 }
 
+// Strips zero-width/invisible Unicode characters users sometimes accidentally
+// paste alongside an API key (zero-width space/joiners, BOM, soft hyphen, word
+// joiner) — written as explicit \u escapes rather than literal invisible bytes
+// so the source stays readable and can't be silently corrupted by an editor.
 function sanitizeKey(raw) {
   return (raw ?? '').trim()
-    .replace(/​/g, '').replace(/‌/g, '').replace(/‍/g, '')
-    .replace(/﻿/g, '').replace(/­/g, '').replace(/⁠/g, '');
+    .replace(/\u200b/g, '').replace(/\u200c/g, '').replace(/\u200d/g, '')
+    .replace(/\ufeff/g, '').replace(/\xad/g, '').replace(/\u2060/g, '');
 }
 
 // ─── Integration key CRUD ─────────────────────────────────────────────────────

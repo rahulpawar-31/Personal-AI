@@ -117,7 +117,7 @@ async function migrateEnvCredentials() {
     const needsFix = existing?.startsWith('secret_ntn_');
     if (!existing || needsFix) {
       await integrations.saveKey(adminUser.id, service, keyName, clean);
-      count++;
+      count += 1;
     }
   }
   if (count > 0) {
@@ -172,7 +172,7 @@ async function migrateJsonIntegrations() {
           oldUser.googleId ?? oldUser.google_id ?? null,
         ]
       ).catch(() => null);
-      if (ins?.rows[0]) { newId = ins.rows[0].id; usersMigrated++; }
+      if (ins?.rows[0]) { newId = ins.rows[0].id; usersMigrated += 1; }
     }
 
     if (!newId) continue;
@@ -182,7 +182,7 @@ async function migrateJsonIntegrations() {
       try {
         const plain = decrypt(k.keyValue);
         await integrations.saveKey(newId, k.service, k.keyName, plain);
-        keysMigrated++;
+        keysMigrated += 1;
       } catch {
         console.warn(`[migration] Could not decrypt "${k.keyName}" for user "${oldUser.username}" — skipping (ENCRYPTION_SECRET mismatch?)`);
       }

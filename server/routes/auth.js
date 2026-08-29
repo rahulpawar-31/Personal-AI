@@ -85,13 +85,13 @@ router.get('/api/auth/google/init', requireAuth, (req, res) => {
   const fromSettings = req.query.from === 'settings';
   const origin = resolveRequestOrigin(req) ?? frontendURL();
   const state  = signState({ mode: 'connect', uid: req.user.userId, fromSettings, origin });
-  res.json({ url: auth.getAuthUrl(state, origin) });
+  res.json({ url: auth.getAuthUrl(origin, state) });
 });
 
 router.get('/api/auth/google/signin', (req, res) => {
   const origin = resolveRequestOrigin(req) ?? frontendURL();
   const state  = signState({ mode: 'signin', origin });
-  res.redirect(auth.getAuthUrl(state, origin));
+  res.redirect(auth.getAuthUrl(origin, state));
 });
 
 router.get('/api/auth/google', (req, res) => {
@@ -102,7 +102,7 @@ router.get('/api/auth/google', (req, res) => {
     const fromSettings = req.query.from === 'settings';
     const origin = resolveRequestOrigin(req) ?? frontendURL();
     const state  = signState({ mode: 'connect', uid: payload.userId, fromSettings, origin });
-    res.redirect(auth.getAuthUrl(state, origin));
+    res.redirect(auth.getAuthUrl(origin, state));
   } catch {
     return res.redirect(`${frontendURL()}/`);
   }

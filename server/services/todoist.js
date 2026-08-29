@@ -11,7 +11,7 @@ function headers(creds = {}) {
 }
 
 export function isConfigured(creds = {}) {
-  return !!(creds.TODOIST_API_KEY);
+  return Boolean(creds.TODOIST_API_KEY);
 }
 
 function formatTask(t) {

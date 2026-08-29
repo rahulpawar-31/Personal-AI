@@ -53,11 +53,12 @@ router.post('/api/github/draft-body', requireAuth, async (req, res) => {
   try {
     const { title, context = '' } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'title required' });
-    const creds   = await getUserCreds(req.user.userId);
-    const apiKeys = { GEMINI_API_KEY: creds.GEMINI_API_KEY, GROQ_API_KEY: creds.GROQ_API_KEY };
+    const creds       = await getUserCreds(req.user.userId);
+    const apiKeys     = { GEMINI_API_KEY: creds.GEMINI_API_KEY, GROQ_API_KEY: creds.GROQ_API_KEY };
+    const contextLine = context.trim() ? `Additional context: ${context.trim()} ` : '';
     const body = await llm.generate(
       `Draft a GitHub issue body in markdown for the issue titled: "${title.trim()}". ` +
-      `${context.trim() ? `Additional context: ${context.trim()} ` : ''}` +
+      `${contextLine}` +
       `Structure it with sections: ## Summary, ## Goals, ## Suggested approach, ## Tests (if applicable). ` +
       `Use bullet points. Be specific. Output only the markdown body, no preamble.`,
       '', 'content', apiKeys
