@@ -34,7 +34,7 @@ export default function OnboardingWizard({ user, onComplete }) {
       minHeight: '100vh', background: 'var(--bg)', padding: '24px 16px',
     }}>
       <div style={{
-        width: 520, padding: '36px 40px',
+        width: 520, maxWidth: '92vw', padding: '36px 40px',
         background: 'var(--surface)',
         borderRadius: 'var(--radius-lg)',
         border: 'var(--border-hairline)',
@@ -253,8 +253,8 @@ function DevToolsStep({ onNext }) {
         <Field label="Personal Access Token" value={gh.token} onChange={v => setGh(g => ({ ...g, token: v }))}
           placeholder="ghp_… or github_pat_…"
           linkText="Generate token" linkHref="https://github.com/settings/tokens" />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
             <Field label="Username / org" type="text" value={gh.owner}
               onChange={v => setGh(g => ({ ...g, owner: v }))} placeholder="your-username" />
           </div>

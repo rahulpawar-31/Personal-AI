@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
+import { LoadingState, EmptyState } from './ui/States.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ function Card({ task, onDragStart, onToggle }) {
             <button
               onClick={e => { e.stopPropagation(); onToggle(task.id, task.status, task.source); }}
               title={done ? 'Reopen' : 'Mark done'}
+              aria-label={done ? 'Reopen task' : 'Mark task done'}
               style={{
                 width: 18, height: 18, borderRadius: '50%', padding: 0,
                 border: `1.5px solid ${done ? 'var(--success)' : 'var(--border)'}`,
@@ -145,6 +147,7 @@ function Card({ task, onDragStart, onToggle }) {
                 borderRadius: 'var(--radius-sm)',
               }}
               title="Open"
+              aria-label="Open in source"
             >
               <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
@@ -320,6 +323,7 @@ function NoteCard({ note }) {
             onClick={e => e.stopPropagation()}
             style={{ color: 'var(--hint)', textDecoration: 'none', flexShrink: 0 }}
             title="Open in Notion"
+            aria-label="Open in Notion"
           >
             <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
               <path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
@@ -404,6 +408,7 @@ function NotionNotesColumn({ notes, onAdd }) {
           onClick={exportMd}
           disabled={exporting || notes.length === 0}
           title="Export all notes as Markdown files"
+          aria-label="Export all notes as Markdown files"
           style={{
             padding: '2px 7px', fontSize: 10, fontWeight: 600,
             border: `1px solid ${ACCENT}30`, borderRadius: 'var(--radius-sm)',
@@ -608,23 +613,28 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
         )}
       </div>
 
+      {/* First load — nothing to show yet */}
+      {loading && !hasAny && (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LoadingState label="Loading tasks…" />
+        </div>
+      )}
+
       {/* Empty */}
       {!loading && !hasAny && (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 10,
-        }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-            <line x1="15" y1="3" x2="15" y2="21"/>
-          </svg>
-          <p style={{ fontSize: 'var(--fs-lg)', color: 'var(--muted)', margin: 0, fontWeight: 500 }}>No tasks yet</p>
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--hint)', margin: 0 }}>
-            Connect Todoist, Notion, or Trello in Settings
-          </p>
-          <button onClick={onGoToSettings} style={{ marginTop: 4, fontSize: 'var(--fs-sm)', padding: '6px 14px' }}>
-            Open Settings
-          </button>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyState
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            }
+            title="No tasks yet"
+            description="Connect Todoist, Notion, or Trello in Settings"
+            actionLabel="Open Settings"
+            onAction={onGoToSettings}
+          />
         </div>
       )}
 

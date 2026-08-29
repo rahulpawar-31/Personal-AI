@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 const listeners = new Set();
 let _id = 0;
 
-export function toast(message, type = 'info', duration = 4000) {
+export function toast(message, type = 'info', duration = 4000, action = null) {
   _id += 1;
   const id = _id;
-  listeners.forEach(fn => fn({ id, message, type, duration }));
+  listeners.forEach(fn => fn({ id, message, type, duration, action }));
 }
 
 export function ToastContainer() {
@@ -58,6 +58,15 @@ export function ToastContainer() {
             animation: 'toastIn 0.2s ease',
           }}>
             <span style={{ flex: 1 }}>{t.message}</span>
+            {t.action && (
+              <button
+                onClick={() => { t.action.onClick(); dismiss(t.id); }}
+                style={{
+                  background: 'none', border: 'none', color: '#fff', textDecoration: 'underline',
+                  cursor: 'pointer', fontSize: 13, padding: 0, flexShrink: 0, fontWeight: 500,
+                }}
+              >{t.action.label}</button>
+            )}
             <button
               onClick={() => dismiss(t.id)}
               style={{

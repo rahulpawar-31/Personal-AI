@@ -269,7 +269,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+      <div role="log" aria-live="polite" aria-label="Conversation" style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
 
         {/* Empty state */}
         {isEmpty && (() => {
@@ -501,6 +501,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
           <button
             onClick={toggleListening}
             title={listening ? 'Stop listening' : 'Voice input'}
+            aria-label={listening ? 'Stop listening' : 'Voice input'}
             style={{
               width: 34, height: 34, borderRadius: 10, padding: 0,
               border: `1px solid ${listening ? '#D85A30' : 'var(--border)'}`,
@@ -527,6 +528,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
           <button
             onClick={send}
             disabled={loading || !input.trim()}
+            aria-label="Send message"
             style={{
               width: 34, height: 34,
               borderRadius: 10,

@@ -143,10 +143,12 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <button
           onClick={() => setMonthStart(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+          aria-label="Previous month"
           style={navBtn}
         >‹</button>
         <button
           onClick={() => setMonthStart(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+          aria-label="Next month"
           style={navBtn}
         >›</button>
         <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em' }}>{monthLabel}</h2>
@@ -162,84 +164,87 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
         </div>
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Calendar grid — 7 columns can't reflow on a phone, so it scrolls
+          horizontally below its min-width instead of squishing unreadably. */}
+      <div className="scroll-x">
+        <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', minWidth: 640 }}>
 
-        {/* Day-of-week headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-          {DOW.map((d, i) => (
-            <div key={d} style={{
-              padding: '10px 0', textAlign: 'center',
-              fontSize: 12, fontWeight: 500, color: 'var(--muted)',
-              borderRight: i < 6 ? '1px solid var(--border)' : 'none',
-            }}>{d}</div>
+          {/* Day-of-week headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+            {DOW.map((d, i) => (
+              <div key={d} style={{
+                padding: '10px 0', textAlign: 'center',
+                fontSize: 12, fontWeight: 500, color: 'var(--muted)',
+                borderRight: i < 6 ? '1px solid var(--border)' : 'none',
+              }}>{d}</div>
+            ))}
+          </div>
+
+          {/* 6 week rows */}
+          {Array.from({ length: 6 }, (_, week) => (
+            <div
+              key={week}
+              style={{
+                display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+                borderBottom: week < 5 ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              {gridDays.slice(week * 7, week * 7 + 7).map((day, di) => {
+                const isToday        = sameDay(day, today);
+                const isCurrentMonth = day.getMonth() === monthStart.getMonth();
+                const dayEvs         = eventsForDay(day);
+                const visible        = dayEvs.slice(0, 3);
+                const overflow       = dayEvs.length - 3;
+
+                return (
+                  <div key={day.getTime()} style={{
+                    height: 128,
+                    padding: '8px 8px 6px',
+                    borderRight: di < 6 ? '1px solid var(--border)' : 'none',
+                    background: isToday ? 'rgba(99,102,241,0.03)' : 'var(--bg)',
+                    outline: isToday ? '2px solid var(--accent)' : 'none',
+                    outlineOffset: '-2px',
+                    boxSizing: 'border-box',
+                  }}>
+                    {/* Date number */}
+                    <div style={{
+                      fontSize: 13,
+                      fontWeight: isToday ? 700 : 400,
+                      color: dayNumberColor(isToday, isCurrentMonth),
+                      marginBottom: 5,
+                    }}>
+                      {day.getDate()}
+                    </div>
+
+                    {/* Event chips */}
+                    {visible.map(ev => (
+                      <div key={ev.id} title={ev.title} style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        marginBottom: 3, cursor: 'default',
+                      }}>
+                        <span style={{
+                          width: 3, height: 14, borderRadius: 2,
+                          background: eventColor(ev.title), flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontSize: 11.5, color: 'var(--text)',
+                          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {ev.title}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--hint)', flexShrink: 0 }}>›</span>
+                      </div>
+                    ))}
+
+                    {overflow > 0 && (
+                      <div style={{ fontSize: 10, color: 'var(--hint)', marginTop: 2 }}>+{overflow} more</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ))}
         </div>
-
-        {/* 6 week rows */}
-        {Array.from({ length: 6 }, (_, week) => (
-          <div
-            key={week}
-            style={{
-              display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
-              borderBottom: week < 5 ? '1px solid var(--border)' : 'none',
-            }}
-          >
-            {gridDays.slice(week * 7, week * 7 + 7).map((day, di) => {
-              const isToday        = sameDay(day, today);
-              const isCurrentMonth = day.getMonth() === monthStart.getMonth();
-              const dayEvs         = eventsForDay(day);
-              const visible        = dayEvs.slice(0, 3);
-              const overflow       = dayEvs.length - 3;
-
-              return (
-                <div key={day.getTime()} style={{
-                  height: 128,
-                  padding: '8px 8px 6px',
-                  borderRight: di < 6 ? '1px solid var(--border)' : 'none',
-                  background: isToday ? 'rgba(99,102,241,0.03)' : 'var(--bg)',
-                  outline: isToday ? '2px solid var(--accent)' : 'none',
-                  outlineOffset: '-2px',
-                  boxSizing: 'border-box',
-                }}>
-                  {/* Date number */}
-                  <div style={{
-                    fontSize: 13,
-                    fontWeight: isToday ? 700 : 400,
-                    color: dayNumberColor(isToday, isCurrentMonth),
-                    marginBottom: 5,
-                  }}>
-                    {day.getDate()}
-                  </div>
-
-                  {/* Event chips */}
-                  {visible.map(ev => (
-                    <div key={ev.id} title={ev.title} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      marginBottom: 3, cursor: 'default',
-                    }}>
-                      <span style={{
-                        width: 3, height: 14, borderRadius: 2,
-                        background: eventColor(ev.title), flexShrink: 0,
-                      }} />
-                      <span style={{
-                        fontSize: 11.5, color: 'var(--text)',
-                        flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {ev.title}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--hint)', flexShrink: 0 }}>›</span>
-                    </div>
-                  ))}
-
-                  {overflow > 0 && (
-                    <div style={{ fontSize: 10, color: 'var(--hint)', marginTop: 2 }}>+{overflow} more</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
       </div>
 
       {/* Create event modal */}
@@ -297,7 +302,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>New event</span>
-          <button onClick={onClose} style={{ ...miniNav, border: '1px solid var(--border)' }}>×</button>
+          <button onClick={onClose} aria-label="Close" style={{ ...miniNav, border: '1px solid var(--border)' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>

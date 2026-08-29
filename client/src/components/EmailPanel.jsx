@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useCache } from '../hooks/useCache.js';
 import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
+import { LoadingState } from './ui/States.jsx';
 import { toast } from '../toast.jsx';
 
 const TTL_30MIN = 30 * 60 * 1000;
@@ -265,7 +266,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
         <h2 style={{ fontSize: 16, fontWeight: 500 }}>Comms — triaged inbox</h2>
         {cacheAge && <span style={{ fontSize: 11, color: 'var(--hint)' }}>cached {formatAge(cacheAge)}</span>}
       </div>
-      {loading    && <p style={{ color: 'var(--muted)' }}>Triaging inbox…</p>}
+      {loading    && <LoadingState label="Triaging inbox…" />}
       {authError  && (
         <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ color: 'var(--danger)', fontSize: 13 }}>Google disconnected</span>
@@ -347,7 +348,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                   </div>
 
                   {/* Sender row */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                       {/* Avatar */}
                       <div style={{
@@ -378,9 +379,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
                 {/* Email body */}
                 <div style={{ background: '#fff', padding: '0 4px' }}>
-                  {isLoading && (
-                    <div style={{ padding: '24px 20px', color: '#5f6368', fontSize: 13 }}>Loading…</div>
-                  )}
+                  {isLoading && <LoadingState label="Loading…" />}
                   {!isLoading && full?.htmlBody && (
                     <EmailIframe html={full.htmlBody} />
                   )}
