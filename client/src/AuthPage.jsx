@@ -1,5 +1,10 @@
 import { useState } from 'react';
 
+function submitButtonLabel(loading, isSignup) {
+  if (loading) return '…';
+  return isSignup ? 'Create account' : 'Sign in';
+}
+
 export default function AuthPage({ onAuth }) {
   const [mode,     setMode]     = useState('login');
   const [username, setUsername] = useState('');
@@ -156,7 +161,7 @@ export default function AuthPage({ onAuth }) {
             className="primary"
             style={{ marginTop: 4, padding: '9px 16px', fontSize: 'var(--fs-base)' }}
           >
-            {loading ? '…' : isSignup ? 'Create account' : 'Sign in'}
+            {submitButtonLabel(loading, isSignup)}
           </button>
         </form>
 

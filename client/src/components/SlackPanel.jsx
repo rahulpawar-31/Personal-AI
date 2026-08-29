@@ -8,7 +8,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
   const [loading,  setLoading]  = useState('');
   const [digest,   setDigest]   = useState(null);
 
-  const connected = !!health.slack;
+  const connected = Boolean(health.slack);
 
   async function sendDM() {
     if (!message.trim()) return;
@@ -76,8 +76,8 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
         {log.length > 0 && (
           <div style={{ marginTop: 10 }}>
             {log.slice(0, 5).map((l, i) => (
-              <div key={i} style={{ fontSize: 11, color: l.ok ? 'var(--success)' : 'var(--danger)', marginBottom: 3 }}>
-                {l.ok ? '✓' : '✗'} {l.text} <span style={{ opacity: .5 }}>{l.at}</span>
+              <div key={`${l.at}-${i}`} style={{ fontSize: 11, color: l.ok ? 'var(--success)' : 'var(--danger)', marginBottom: 3 }}>
+                {l.ok ? '✓' : '✗'} {l.text} <span style={{ opacity: 0.5 }}>{l.at}</span>
                 {l.error && <span> — {l.error}</span>}
               </div>
             ))}

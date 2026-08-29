@@ -6,7 +6,7 @@ import NotConnected from './NotConnected.jsx';
 export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings }) {
   const [repos,         setRepos]         = useState([]);
   const [activeRepo,    setActiveRepo]    = useState('');
-  const [prs,           setPRs]           = useState([]);
+  const [prs,           setPrs]            = useState([]);
   const [merged,        setMerged]        = useState([]);
   const [issues,        setIssues]        = useState([]);
   const [contributions, setContributions] = useState(null);
@@ -24,7 +24,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
   const [drafting,      setDrafting]      = useState(false);
   const [tab,           setTab]           = useState('overview'); // overview | contributions | branches
 
-  const connected = !!health.github;
+  const connected = Boolean(health.github);
   const cache     = useCache('devos_github', 10 * 60 * 1000);
 
   useEffect(() => {
@@ -36,6 +36,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
           setRepos(list);
           setActiveRepo(list[0]);
         }
+        return undefined;
       })
       .catch(() => {});
   }, [connected]);
@@ -44,7 +45,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
     if (!activeRepo) return;
     const cacheKey = `devos_github_${activeRepo.replace('/', '_')}`;
     const cached = cache.get(cacheKey);
-    if (cached) { setPRs(cached.prs); setMerged(cached.merged); setIssues(cached.issues ?? []); return; }
+    if (cached) { setPrs(cached.prs); setMerged(cached.merged); setIssues(cached.issues ?? []); return; }
     load(activeRepo);
   }, [activeRepo]);
 
@@ -79,7 +80,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       const issues = Array.isArray(iData) ? iData : [];
       const cacheKey = `devos_github_${(repo ?? '').replace('/', '_')}`;
       cache.set({ prs, merged, issues }, cacheKey);
-      setPRs(prs); setMerged(merged); setIssues(issues);
+      setPrs(prs); setMerged(merged); setIssues(issues);
       setChangelog('');
     } finally { setLoading(false); }
   }
@@ -150,6 +151,19 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
   const stalePRs = prs.filter(p => p.daysStale >= 3);
   const freshPRs = prs.filter(p => p.daysStale < 3);
 
+  function activityColor(count, pct) {
+    if (count === 0)  return 'var(--border)';
+    if (pct < 0.33)   return '#bbf7d0';
+    if (pct < 0.66)   return '#4ade80';
+    return '#16a34a';
+  }
+
+  function branchAccentColor(b) {
+    if (b.isDefault) return 'var(--accent)';
+    if (b.stale)      return 'var(--warning)';
+    return 'var(--border)';
+  }
+
   function labelColor(label) {
     const l = label.toLowerCase();
     if (l === 'bug')                            return { bg: '#FAECE7', color: '#712B13' };
@@ -183,7 +197,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       </div>
 
       {/* Repo selector */}
-      {repos.length > 1 ? (
+      {repos.length > 1 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
           {repos.map(r => {
             const name   = r.split('/')[1];
@@ -202,11 +216,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
             );
           })}
         </div>
-      ) : repos.length === 1 ? (
+      )}
+      {repos.length === 1 && (
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
           <span style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 20, padding: '3px 10px' }}>{activeRepo}</span>
         </div>
-      ) : null}
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 18, borderBottom: '1px solid var(--border)' }}>
@@ -397,10 +412,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                     const max   = Math.max(...contributions.dailyActivity.map(x => x.count), 1);
                     const pct   = d.count / max;
                     const h     = Math.max(4, Math.round(pct * 40));
-                    const bg    = d.count === 0 ? 'var(--border)'
-                                : pct < 0.33    ? '#bbf7d0'
-                                : pct < 0.66    ? '#4ade80'
-                                :                 '#16a34a';
+                    const bg    = activityColor(d.count, pct);
                     const label = new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                     return (
                       <div key={d.date} title={`${label}: ${d.count} commit${d.count !== 1 ? 's' : ''}`}
@@ -465,7 +477,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                     display: 'flex', alignItems: 'center', gap: 10,
                     background: 'var(--surface)',
                     border: `0.5px solid ${b.stale ? '#F9C74F' : 'var(--border)'}`,
-                    borderLeft: `3px solid ${b.isDefault ? 'var(--accent)' : b.stale ? 'var(--warning)' : 'var(--border)'}`,
+                    borderLeft: `3px solid ${branchAccentColor(b)}`,
                     borderRadius: '0 var(--radius) var(--radius) 0',
                     padding: '9px 12px',
                   }}>
