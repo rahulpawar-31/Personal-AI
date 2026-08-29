@@ -45,11 +45,11 @@ function ChatView() {
     const text = (textArg ?? input).trim();
     if (!text || loading) return;
     setInput("");
-    setMessages(m => [...m, { role: "user", content: text, at: Date.now() }]);
+    setMessages(m => [...m, { id: `u${Date.now()}`, role: "user", content: text, at: Date.now() }]);
     setLoading(true);
     setTimeout(() => {
       const r = fakeReply(text);
-      setMessages(m => [...m, { role: "assistant", content: r.reply, intents: r.intents, at: Date.now() }]);
+      setMessages(m => [...m, { id: `a${Date.now()}`, role: "assistant", content: r.reply, intents: r.intents, at: Date.now() }]);
       setLoading(false);
     }, 700);
   }
@@ -80,8 +80,8 @@ function ChatView() {
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} style={{
+        {messages.map(m => (
+          <div key={m.id} style={{
             display: "flex",
             justifyContent: m.role === "user" ? "flex-end" : "flex-start",
             marginBottom: 10,
