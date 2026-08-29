@@ -137,7 +137,12 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
     onCloseMobile?.();
   }
 
-  let lastGroup = null;
+  // Bucket by group rather than relying on nav-array adjacency — Chat and
+  // Digest are both "Overview" but aren't next to each other in navItems,
+  // so a simple adjacency check would print the "Overview" label twice.
+  const grouped = GROUP_ORDER
+    .map(group => ({ group, items: mainItems.filter(n => GROUP_BY_ID[n.id] === group) }))
+    .filter(g => g.items.length > 0);
 
   return (
     <>
@@ -169,17 +174,14 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
 
         {/* Main nav */}
         <nav aria-label="Panels" style={{ flex: 1, overflowY: 'auto', padding: '4px 8px 0' }}>
-          {mainItems.map(n => {
-            const group = GROUP_BY_ID[n.id];
-            const showLabel = group && group !== lastGroup;
-            lastGroup = group;
-            return (
-              <div key={n.id}>
-                {showLabel && <div className="nav-section-label">{group}</div>}
-                <NavItem {...n} active={view === n.id} onClick={() => selectView(n.id)} />
-              </div>
-            );
-          })}
+          {grouped.map(({ group, items }) => (
+            <div key={group}>
+              <div className="nav-section-label">{group}</div>
+              {items.map(n => (
+                <NavItem key={n.id} {...n} active={view === n.id} onClick={() => selectView(n.id)} />
+              ))}
+            </div>
+          ))}
         </nav>
 
         {/* Divider */}
