@@ -47,7 +47,7 @@ export default function App() {
   const [authChecked,    setAuthChecked]    = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const isLoggedIn = !!user;
+  const isLoggedIn = Boolean(user);
 
   function applyUser(u) {
     setUser(u);
@@ -87,7 +87,7 @@ export default function App() {
   function fetchHealth() {
     apiFetch('/api/health')
       .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); })
+      .then(d => { setHealth(d); setConnected(d.google); return null; })
       .catch(() => {});
   }
 
@@ -116,7 +116,7 @@ export default function App() {
     setDigestRefreshKey(k => k + 1);
     apiFetch('/api/health')
       .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); })
+      .then(d => { setHealth(d); setConnected(d.google); return null; })
       .catch(() => {});
   }, []);
 
@@ -128,10 +128,8 @@ export default function App() {
     const INTERVAL_MS = 10 * 60 * 1000;
 
     function onVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        if (Date.now() - lastRefreshRef.current > STALE_MS) {
-          refreshAll();
-        }
+      if (document.visibilityState === 'visible' && Date.now() - lastRefreshRef.current > STALE_MS) {
+        refreshAll();
       }
     }
 
@@ -170,6 +168,7 @@ export default function App() {
             if (localStorage.getItem('devos_onboarding') === 'true') setShowOnboarding(true);
           }
           setAuthChecked(true);
+          return null;
         })
         .catch(() => setAuthChecked(true));
     } else {
@@ -182,8 +181,8 @@ export default function App() {
       localStorage.setItem('devos_token', googleToken);
       window.history.replaceState({}, '', '/');
       fetch('/api/users/me', { headers: { Authorization: `Bearer ${googleToken}` } })
-        .then(r => r.ok ? r.json() : null)
-        .then(u => { if (u) { applyUser(u); setAuthChecked(true); } })
+        .then(r => (r.ok ? r.json() : null))
+        .then(u => { if (u) { applyUser(u); setAuthChecked(true); } return null; })
         .catch(() => {});
       fetchHealth();
       return;
@@ -242,7 +241,7 @@ export default function App() {
         <div style={{
           flex: 1,
           overflow: isTasksView ? 'hidden' : 'auto',
-          padding: isTasksView ? '24px 28px' : isChatView ? '24px 28px' : '32px 36px',
+          padding: (isTasksView || isChatView) ? '24px 28px' : '32px 36px',
           display: 'flex',
           flexDirection: 'column',
         }}>

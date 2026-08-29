@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../api.js';
+import { toast } from '../toast.jsx';
 import NotConnected from './NotConnected.jsx';
 
 const DAYS = [
@@ -22,6 +23,11 @@ function sameDay(a, b) {
 
 function startOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function dayNumberColor(isToday, isCurrentMonth) {
+  if (isToday) return 'var(--accent)';
+  return isCurrentMonth ? 'var(--text)' : 'var(--hint)';
 }
 
 function eventColor(title = '') {
@@ -71,7 +77,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
 
   async function createEvent() {
     if (!form.title.trim()) return;
-    if (form.recurring && !form.days.length) { alert('Select at least one day'); return; }
+    if (form.recurring && !form.days.length) { toast('Select at least one day', 'error'); return; }
     if (!form.recurring && !form.date) return;
     setCreating(true);
     try {
@@ -79,7 +85,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
         ? { title: form.title, recurring: true, days: form.days, time: form.time, duration: Number(form.duration) }
         : { title: form.title, date: form.date, duration: Number(form.duration) };
       const r = await apiFetch('/api/calendar', { method: 'POST', body: JSON.stringify(body) });
-      if (!r.ok) { const e = await r.json(); alert(e.error); return; }
+      if (!r.ok) { const e = await r.json(); toast(e.error, 'error'); return; }
       const next = new Date(); next.setHours(next.getHours() + 1, 0, 0, 0);
       setForm({ title: '', date: next.toISOString().slice(0, 16), duration: 60, recurring: false, days: [], time: '14:00' });
       setShowForm(false);
@@ -187,7 +193,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
               const overflow       = dayEvs.length - 3;
 
               return (
-                <div key={di} style={{
+                <div key={day.getTime()} style={{
                   height: 128,
                   padding: '8px 8px 6px',
                   borderRight: di < 6 ? '1px solid var(--border)' : 'none',
@@ -200,9 +206,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                   <div style={{
                     fontSize: 13,
                     fontWeight: isToday ? 700 : 400,
-                    color: isToday
-                      ? 'var(--accent)'
-                      : isCurrentMonth ? 'var(--text)' : 'var(--hint)',
+                    color: dayNumberColor(isToday, isCurrentMonth),
                     marginBottom: 5,
                   }}>
                     {day.getDate()}
@@ -258,6 +262,11 @@ const navBtn = {
   color: 'var(--muted)', fontSize: 18, lineHeight: 1,
 };
 
+function createButtonLabel(creating, recurring) {
+  if (creating) return 'Creating…';
+  return recurring ? 'Create recurring event' : 'Create event';
+}
+
 const miniNav = {
   width: 24, height: 24, padding: 0, borderRadius: 6, border: 'none',
   background: 'transparent', cursor: 'pointer', color: 'var(--muted)', fontSize: 16, lineHeight: 1,
@@ -272,7 +281,14 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.28)' }} />
+      <div
+        onClick={onClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Close dialog"
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.28)' }}
+      />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
         width: 440, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
@@ -359,7 +375,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
           <button className="primary" onClick={onCreate}
             disabled={creating || !form.title.trim() || (form.recurring ? !form.days.length : !form.date)}
             style={{ alignSelf: 'flex-end', marginTop: 4, padding: '8px 18px', opacity: (creating || !form.title.trim()) ? 0.4 : 1 }}>
-            {creating ? 'Creating…' : form.recurring ? 'Create recurring event' : 'Create event'}
+            {createButtonLabel(creating, form.recurring)}
           </button>
         </div>
       </div>

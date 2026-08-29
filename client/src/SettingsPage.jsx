@@ -106,17 +106,46 @@ function IntegrationGroup({ children }) {
   );
 }
 
+// Colors + copy for ToggleBtn's 3 states — was a chain of nested ternaries.
+function toggleBtnState(expanded, connected) {
+  if (expanded)  return { bg: 'var(--text)', border: 'transparent',       color: '#fff',   title: 'Close' };
+  if (connected) return { bg: '#E8F5E9',     border: '#86c997',           color: '#1B7A33', title: 'Manage connection' };
+  return             { bg: '#fff',        border: 'rgba(0,0,0,0.18)', color: '#555',   title: 'Connect' };
+}
+
+function ToggleBtnIcon({ expanded, connected }) {
+  if (expanded) {
+    // × close
+    return (
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    );
+  }
+  if (connected) {
+    // ✓ connected
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20,6 9,17 4,12"/>
+      </svg>
+    );
+  }
+  // + add
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  );
+}
+
 // Action button — green ✓ when connected, + when not, × when the panel is open
 function ToggleBtn({ expanded, onClick, connected }) {
-  // Colors per state
-  const bg     = expanded ? 'var(--text)' : connected ? '#E8F5E9' : '#fff';
-  const border = expanded ? 'transparent' : connected ? '#86c997' : 'rgba(0,0,0,0.18)';
-  const color  = expanded ? '#fff' : connected ? '#1B7A33' : '#555';
+  const { bg, border, color, title } = toggleBtnState(expanded, connected);
 
   return (
     <button
       onClick={onClick}
-      title={expanded ? 'Close' : connected ? 'Manage connection' : 'Connect'}
+      title={title}
       style={{
         width: 28, height: 28, padding: 0, flexShrink: 0,
         border: `1.5px solid ${border}`,
@@ -128,22 +157,7 @@ function ToggleBtn({ expanded, onClick, connected }) {
         boxShadow: expanded ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
       }}
     >
-      {expanded ? (
-        // × close
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      ) : connected ? (
-        // ✓ connected
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20,6 9,17 4,12"/>
-        </svg>
-      ) : (
-        // + add
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-      )}
+      <ToggleBtnIcon expanded={expanded} connected={connected} />
     </button>
   );
 }
@@ -170,7 +184,7 @@ function IntegrationRow({ service, label, connected, keyHint, children, actionSl
             {connected && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#1B7A33', background: '#E8F5E9', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1B7A33' }} />
-                Connected
+                {' '}Connected
               </span>
             )}
           </div>
@@ -205,10 +219,17 @@ function Modal({ open, onClose, title, children }) {
   return (
     <>
       {/* Backdrop */}
-      <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.28)',
-      }} />
+      <div
+        onClick={onClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Close dialog"
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.28)',
+        }}
+      />
       {/* Dialog */}
       <div style={{
         position: 'fixed',

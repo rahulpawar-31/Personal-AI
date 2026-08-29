@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from './api.js';
+import { toast } from './toast.jsx';
 
 export default function AdminPage({ user }) {
   const [users,   setUsers]   = useState([]);
@@ -32,7 +33,7 @@ export default function AdminPage({ user }) {
     setDeleting(u.id);
     try {
       const r = await apiFetch(`/api/admin/users/${u.id}`, { method: 'DELETE' });
-      if (!r.ok) { alert((await r.json()).error); }
+      if (!r.ok) { toast((await r.json()).error, 'error'); }
       else await load();
     } finally {
       setDeleting(null);
@@ -48,11 +49,12 @@ export default function AdminPage({ user }) {
       });
       await load();
     } catch (e) {
-      alert(e.message);
+      toast(e.message, 'error');
     }
   }
 
-  const fmt = iso => iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const fmt = iso => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+  const roleToggleTitle = isAdmin => (isAdmin ? 'Remove admin' : 'Make admin');
 
   if (loading) return <div style={{ padding: 40, color: 'var(--muted)', fontSize: 13 }}>Loading…</div>;
   if (error)   return <div style={{ padding: 40, color: 'var(--danger)', fontSize: 13 }}>{error}</div>;
@@ -111,7 +113,7 @@ export default function AdminPage({ user }) {
                   <button
                     onClick={() => u.id !== user.id && toggleAdmin(u)}
                     disabled={u.id === user.id}
-                    title={u.id === user.id ? 'Cannot change your own role' : (u.isAdmin ? 'Remove admin' : 'Make admin')}
+                    title={u.id === user.id ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
                     style={{
                       fontSize: 11, padding: '2px 8px', borderRadius: 10, cursor: u.id === user.id ? 'default' : 'pointer',
                       background: u.isAdmin ? 'rgba(29,158,117,.1)' : 'var(--bg)',
