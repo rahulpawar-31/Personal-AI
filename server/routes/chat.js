@@ -46,8 +46,9 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
 
     send({ type: 'status', text: 'Thinking…' });
 
+    const memContextLine = memContext ? ` User context: ${memContext}` : '';
     const classified = preClassify(message) ?? await llm.classify(
-      `Today is ${new Date().toDateString()}. Connected tools: ${connectedTools}.${memContext ? ' User context: ' + memContext : ''}\n${buildRoutingRules()}\nUser message: "${message}"`,
+      `Today is ${new Date().toDateString()}. Connected tools: ${connectedTools}.${memContextLine}\n${buildRoutingRules()}\nUser message: "${message}"`,
       AGENT_SCHEMA,
       apiKeys
     );
@@ -97,26 +98,34 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
     } else {
       send({ type: 'status', text: needsSummary ? 'Summarizing…' : 'Thinking…' });
 
-      const summaryGuide = intents.includes('get_emails_range')
-        ? 'List each email as: **sender** — subject — one-line summary. Group by date. End with a total count. If the emails array is empty, say "No emails found for that period."'
-        : intents.includes('get_issues')
-        ? 'List each open issue with its number, title, and labels. End with a count. If the issues array is empty, say "No open issues."'
-        : intents.includes('get_prs')
-        ? 'List each PR with number, title, age, and reviewer. End with counts of open vs stale. If empty, say "No open pull requests."'
-        : intents.some(i => i === 'get_calendar' || i === 'get_tasks')
-        ? 'Report ONLY what is in the data provided. For calendar: list each event with its exact time and title. For tasks: list each task with its status. If an array is empty, explicitly say so (e.g. "No upcoming events", "No open tasks"). NEVER invent events, tasks, or names not present in the data.'
-        : 'Summarise clearly in 2-4 sentences using ONLY the data provided. Never invent details.';
+      let summaryGuide;
+      if (intents.includes('get_emails_range')) {
+        summaryGuide = 'List each email as: **sender** — subject — one-line summary. Group by date. End with a total count. If the emails array is empty, say "No emails found for that period."';
+      } else if (intents.includes('get_issues')) {
+        summaryGuide = 'List each open issue with its number, title, and labels. End with a count. If the issues array is empty, say "No open issues."';
+      } else if (intents.includes('get_prs')) {
+        summaryGuide = 'List each PR with number, title, age, and reviewer. End with counts of open vs stale. If empty, say "No open pull requests."';
+      } else if (intents.some(i => i === 'get_calendar' || i === 'get_tasks')) {
+        summaryGuide = 'Report ONLY what is in the data provided. For calendar: list each event with its exact time and title. For tasks: list each task with its status. If an array is empty, explicitly say so (e.g. "No upcoming events", "No open tasks"). NEVER invent events, tasks, or names not present in the data.';
+      } else {
+        summaryGuide = 'Summarise clearly in 2-4 sentences using ONLY the data provided. Never invent details.';
+      }
 
-      const streamMessages = needsSummary
-        ? [
-            { role: 'system', content: `You are a data reporter. CRITICAL: Only report what exists in the JSON data below. Never invent, assume, or hallucinate any events, tasks, emails, names, or times. If a list is empty, say so clearly. ${summaryGuide}` },
-            { role: 'user',   content: `User asked: "${message}"\nData:\n${actions.map((a, i) => `${a.intent}: ${JSON.stringify(results[i])}`).join('\n')}` },
-          ]
-        : [
-            { role: 'system', content: `You are DevOS, a personal AI agent. Connected tools: ${connectedTools}. Be concise and direct. IMPORTANT: You do NOT have access to the user's real calendar, emails, or tasks in this message — if the user asks what they have today or about specific data, tell them to ask again so the agent can fetch it, rather than guessing or making up any information.${memContext ? ' ' + memContext : ''}` },
-            ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-            { role: 'user',   content: message },
-          ];
+      let streamMessages;
+      if (needsSummary) {
+        const dataSummary = actions.map((a, i) => `${a.intent}: ${JSON.stringify(results[i])}`).join('\n');
+        streamMessages = [
+          { role: 'system', content: `You are a data reporter. CRITICAL: Only report what exists in the JSON data below. Never invent, assume, or hallucinate any events, tasks, emails, names, or times. If a list is empty, say so clearly. ${summaryGuide}` },
+          { role: 'user',   content: `User asked: "${message}"\nData:\n${dataSummary}` },
+        ];
+      } else {
+        const memContextSuffix = memContext ? ` ${memContext}` : '';
+        streamMessages = [
+          { role: 'system', content: `You are DevOS, a personal AI agent. Connected tools: ${connectedTools}. Be concise and direct. IMPORTANT: You do NOT have access to the user's real calendar, emails, or tasks in this message — if the user asks what they have today or about specific data, tell them to ask again so the agent can fetch it, rather than guessing or making up any information.${memContextSuffix}` },
+          ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          { role: 'user',   content: message },
+        ];
+      }
 
       let fullReply = '';
       for await (const token of llm.streamTokens(streamMessages, { taskType: 'chat', maxTokens: 600, apiKeys })) {
