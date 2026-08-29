@@ -14,7 +14,7 @@ router.post('/api/slack/send', requireAuth, async (req, res) => {
     if (!text?.trim()) return res.status(400).json({ error: 'text required' });
     const creds = await getUserCreds(req.user.userId);
     const ts = await slack.sendDM(text.trim(), creds);
-    res.json({ ok: !!ts, ts });
+    res.json({ ok: Boolean(ts), ts });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

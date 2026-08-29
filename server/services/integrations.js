@@ -187,8 +187,8 @@ export async function listKeysWithMeta(userId) {
     try {
       const plain = decrypt(row.keyValue);
       keyHint = plain.length >= 10
-        ? plain.slice(0, 6) + '••••' + plain.slice(-4)
-        : plain.slice(0, 3) + '•••' + plain.slice(-2);
+        ? `${plain.slice(0, 6)}••••${plain.slice(-4)}`
+        : `${plain.slice(0, 3)}•••${plain.slice(-2)}`;
     } catch { /* corrupted — leave as dots */ }
     if (!result[row.service]) result[row.service] = {};
     result[row.service][row.keyName] = { updatedAt: row.updatedAt, keyHint };

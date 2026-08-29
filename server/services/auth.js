@@ -138,7 +138,7 @@ export async function restoreAllFromDB() {
         const tPath  = tokenPath(row.user_id);
         if (!fs.existsSync(tPath)) {
           fs.writeFileSync(tPath, JSON.stringify(tokens));
-          count++;
+          count += 1;
         }
       } catch { /* skip corrupted rows */ }
     }
@@ -153,7 +153,7 @@ export function isConnected(userId) {
   if (!fs.existsSync(tPath)) return false;
   try {
     const tokens = JSON.parse(fs.readFileSync(tPath, 'utf8'));
-    return !!(tokens.refresh_token || (tokens.expiry_date && tokens.expiry_date > Date.now()));
+    return Boolean(tokens.refresh_token || (tokens.expiry_date && tokens.expiry_date > Date.now()));
   } catch {
     return false;
   }
@@ -170,7 +170,7 @@ export function getConnectedUserIds() {
   }
 }
 
-export function getAuthUrl(state = '', baseURLOverride) {
+export function getAuthUrl(baseURLOverride, state = '') {
   const opts = { access_type: 'offline', scope: SCOPES, prompt: 'consent' };
   if (state) opts.state = state;
   return createOAuth2Client(baseURLOverride).generateAuthUrl(opts);

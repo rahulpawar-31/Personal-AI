@@ -181,9 +181,12 @@ export async function saveFact(userId, key, value) {
 export async function buildContextSummary(userId) {
   const mem   = await load(userId);
   const lines = [];
-  if (mem.facts?.length)             lines.push('Facts: ' + mem.facts.map(f => `${f.key}=${f.value}`).join('; '));
-  if (mem.vipContacts?.length)       lines.push('VIPs: ' + mem.vipContacts.map(v => v.email).join(', '));
-  if (mem.projectPriorities?.length) lines.push('Priorities: ' + mem.projectPriorities.join(', '));
+  if (mem.facts?.length) {
+    const factList = mem.facts.map(f => `${f.key}=${f.value}`).join('; ');
+    lines.push(`Facts: ${factList}`);
+  }
+  if (mem.vipContacts?.length)       lines.push(`VIPs: ${mem.vipContacts.map(v => v.email).join(', ')}`);
+  if (mem.projectPriorities?.length) lines.push(`Priorities: ${mem.projectPriorities.join(', ')}`);
   return lines.join(' | ');
 }
 
@@ -202,7 +205,7 @@ export async function logActivity(userId, intent, params = {}, status = 'success
     const { title, to, repo, date, days, time, startDate, endDate } = params;
     const slim = Object.fromEntries(
       Object.entries({ title, to, repo, date, days, time, startDate, endDate })
-        .filter(([, v]) => v != null)
+        .filter(([, v]) => v !== null && v !== undefined)
     );
 
     mem.activityLog.push({

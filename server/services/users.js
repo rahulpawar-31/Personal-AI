@@ -20,7 +20,7 @@ const SALT_ROUNDS = 12;
 export async function createUser(username, password, email) {
   if (!username?.trim())          throw new Error('Username is required');
   if (!/^\w{3,32}$/.test(username.trim())) throw new Error('Username must be 3–32 characters (letters, numbers, underscores)');
-  if (!password || !password.trim())        throw new Error('Password cannot be blank or only spaces');
+  if (!password?.trim())                    throw new Error('Password cannot be blank or only spaces');
   if (password.length < 8)                 throw new Error('Password must be at least 8 characters');
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

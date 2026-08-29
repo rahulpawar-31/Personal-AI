@@ -17,7 +17,7 @@ async function findSlackUser() {
 
 router.get('/api/webhook/info', (req, res) => {
   const base = publicOrigin() ?? `http://localhost:${process.env.PORT ?? 3001}`;
-  res.json({ url: `${base}/api/webhook/github`, secret: !!process.env.GITHUB_WEBHOOK_SECRET });
+  res.json({ url: `${base}/api/webhook/github`, secret: Boolean(process.env.GITHUB_WEBHOOK_SECRET) });
 });
 
 router.post('/api/webhook/github', async (req, res) => {
@@ -27,7 +27,7 @@ router.post('/api/webhook/github', async (req, res) => {
   }
   const sig      = req.headers['x-hub-signature-256'] ?? '';
   const payload  = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
-  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  const expected = `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
   const sigBuf   = Buffer.from(sig);
   const expBuf   = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
