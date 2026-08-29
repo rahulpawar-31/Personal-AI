@@ -62,8 +62,8 @@ function CommsView() {
     setTimeout(() => { setLoading(false); setEmails(SAMPLE_EMAILS); }, 700);
   }
 
-  const priorityColor = p =>
-    p === "P1" ? "var(--danger)" : p === "P2" ? "var(--warning)" : "var(--hint)";
+  const PRIORITY_COLOR = { P1: "var(--danger)", P2: "var(--warning)" };
+  const priorityColor = p => PRIORITY_COLOR[p] ?? "var(--hint)";
 
   return (
     <div>
@@ -98,6 +98,9 @@ function CommsView() {
           >
             <div
               onClick={() => openEmail(email.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openEmail(email.id); } }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -152,7 +155,7 @@ function CommsView() {
             </div>
 
             {isOpen && (
-              <div onClick={e => e.stopPropagation()} style={{ borderTop: "0.5px solid var(--border)" }}>
+              <div style={{ borderTop: "0.5px solid var(--border)" }}>
                 <div style={{ padding: "14px 20px 0", background: "#fff" }}>
                   <div style={{ fontSize: 20, fontWeight: 400, color: "#202124", marginBottom: 12 }}>
                     {email.subject}

@@ -19,6 +19,43 @@ const SAMPLE_CARDS = [
   { id: "c2", title: "QA — Trello sync polling", url: "#", daysStale: 2 },
 ];
 
+const STATUS_DOT_COLOR = {
+  "Done":        "var(--success)",
+  "In progress": "var(--info)",
+};
+
+const statusDot = s => (
+  <span style={{
+    width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+    background: STATUS_DOT_COLOR[s] ?? "var(--hint)",
+  }} />
+);
+
+function TaskRow({ task, onStatusChange }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      background: "var(--surface)", border: "0.5px solid var(--border)",
+      borderRadius: "var(--radius)", padding: "8px 12px", marginBottom: 6,
+    }}>
+      {statusDot(task.status)}
+      <span style={{ flex: 1, fontSize: 13 }}>{task.title}</span>
+      <select
+        value={task.status}
+        onChange={e => onStatusChange(task.id, e.target.value, task.source)}
+        style={{
+          fontSize: 11, border: "0.5px solid var(--border)", borderRadius: 4,
+          padding: "2px 6px", background: "var(--bg)", fontFamily: "inherit", color: "var(--text)",
+        }}>
+        <option>Not started</option>
+        <option>In progress</option>
+        <option>Done</option>
+      </select>
+      {task.url && <a href={task.url} style={{ fontSize: 11, color: "var(--info)" }}>↗</a>}
+    </div>
+  );
+}
+
 function TasksView() {
   const [notion,  setNotion]  = React.useState(SAMPLE_NOTION);
   const [todoist, setTodoist] = React.useState(SAMPLE_TODOIST);
@@ -28,44 +65,12 @@ function TasksView() {
 
   function addTask() {
     if (!newTask.trim()) return;
-    setNotion(n => [...n, { id: "n" + Date.now(), title: newTask.trim(), status: "Not started", source: "notion" }]);
+    setNotion(n => [...n, { id: `n${Date.now()}`, title: newTask.trim(), status: "Not started", source: "notion" }]);
     setNewTask("");
   }
   function updateStatus(id, status, source) {
-    if (source === "todoist") setTodoist(t => t.map(x => x.id === id ? { ...x, status } : x));
-    else setNotion(t => t.map(x => x.id === id ? { ...x, status } : x));
-  }
-
-  const statusDot = s => (
-    <span style={{
-      width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-      background: s === "Done" ? "var(--success)" : s === "In progress" ? "var(--info)" : "var(--hint)",
-    }} />
-  );
-
-  function TaskRow({ task }) {
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        background: "var(--surface)", border: "0.5px solid var(--border)",
-        borderRadius: "var(--radius)", padding: "8px 12px", marginBottom: 6,
-      }}>
-        {statusDot(task.status)}
-        <span style={{ flex: 1, fontSize: 13 }}>{task.title}</span>
-        <select
-          value={task.status}
-          onChange={e => updateStatus(task.id, e.target.value, task.source)}
-          style={{
-            fontSize: 11, border: "0.5px solid var(--border)", borderRadius: 4,
-            padding: "2px 6px", background: "var(--bg)", fontFamily: "inherit", color: "var(--text)",
-          }}>
-          <option>Not started</option>
-          <option>In progress</option>
-          <option>Done</option>
-        </select>
-        {task.url && <a href={task.url} style={{ fontSize: 11, color: "var(--info)" }}>↗</a>}
-      </div>
-    );
+    if (source === "todoist") setTodoist(t => t.map(x => (x.id === id ? { ...x, status } : x)));
+    else setNotion(t => t.map(x => (x.id === id ? { ...x, status } : x)));
   }
 
   return (
@@ -83,10 +88,10 @@ function TasksView() {
       </div>
 
       <Eyebrow style={{ marginTop: 14 }}>Notion</Eyebrow>
-      {notion.map(t => <TaskRow key={t.id} task={t} />)}
+      {notion.map(t => <TaskRow key={t.id} task={t} onStatusChange={updateStatus} />)}
 
       <Eyebrow style={{ marginTop: 14 }}>Todoist</Eyebrow>
-      {todoist.map(t => <TaskRow key={t.id} task={t} />)}
+      {todoist.map(t => <TaskRow key={t.id} task={t} onStatusChange={updateStatus} />)}
 
       <Eyebrow style={{ marginTop: 14 }}>GitHub PRs</Eyebrow>
       {prs.map(pr => (

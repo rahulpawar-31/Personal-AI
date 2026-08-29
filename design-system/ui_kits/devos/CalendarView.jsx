@@ -39,7 +39,7 @@ function fmtDur(ev) {
   const mins = Math.round((new Date(ev.end) - new Date(ev.start)) / 60000);
   if (mins < 60) return `${mins}m`;
   if (mins === 60) return "1h";
-  return `${Math.floor(mins / 60)}h ${mins % 60 ? mins % 60 + "m" : ""}`.trim();
+  return `${Math.floor(mins / 60)}h ${mins % 60 ? `${mins % 60}m` : ""}`.trim();
 }
 
 function CalendarView() {

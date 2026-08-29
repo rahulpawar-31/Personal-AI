@@ -5,20 +5,20 @@ const SAMPLE_DIGEST = {
   generatedAt: new Date().toISOString(),
   comms: {
     pending: [
-      { from: "Jane Park <jane@acme.com>",   subject: "Q3 roadmap review",       intent: "needs decision by Thursday" },
-      { from: "Sam Liu <sam@vendor.io>",     subject: "Renewal contract draft",  intent: "30-day reply window" },
-      { from: "ceo@company.com",             subject: "Urgent — Q3 numbers",     intent: "VIP — auto-flagged P1" },
+      { id: "e1", from: "Jane Park <jane@acme.com>",   subject: "Q3 roadmap review",       intent: "needs decision by Thursday" },
+      { id: "e2", from: "Sam Liu <sam@vendor.io>",     subject: "Renewal contract draft",  intent: "30-day reply window" },
+      { id: "e3", from: "ceo@company.com",             subject: "Urgent — Q3 numbers",     intent: "VIP — auto-flagged P1" },
     ],
   },
   calendar: {
     conflicts: [
-      { eventA: { title: "Sprint planning" }, eventB: { title: "1:1 w/ Alex" }, type: "overlap", overlapMin: 25 },
+      { id: "conflict1", eventA: { title: "Sprint planning" }, eventB: { title: "1:1 w/ Alex" }, type: "overlap", overlapMin: 25 },
     ],
   },
   tasks: {
     blockers: [
-      { source: "GitHub PR #847", title: "Auth refresh tokens — waiting on review (3d)" },
-      { source: "Notion",         title: "Q3 OKR draft — blocked on Jane's review" },
+      { id: "b1", source: "GitHub PR #847", title: "Auth refresh tokens — waiting on review (3d)" },
+      { id: "b2", source: "Notion",         title: "Q3 OKR draft — blocked on Jane's review" },
     ],
   },
   content: {
@@ -42,6 +42,10 @@ function DigestView() {
     weekday: "long", month: "long", day: "numeric",
   });
 
+  let buttonLabel = "Run digest";
+  if (loading) buttonLabel = "Running…";
+  else if (digest) buttonLabel = "Refresh digest";
+
   return (
     <div>
       <div
@@ -57,7 +61,7 @@ function DigestView() {
           <p style={{ fontSize: 12, color: "var(--muted)" }}>{today}</p>
         </div>
         <Button variant="primary" onClick={runDigest} disabled={loading}>
-          {loading ? "Running…" : digest ? "Refresh digest" : "Run digest"}
+          {buttonLabel}
         </Button>
       </div>
 
@@ -86,8 +90,8 @@ function DigestView() {
           {/* Comms */}
           <Eyebrow>Comms</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-            {digest.comms.pending.map((e, i) => (
-              <Card key={i} accent="var(--border)">
+            {digest.comms.pending.map(e => (
+              <Card key={e.id} accent="var(--border)">
                 <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>{e.from}</div>
                 <div style={{ fontWeight: 500 }}>{e.subject}</div>
                 <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{e.intent}</div>
@@ -98,8 +102,8 @@ function DigestView() {
           {/* Conflicts */}
           <Eyebrow>Calendar conflicts</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-            {digest.calendar.conflicts.map((c, i) => (
-              <Card key={i} accent="var(--danger)">
+            {digest.calendar.conflicts.map(c => (
+              <Card key={c.id} accent="var(--danger)">
                 <div style={{ fontWeight: 500 }}>
                   {c.eventA.title} ↔ {c.eventB.title}
                 </div>
@@ -113,8 +117,8 @@ function DigestView() {
           {/* Blockers */}
           <Eyebrow>Blockers</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-            {digest.tasks.blockers.map((b, i) => (
-              <Card key={i} accent="var(--danger)">
+            {digest.tasks.blockers.map(b => (
+              <Card key={b.id} accent="var(--danger)">
                 <div style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                   <Tag variant="danger">Blocked</Tag>
                   <span style={{ fontSize: 11, color: "var(--muted)" }}>{b.source}</span>
