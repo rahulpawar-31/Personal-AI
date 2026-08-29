@@ -13,11 +13,12 @@ function renderContent(text) {
   // Simple inline formatting: **bold**, `code`, newlines
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\n)/g);
   return parts.map((p, i) => {
+    const key = `${i}-${p}`;
     if (p.startsWith('**') && p.endsWith('**'))
-      return <strong key={i}>{p.slice(2, -2)}</strong>;
+      return <strong key={key}>{p.slice(2, -2)}</strong>;
     if (p.startsWith('`') && p.endsWith('`'))
-      return <code key={i} style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 3, padding: '1px 5px', fontFamily: 'monospace', fontSize: '0.9em' }}>{p.slice(1, -1)}</code>;
-    if (p === '\n') return <br key={i} />;
+      return <code key={key} style={{ background: 'rgba(0,0,0,0.08)', borderRadius: 3, padding: '1px 5px', fontFamily: 'monospace', fontSize: '0.9em' }}>{p.slice(1, -1)}</code>;
+    if (p === '\n') return <br key={key} />;
     return p;
   });
 }
@@ -77,7 +78,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
     rec.onend    = () => setListening(false);
     rec.onerror  = e => {
       setListening(false);
-      if (e.error !== 'aborted') toast('Mic error: ' + e.error, 'error');
+      if (e.error !== 'aborted') toast(`Mic error: ${e.error}`, 'error');
     };
     rec.onresult = e => {
       const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
@@ -100,7 +101,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [input]);
 
   async function send() {
@@ -129,7 +130,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
         setMessages(m => [...m, { role: 'assistant', content: data.reply || '(no reply)', intents: data.intents, at: Date.now() }]);
         (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
       } catch (err) {
-        setMessages(m => [...m, { role: 'assistant', content: 'Agent error: ' + err.message, at: Date.now() }]);
+        setMessages(m => [...m, { role: 'assistant', content: `Agent error: ${err.message}`, at: Date.now() }]);
       } finally {
         setLoading(false);
         setStatusText('');
@@ -195,12 +196,12 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
             (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
 
           } else if (data.type === 'error') {
-            setMessages(m => [...m, { role: 'assistant', content: 'Error: ' + data.text, at: Date.now() }]);
+            setMessages(m => [...m, { role: 'assistant', content: `Error: ${data.text}`, at: Date.now() }]);
           }
         }
       }
     } catch (err) {
-      setMessages(m => [...m, { role: 'assistant', content: 'Something went wrong: ' + err.message, at: Date.now() }]);
+      setMessages(m => [...m, { role: 'assistant', content: `Something went wrong: ${err.message}`, at: Date.now() }]);
     } finally {
       setLoading(false);
       setStatusText('');
@@ -273,11 +274,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
         {/* Empty state */}
         {isEmpty && (() => {
           const activeTools = CONNECTED_TOOLS.filter(t =>
-            t.key === 'google' ? connected : !!health[t.key]
+            (t.key === 'google' ? connected : Boolean(health[t.key]))
           );
           const suggestions = ALL_SUGGESTIONS.filter(s =>
             s.key === null ||
-            (s.key === 'google' ? connected : !!health[s.key])
+            (s.key === 'google' ? connected : Boolean(health[s.key]))
           ).slice(0, 6);
 
           return (
@@ -352,7 +353,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false }) 
           const showAvatar = !isUser && (i === 0 || messages[i - 1]?.role !== 'assistant');
           return (
             <div
-              key={i}
+              key={m.at ?? i}
               style={{
                 display: 'flex',
                 flexDirection: isUser ? 'row-reverse' : 'row',

@@ -37,7 +37,7 @@ function EmailIframe({ html }) {
     try {
       const doc = ref.current?.contentDocument;
       if (doc?.body) {
-        ref.current.style.height = doc.body.scrollHeight + 32 + 'px';
+        ref.current.style.height = `${doc.body.scrollHeight + 32}px`;
       }
     } catch (_) {}
   }
@@ -69,7 +69,7 @@ function ReplyDraft({ email, toAddr, onSent }) {
         method: 'POST',
         body: JSON.stringify({
           to:       toAddr,
-          subject:  'Re: ' + email.subject,
+          subject:  `Re: ${email.subject}`,
           original: email.draftReply,
           edited:   text,
         }),
@@ -78,7 +78,7 @@ function ReplyDraft({ email, toAddr, onSent }) {
         const d = await r.json().catch(() => ({}));
         throw new Error(d.error || 'Send failed');
       }
-      toast('Reply sent to ' + toAddr, 'success');
+      toast(`Reply sent to ${toAddr}`, 'success');
       onSent(email.id);
     } catch (e) {
       toast(e.message, 'error');
@@ -238,7 +238,8 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
     archive(id);
   }
 
-  const priorityColor = p => p === 'P1' ? 'var(--danger)' : p === 'P2' ? 'var(--warning)' : 'var(--hint)';
+  const PRIORITY_TEXT_COLOR = { P1: 'var(--danger)', P2: 'var(--warning)' };
+  const priorityColor = p => PRIORITY_TEXT_COLOR[p] ?? 'var(--hint)';
 
   if (!connected) return (
     <div>
@@ -290,9 +291,13 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
             }}
           >
             {/* Collapsed row */}
-            <div
+            <button
+              type="button"
               onClick={() => openEmail(email.id)}
-              style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', cursor: 'pointer' }}
+              style={{
+                all: 'unset', boxSizing: 'border-box', width: '100%',
+                display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', cursor: 'pointer',
+              }}
             >
               {/* Avatar */}
               <div style={{
@@ -326,7 +331,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
               </div>
-            </div>
+            </button>
 
             {/* Expanded — Gmail-style */}
             {isOpen && (
@@ -370,11 +375,13 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
                 {/* Email body */}
                 <div style={{ background: '#fff', padding: '0 4px' }}>
-                  {isLoading ? (
+                  {isLoading && (
                     <div style={{ padding: '24px 20px', color: '#5f6368', fontSize: 13 }}>Loading…</div>
-                  ) : full?.htmlBody ? (
+                  )}
+                  {!isLoading && full?.htmlBody && (
                     <EmailIframe html={full.htmlBody} />
-                  ) : (
+                  )}
+                  {!isLoading && !full?.htmlBody && (
                     <pre style={{
                       margin: 0, padding: '0 20px 20px',
                       fontSize: 14, lineHeight: 1.7, color: '#202124',
@@ -429,7 +436,7 @@ function formatAge(at) {
 
 // Split a "Name <email>" header into its two parts.
 function parseFrom(from = '') {
-  const m = from.match(/^\s*"?(.*?)"?\s*<(.+?)>\s*$/);
+  const m = /^\s*"?(.*?)"?\s*<(.+?)>\s*$/.exec(from);
   if (m) return { name: (m[1].trim() || m[2].trim()), email: m[2].trim() };
   return { name: from.trim(), email: '' };
 }
@@ -439,6 +446,6 @@ const AVATAR_COLORS = ['#1a73e8', '#34A853', '#9334e6', '#e8710a', '#d93025', '#
 // Deterministic avatar color from the sender so it stays stable per contact.
 function avatarColor(str = '') {
   let h = 0;
-  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  for (let i = 0; i < str.length; i += 1) h = str.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }

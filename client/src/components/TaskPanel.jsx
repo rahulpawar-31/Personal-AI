@@ -31,7 +31,7 @@ const BUILT_IN = [
 
 function dueFmt(iso) {
   if (!iso) return null;
-  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00');
+  const d = new Date(iso.includes('T') ? iso : `${iso}T00:00:00`);
   const today = new Date(); today.setHours(0,0,0,0);
   const diff  = Math.round((d - today) / 86400000);
   if (diff === 0)  return { text: 'Today',    color: '#BA7517' };
@@ -63,7 +63,7 @@ function SourceBadge({ source }) {
 // ─── Kanban card ──────────────────────────────────────────────────────────────
 
 function Card({ task, onDragStart, onToggle }) {
-  const [hovered, setHov] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const due    = dueFmt(task.due);
   const done   = task.status === 'Done';
   const pColor = PRIORITY_COLOR[task.priority];
@@ -72,8 +72,8 @@ function Card({ task, onDragStart, onToggle }) {
     <div
       draggable
       onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('id', task.id); onDragStart(task); }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -289,11 +289,11 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
 // ─── Notion Notes column ──────────────────────────────────────────────────────
 
 function NoteCard({ note }) {
-  const [hovered, setHov] = useState(false);
+  const [hovered, setHovered] = useState(false);
   return (
     <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -348,7 +348,7 @@ function NotionNotesColumn({ notes, onAdd }) {
       const r = await apiFetch('/api/notes/export');
       if (!r.ok) throw new Error((await r.json()).error || 'Export failed');
       const { files } = await r.json();
-      if (!files?.length) { alert('No notes to export'); return; }
+      if (!files?.length) { toast('No notes to export'); return; }
 
       // Download each file individually as .md
       for (const f of files) {
@@ -359,10 +359,10 @@ function NotionNotesColumn({ notes, onAdd }) {
         document.body.appendChild(a); a.click();
         document.body.removeChild(a); URL.revokeObjectURL(url);
         // small delay between downloads to avoid browser blocking
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(resolve => setTimeout(resolve, 120));
       }
     } catch (e) {
-      alert('Export failed: ' + e.message);
+      toast(`Export failed: ${e.message}`, 'error');
     } finally {
       setExporting(false);
     }
@@ -539,7 +539,7 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
     const next = status === 'Done' ? 'Not started' : 'Done';
     const r = await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id, status: next, source }) });
     if (!r.ok) { toast('Could not update task', 'error'); return; }
-    const up = ts => ts.map(x => x.id === id ? { ...x, status: next } : x);
+    const up = ts => ts.map(x => (x.id === id ? { ...x, status: next } : x));
     if (source === 'todoist') setTodoistTasks(up); else setNotionTasks(up);
   }
 
@@ -551,12 +551,12 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
     if (!card || card._colId === targetColId) { dragging.current = null; return; }
 
     if (card.source === 'trello') {
-      setTrelloCards(prev => prev.map(c => c.id === card.id ? { ...c, listId: targetColId } : c));
+      setTrelloCards(prev => prev.map(c => (c.id === card.id ? { ...c, listId: targetColId } : c)));
       const r = await apiFetch('/api/trello/move', { method: 'POST', body: JSON.stringify({ cardId: card.id, listId: targetColId }) });
       if (!r.ok) toast('Could not move card — refresh to see the current state', 'error');
     } else {
       const newStatus = COL_STATUS[targetColId] ?? 'Not started';
-      const up = ts => ts.map(c => c.id === card.id ? { ...c, status: newStatus } : c);
+      const up = ts => ts.map(c => (c.id === card.id ? { ...c, status: newStatus } : c));
       if (card.source === 'todoist') setTodoistTasks(up); else setNotionTasks(up);
       const r = await apiFetch('/api/task/update', { method: 'POST', body: JSON.stringify({ id: card.id, status: newStatus, source: card.source }) });
       if (!r.ok) toast('Could not update task — refresh to see the current state', 'error');
@@ -646,7 +646,7 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
               cards={col.cards.map(c => ({ ...c, _colId: col.id }))}
               isDragOver={dragOver === col.id}
               onDragOver={() => setDragOver(col.id)}
-              onDragLeave={() => setDragOver(d => d === col.id ? null : d)}
+              onDragLeave={() => setDragOver(d => (d === col.id ? null : d))}
               onDrop={() => handleDrop(col.id)}
               onToggle={hasTrello ? null : toggleDone}
               onAddTask={addTask}
