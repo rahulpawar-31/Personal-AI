@@ -57,20 +57,24 @@ function mergeWithDefaults(stored) {
 function readFromDisk(userId) {
   const perUser = jsonPath(userId);
   if (fs.existsSync(perUser)) {
-    try { return mergeWithDefaults(JSON.parse(fs.readFileSync(perUser, 'utf8'))); } catch {}
+    // Corrupt/unreadable file — fall through to the next fallback tier below.
+    try { return mergeWithDefaults(JSON.parse(fs.readFileSync(perUser, 'utf8'))); } catch { /* fall through */ }
   }
   // First user (id=1) may have data in the old global memory.json
   if (userId === 1 || userId === '1') {
     const legacy = legacyJsonPath();
     if (fs.existsSync(legacy)) {
-      try { return mergeWithDefaults(JSON.parse(fs.readFileSync(legacy, 'utf8'))); } catch {}
+      // Corrupt/unreadable legacy file — fall through to defaults below.
+      try { return mergeWithDefaults(JSON.parse(fs.readFileSync(legacy, 'utf8'))); } catch { /* fall through */ }
     }
   }
   return { ...DEFAULT_MEMORY };
 }
 
 function writeToDisk(userId, data) {
-  try { fs.writeFileSync(jsonPath(userId), JSON.stringify(data, null, 2)); } catch {}
+  // Best-effort local cache write — DB (saveToDB) is the source of truth, so a
+  // failure here (e.g. read-only filesystem) is not fatal.
+  try { fs.writeFileSync(jsonPath(userId), JSON.stringify(data, null, 2)); } catch { /* best-effort cache */ }
 }
 
 async function loadFromDB(userId) {
@@ -79,7 +83,7 @@ async function loadFromDB(userId) {
   try {
     const r = await pool.query('SELECT data FROM user_memory WHERE user_id = $1', [userId]);
     if (r.rows[0]) return mergeWithDefaults(r.rows[0].data);
-  } catch {}
+  } catch { /* DB unavailable — caller falls back to disk */ }
   return null;
 }
 

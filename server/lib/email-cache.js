@@ -26,7 +26,7 @@ export async function getEmailCache(userId) {
           return entry;
         }
       }
-    } catch {}
+    } catch { /* DB unavailable — fall back to the null (cache miss) below */ }
   }
 
   return null;
@@ -45,7 +45,7 @@ export async function setEmailCache(userId, data) {
          ON CONFLICT (user_id) DO UPDATE SET data = $2, fetched_at = NOW()`,
         [userId, JSON.stringify(data)]
       );
-    } catch {}
+    } catch { /* best-effort DB write — hot cache above already has this entry */ }
   }
 }
 
@@ -56,6 +56,6 @@ export async function invalidateEmailCache(userId) {
   if (pool) {
     try {
       await pool.query('DELETE FROM email_cache WHERE user_id = $1', [userId]);
-    } catch {}
+    } catch { /* best-effort — hot cache above is already invalidated */ }
   }
 }

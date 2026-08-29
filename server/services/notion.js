@@ -194,6 +194,8 @@ function blockToMd(block, counters = {}) {
   }
 }
 
+// Genuinely sequential — each page's start_cursor comes from the PREVIOUS
+// response, so requests cannot be parallelized (cursor-based pagination).
 async function getPageBlocks(pageId, notion) {
   const blocks = [];
   let cursor;
@@ -212,21 +214,22 @@ async function getPageBlocks(pageId, notion) {
 export async function exportNotesAsMarkdown(creds = {}) {
   const n = getClient(creds);
   const notes = await getNotes(creds);
-  const files = [];
 
-  for (const note of notes) {
+  // Each note's export is independent (own page, own blocks) — run
+  // concurrently. Promise.all preserves result order to match `notes`.
+  const files = await Promise.all(notes.map(async note => {
     try {
       const blocks  = await getPageBlocks(note.id, n);
       const counters = {};
       const body    = blocks.map(b => blockToMd(b, counters)).filter(Boolean).join('\n\n');
       const md      = `# ${note.title}\n\n> Source: ${note.url}\n\n${body}`;
       const slug    = note.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60) || note.id;
-      files.push({ name: `${slug}.md`, content: md });
+      return { name: `${slug}.md`, content: md };
     } catch (err) {
       console.error(`[notion] export failed for "${note.title}":`, err.message);
-      files.push({ name: `${note.id}.md`, content: `# ${note.title}\n\n*Export failed: ${err.message}*` });
+      return { name: `${note.id}.md`, content: `# ${note.title}\n\n*Export failed: ${err.message}*` };
     }
-  }
+  }));
   return files;
 }
 

@@ -8,6 +8,9 @@ import { publicOrigin } from '../lib/env.js';
 const router = Router();
 
 async function findSlackUser() {
+  // Intentionally sequential, early-exit find-first-match — stops fetching
+  // creds as soon as a Slack-configured user is found instead of always
+  // fetching every connected user's creds up front.
   for (const uid of auth.getConnectedUserIds()) {
     const c = await getUserCreds(Number(uid));
     if (c.SLACK_BOT_TOKEN && c.SLACK_USER_ID) return c;

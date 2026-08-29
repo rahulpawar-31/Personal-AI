@@ -135,19 +135,25 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
         }
         const resolvedTaskId  = extractNotionId(taskDbId);
         const resolvedNotesId = extractNotionId(notesDbId);
-        for (const [label, dbId] of [['Tasks', resolvedTaskId], ['Notes', resolvedNotesId]]) {
-          if (!dbId) continue;
-          const dbResp = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
-            headers: { 'Authorization': `Bearer ${cleanKey}`, 'Notion-Version': '2022-06-28' },
-          });
-          if (!dbResp.ok) {
+        // Fetch both DB checks concurrently, but still report the first
+        // failure in [Tasks, Notes] order (matching the old sequential
+        // early-return behavior exactly) rather than whichever request
+        // happens to finish first.
+        const dbChecks = await Promise.all(
+          [['Tasks', resolvedTaskId], ['Notes', resolvedNotesId]].map(async ([label, dbId]) => {
+            if (!dbId) return null;
+            const dbResp = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
+              headers: { 'Authorization': `Bearer ${cleanKey}`, 'Notion-Version': '2022-06-28' },
+            });
+            if (dbResp.ok) return null;
             const e = await dbResp.json().catch(() => ({}));
-            const msg = e.code === 'object_not_found'
+            return e.code === 'object_not_found'
               ? `${label} database not found. Open the database in Notion → click ··· → Connections → add your integration, then try again.`
               : `${label} database error: ${e.message || dbResp.status}`;
-            return res.status(400).json({ ok: false, error: msg });
-          }
-        }
+          })
+        );
+        const firstError = dbChecks.find(Boolean);
+        if (firstError) return res.status(400).json({ ok: false, error: firstError });
         await integrations.saveKey(uid, 'notion', 'NOTION_API_KEY', cleanKey);
         if (resolvedTaskId)  await integrations.saveKey(uid, 'notion', 'NOTION_TASKS_DB_ID',  resolvedTaskId);
         if (resolvedNotesId) await integrations.saveKey(uid, 'notion', 'NOTION_NOTES_DB_ID', resolvedNotesId);
