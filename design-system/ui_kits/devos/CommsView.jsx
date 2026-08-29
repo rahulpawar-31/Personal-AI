@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button */
 // Comms — triaged inbox with expandable Gmail-style reader.
 
 const SAMPLE_EMAILS = [

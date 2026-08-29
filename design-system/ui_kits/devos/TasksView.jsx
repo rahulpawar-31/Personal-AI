@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button, Eyebrow, Input, Tag */
 // Tasks — Notion + Todoist + GitHub PRs + Trello, unified.
 
 const SAMPLE_NOTION = [

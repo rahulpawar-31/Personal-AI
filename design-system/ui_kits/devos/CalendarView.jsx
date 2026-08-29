@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button, Input, Tag */
 // Calendar — agenda grouped by day, with conflict / focus tags.
 
 function todayAt(h, m = 0) {
@@ -22,6 +22,13 @@ const SAMPLE_EVENTS = [
   { id: "8", title: "Standup",            start: tomorrowAt(10, 0),  end: tomorrowAt(10, 15) },
   { id: "9", title: "Deep work",          start: tomorrowAt(10, 30), end: tomorrowAt(12, 30) },
 ];
+
+function toggleFormDay(setForm, num) {
+  setForm(f => ({
+    ...f,
+    days: f.days.includes(num) ? f.days.filter(d => d !== num) : [...f.days, num],
+  }));
+}
 
 function getEventColor(ev) {
   const t = (ev.title || "").toLowerCase();
@@ -128,7 +135,7 @@ function CalendarView() {
                     const on = form.days.includes(num);
                     return (
                       <button key={num}
-                        onClick={() => setForm(f => ({ ...f, days: on ? f.days.filter(d => d !== num) : [...f.days, num] }))}
+                        onClick={() => toggleFormDay(setForm, num)}
                         style={{
                           fontSize: 11, padding: "4px 10px", borderRadius: "var(--radius)", cursor: "pointer",
                           fontFamily: "inherit",
