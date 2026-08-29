@@ -113,7 +113,7 @@ function StatusBadge({ status }) {
       border: `1px solid ${ok ? '#bbf7d0' : '#fecaca'}`,
       fontSize: 12, color: ok ? '#166534' : '#991b1b',
     }}>
-      {ok ? '✓ Connected' : '✗ ' + status}
+      {ok ? '✓ Connected' : `✗ ${status}`}
     </div>
   );
 }

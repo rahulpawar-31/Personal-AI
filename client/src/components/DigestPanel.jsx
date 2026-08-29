@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api.js';
 
+function runButtonLabel(loading, digest) {
+  if (loading) return 'Running...';
+  if (digest)  return 'Refresh digest';
+  return 'Run digest';
+}
+
 export default function DigestPanel({ refreshKey, onGoToSettings, health = {}, connected = false }) {
   const [digest,  setDigest]  = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +25,7 @@ export default function DigestPanel({ refreshKey, onGoToSettings, health = {}, c
   useEffect(() => {
     apiFetch('/api/digest/latest')
       .then(r => r.json())
-      .then(d => { if (d) setDigest(d); })
+      .then(d => { if (d) setDigest(d); return undefined; })
       .catch(() => {});
   }, []);
 
@@ -27,7 +33,7 @@ export default function DigestPanel({ refreshKey, onGoToSettings, health = {}, c
     if (!refreshKey) return;
     apiFetch('/api/digest/latest')
       .then(r => r.json())
-      .then(d => { if (d) setDigest(d); })
+      .then(d => { if (d) setDigest(d); return undefined; })
       .catch(() => {});
   }, [refreshKey]);
 
@@ -64,7 +70,7 @@ export default function DigestPanel({ refreshKey, onGoToSettings, health = {}, c
           <p style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         </div>
         <button className="primary" onClick={runDigest} disabled={loading}>
-          {loading ? 'Running...' : digest ? 'Refresh digest' : 'Run digest'}
+          {runButtonLabel(loading, digest)}
         </button>
       </div>
 

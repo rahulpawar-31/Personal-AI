@@ -15,7 +15,9 @@ function CharBar({ text }) {
   const pct = Math.min(len / LINKEDIN_MAX, 1);
   const over = len > LINKEDIN_MAX;
   const warn = len > LINKEDIN_MAX * 0.9;
-  const color = over ? 'var(--danger)' : warn ? 'var(--warning)' : 'var(--accent)';
+  let color = 'var(--accent)';
+  if (over)      color = 'var(--danger)';
+  else if (warn) color = 'var(--warning)';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
       <div style={{ flex: 1, height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
@@ -117,8 +119,9 @@ export default function LinkedInPanel({ health = {} }) {
   }
 
   function finalPost() {
-    const tags = [...activeHashtags].join(' ');
-    return editedBody + (tags ? '\n\n' + tags : '');
+    const tags   = [...activeHashtags].join(' ');
+    const suffix = tags ? `\n\n${tags}` : '';
+    return `${editedBody}${suffix}`;
   }
 
   async function approve(postNow = false) {
@@ -213,7 +216,7 @@ export default function LinkedInPanel({ health = {} }) {
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               {draft.variants?.map((v, i) => (
                 <button
-                  key={i}
+                  key={v.label ?? i}
                   onClick={() => selectVariant(i)}
                   style={{
                     flex: 1, padding: '8px 10px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
@@ -321,7 +324,7 @@ export default function LinkedInPanel({ health = {} }) {
           </p>
         )}
         {history.map((p, i) => (
-          <PostCard key={i} post={p} onCopy={text => copyText(text, i)} />
+          <PostCard key={p.at ?? i} post={p} onCopy={text => copyText(text, i)} />
         ))}
         {copiedIdx !== null && copiedIdx !== 'final' && (
           <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>Copied!</p>

@@ -4,7 +4,8 @@ const listeners = new Set();
 let _id = 0;
 
 export function toast(message, type = 'info', duration = 4000) {
-  const id = ++_id;
+  _id += 1;
+  const id = _id;
   listeners.forEach(fn => fn({ id, message, type, duration }));
 }
 
