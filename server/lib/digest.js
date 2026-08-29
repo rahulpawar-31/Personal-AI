@@ -36,7 +36,7 @@ async function _runDigest(userId = null) {
           ? (await import('../services/todoist.js')).default.getTasks('today | overdue', creds)
           : []
       ),
-      github.forEachRepo(repo => github.scanStalePRs(3, repo, creds), creds),
+      github.forEachRepo(repo => github.scanStalePRs(repo, 3, creds), creds),
       trello.scanStaleCards(5, creds),
     ]).then(([tasks, stalePRs, staleCards]) => ({
       tasks,
