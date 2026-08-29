@@ -146,15 +146,17 @@ async function migrateJsonIntegrations() {
 
   if (!oldUsers.length) return;
 
-  // Each old user is an independent row — lookup-then-maybe-insert is guarded
-  // by ON CONFLICT DO NOTHING at the DB level, so users (and, within a user,
-  // their distinct-key integration rows) can migrate concurrently instead of
-  // one DB round-trip at a time. Counts are collected from results rather
-  // than mutated in place so the concurrent version's final tally matches
-  // the old sequential one exactly.
-  const results = await Promise.all(oldUsers.map(async oldUser => {
+  // Users stay sequential: two legacy rows can share a username (a real
+  // anomaly, but one the old code tolerated) — the byUsername lookup for a
+  // later row depends on an earlier row's INSERT having already committed,
+  // so it resolves to the same account instead of losing that user's keys to
+  // an ON CONFLICT no-op. Parallelizing here would make that outcome a race.
+  // Each user's own integration keys have no such cross-row dependency, so
+  // those still migrate concurrently.
+  let usersMigrated = 0, keysMigrated = 0;
+
+  for (const oldUser of oldUsers) {
     let newId = null;
-    let userMigrated = false;
 
     const byUsername = await pool.query(
       'SELECT id FROM users WHERE username = $1', [oldUser.username]
@@ -181,10 +183,10 @@ async function migrateJsonIntegrations() {
           oldUser.googleId ?? oldUser.google_id ?? null,
         ]
       ).catch(() => null);
-      if (ins?.rows[0]) { newId = ins.rows[0].id; userMigrated = true; }
+      if (ins?.rows[0]) { newId = ins.rows[0].id; usersMigrated += 1; }
     }
 
-    if (!newId) return { userMigrated: false, keysMigrated: 0 };
+    if (!newId) continue;
 
     const keys = oldInteg.filter(r => String(r.userId) === String(oldUser.id));
     const keyOutcomes = await Promise.all(keys.map(async k => {
@@ -197,12 +199,8 @@ async function migrateJsonIntegrations() {
         return false;
       }
     }));
-
-    return { userMigrated, keysMigrated: keyOutcomes.filter(Boolean).length };
-  }));
-
-  const usersMigrated = results.filter(r => r.userMigrated).length;
-  const keysMigrated  = results.reduce((sum, r) => sum + r.keysMigrated, 0);
+    keysMigrated += keyOutcomes.filter(Boolean).length;
+  }
 
   if (usersMigrated > 0 || keysMigrated > 0)
     console.log(`[migration] JSON → Neon: ${usersMigrated} user(s), ${keysMigrated} key(s) imported`);
