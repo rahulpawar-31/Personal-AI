@@ -74,7 +74,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
           </button>
         </div>
         {log.length > 0 && (
-          <div style={{ marginTop: 10 }}>
+          <div role="status" aria-live="polite" style={{ marginTop: 10 }}>
             {log.slice(0, 5).map((l, i) => (
               <div key={`${l.at}-${i}`} style={{ fontSize: 11, color: l.ok ? 'var(--success)' : 'var(--danger)', marginBottom: 3 }}>
                 {l.ok ? '✓' : '✗'} {l.text} <span style={{ opacity: 0.5 }}>{l.at}</span>

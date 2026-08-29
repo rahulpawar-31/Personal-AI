@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
+import { LoadingState, ErrorState } from './components/ui/States.jsx';
 
 export default function AdminPage({ user }) {
   const [users,   setUsers]   = useState([]);
@@ -56,8 +57,8 @@ export default function AdminPage({ user }) {
   const fmt = iso => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
   const roleToggleTitle = isAdmin => (isAdmin ? 'Remove admin' : 'Make admin');
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--muted)', fontSize: 13 }}>Loading…</div>;
-  if (error)   return <div style={{ padding: 40, color: 'var(--danger)', fontSize: 13 }}>{error}</div>;
+  if (loading) return <LoadingState label="Loading admin dashboard…" />;
+  if (error)   return <ErrorState title="Couldn't load the admin dashboard" description={error} onRetry={load} />;
 
   return (
     <div style={{ maxWidth: 900 }}>
@@ -66,7 +67,7 @@ export default function AdminPage({ user }) {
 
       {/* Stats row */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 28 }}>
+        <div className="grid-stat-4" style={{ marginBottom: 28 }}>
           {[
             { label: 'Total users',     val: stats.userCount },
             { label: 'Admins',          val: stats.adminCount },
@@ -85,8 +86,8 @@ export default function AdminPage({ user }) {
       )}
 
       {/* Users table */}
-      <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div className="scroll-x" style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)' }}>
+        <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
               {['ID', 'Username', 'Email', 'Keys', 'Joined', 'Role', ''].map(h => (

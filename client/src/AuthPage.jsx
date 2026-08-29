@@ -61,7 +61,7 @@ export default function AuthPage({ onAuth }) {
       minHeight: '100vh', background: 'var(--bg)',
     }}>
       <div style={{
-        width: 360, padding: 32,
+        width: 360, maxWidth: '92vw', padding: 32,
         background: 'var(--surface)',
         borderRadius: 'var(--radius-lg)',
         border: 'var(--border-hairline)',
@@ -86,6 +86,7 @@ export default function AuthPage({ onAuth }) {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input
             placeholder="Username"
+            aria-label="Username"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
@@ -103,6 +104,7 @@ export default function AuthPage({ onAuth }) {
             <input
               type="email"
               placeholder="Email (optional)"
+              aria-label="Email (optional)"
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
@@ -112,6 +114,7 @@ export default function AuthPage({ onAuth }) {
             <input
               type={showPwd ? 'text' : 'password'}
               placeholder="Password"
+              aria-label="Password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required

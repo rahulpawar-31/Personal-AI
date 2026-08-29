@@ -155,7 +155,7 @@ export default function LinkedInPanel({ health = {} }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 24, alignItems: 'start' }}>
+    <div className="split-editor">
 
       {/* ── Left: Studio ─────────────────────────────────────────────────── */}
       <div>
@@ -347,7 +347,7 @@ function VoiceProfile() {
       .catch(() => {});
   }, []);
 
-  if (!profile) return <div style={{ fontSize: 12, color: 'var(--muted)' }}>Loading…</div>;
+  if (!profile) return <div role="status" aria-live="polite" style={{ fontSize: 12, color: 'var(--muted)' }}>Loading…</div>;
 
   const postCount = profile.approvedDrafts?.filter(d => d.type === 'linkedin').length ?? 0;
 

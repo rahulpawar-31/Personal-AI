@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from './api.js';
-import { ToastContainer } from './toast.jsx';
+import { ToastContainer, toast } from './toast.jsx';
 import ChatPanel       from './components/ChatPanel.jsx';
 import EmailPanel      from './components/EmailPanel.jsx';
 import CalendarPanel   from './components/CalendarPanel.jsx';
@@ -10,10 +10,13 @@ import LinkedInPanel   from './components/LinkedInPanel.jsx';
 import GitHubPanel     from './components/GitHubPanel.jsx';
 import SlackPanel      from './components/SlackPanel.jsx';
 import Sidebar         from './components/Sidebar.jsx';
+import MobileTopBar    from './components/MobileTopBar.jsx';
+import CommandPalette  from './components/CommandPalette.jsx';
 import AuthPage        from './AuthPage.jsx';
 import OnboardingWizard from './OnboardingWizard.jsx';
 import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: "Today's digest", dot: '#888780' },
@@ -27,6 +30,9 @@ const BASE_NAV = [
   { id: 'settings', label: 'Settings',       dot: null },
 ];
 const ADMIN_NAV = { id: 'admin', label: 'Admin', dot: '#c0392b' };
+
+// Panel a chat action affects → the toast copy pointing the user at it.
+const PANEL_LABEL = { tasks: 'Tasks', calendar: 'Calendar', github: 'GitHub', comms: 'Comms', digest: "Today's digest" };
 
 export default function App() {
   const [navItems, setNavItems] = useState(BASE_NAV);
@@ -46,6 +52,8 @@ export default function App() {
   const [user,           setUser]           = useState(null);
   const [authChecked,    setAuthChecked]    = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [sidebarOpen,    setSidebarOpen]    = useState(false);
+  const [paletteOpen,    setPaletteOpen]    = useState(false);
 
   const isLoggedIn = Boolean(user);
 
@@ -103,6 +111,13 @@ export default function App() {
     if (panel === 'github')   setGithubRefreshKey(k => k + 1);
     if (panel === 'comms')    setEmailRefreshKey(k => k + 1);
     if (panel === 'digest')   setDigestRefreshKey(k => k + 1);
+
+    // Chat and panels drive the same actions but look disconnected —
+    // this makes the link visible instead of silently bumping a refresh key.
+    const label = PANEL_LABEL[panel];
+    if (label && view !== panel) {
+      toast(`Updated ${label}`, 'success', 5000, { label: 'View →', onClick: () => handleViewChange(panel) });
+    }
   }
 
   const lastRefreshRef = useRef(Date.now());
@@ -143,6 +158,25 @@ export default function App() {
       clearInterval(timer);
     };
   }, [isLoggedIn, refreshAll]);
+
+  useKeyboardShortcuts({
+    enabled: isLoggedIn,
+    onCommandPalette: () => setPaletteOpen(true),
+    onNavigateIndex: i => { if (navItems[i]) handleViewChange(navItems[i].id); },
+    onEscape: () => {
+      if (paletteOpen) setPaletteOpen(false);
+      else if (sidebarOpen) setSidebarOpen(false);
+    },
+  });
+
+  const paletteItems = [
+    ...navItems.map(n => ({
+      id: `nav-${n.id}`, label: n.label, section: 'Go to', dot: n.dot,
+      onSelect: () => handleViewChange(n.id),
+    })),
+    { id: 'refresh-all', label: 'Refresh all panels', section: 'Actions', onSelect: refreshAll },
+    ...(!connected ? [{ id: 'connect-google', label: 'Connect Google', section: 'Actions', onSelect: handleConnectGoogle }] : []),
+  ];
 
   useEffect(() => {
     const token = localStorage.getItem('devos_token');
@@ -216,8 +250,9 @@ export default function App() {
   const isChatView  = view === 'chat';
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
       <ToastContainer />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
 
       <Sidebar
         view={view}
@@ -228,6 +263,8 @@ export default function App() {
         connected={connected}
         onLogout={handleLogout}
         onConnectGoogle={handleConnectGoogle}
+        mobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
       />
 
       <main style={{
@@ -238,13 +275,16 @@ export default function App() {
         background: 'var(--surface)',
         borderLeft: '1px solid var(--border)',
       }}>
-        <div style={{
-          flex: 1,
-          overflow: isTasksView ? 'hidden' : 'auto',
-          padding: (isTasksView || isChatView) ? '24px 28px' : '32px 36px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
+        <MobileTopBar onOpenMenu={() => setSidebarOpen(true)} />
+        <div
+          className={isTasksView || isChatView ? 'main-content--tight' : 'main-content'}
+          style={{
+            flex: 1,
+            overflow: isTasksView ? 'hidden' : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'comms'    ? 'block' : 'none' }}><EmailPanel connected={connected} refreshKey={emailRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'calendar' ? 'block' : 'none' }}><CalendarPanel connected={connected} refreshKey={calendarRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>

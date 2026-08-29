@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCache } from '../hooks/useCache.js';
 import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
+import { LoadingState } from './ui/States.jsx';
 
 export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings }) {
   const [repos,         setRepos]         = useState([]);
@@ -246,7 +247,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       {tab === 'overview' && (
         <div>
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 18 }}>
+          <div className="grid-stat-4" style={{ marginBottom: 18 }}>
             {[
               { label: 'Open PRs',    value: prs.length,      warn: false },
               { label: 'Stale PRs',   value: stalePRs.length, warn: stalePRs.length > 0 },
@@ -294,7 +295,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                     <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
                     <span style={{ flex: 1, fontSize: 13 }}>{pr.title}</span>
                     <span style={{ fontSize: 10, color: 'var(--success)', background: '#EAF3DE', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
-                    <a href={pr.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+                    <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
                   </div>
                 ))}
               </div>
@@ -345,7 +346,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                       return <span key={l} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: c.bg, color: c.color, fontWeight: 500 }}>{l}</span>;
                     })}
                   </div>
-                  <a href={issue.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+                  <a href={issue.url} target="_blank" rel="noreferrer" aria-label={`Open issue #${issue.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
                 </div>
               ))}
             </div>
@@ -373,12 +374,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       {/* ── Contributions tab ── */}
       {tab === 'contributions' && (
         <div>
-          {contribLoad && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Loading contributions…</p>}
+          {contribLoad && <LoadingState label="Loading contributions…" />}
 
           {!contribLoad && contributions && (
             <>
               {/* Stats row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
+              <div className="grid-stat-3" style={{ marginBottom: 20 }}>
                 {[
                   { label: 'Commits (30d)',    value: contributions.totalCommits,  color: 'var(--accent)' },
                   { label: 'PRs opened',        value: contributions.prsOpened,     color: 'var(--success)' },
@@ -445,12 +446,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       {/* ── Branches tab ── */}
       {tab === 'branches' && (
         <div>
-          {branchLoad && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Loading branches… (fetching commit dates)</p>}
+          {branchLoad && <LoadingState label="Loading branches… (fetching commit dates)" />}
 
           {!branchLoad && branches.length > 0 && (
             <>
               {/* Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 18 }}>
+              <div className="grid-stat-3" style={{ marginBottom: 18 }}>
                 {[
                   { label: 'Total',    value: branches.length,                            color: 'var(--text)' },
                   { label: 'Active',   value: branches.filter(b => !b.stale).length,      color: 'var(--success)' },
@@ -562,7 +563,7 @@ function PRCard({ pr, stale }) {
           )}
         </div>
       </div>
-      <a href={pr.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--info)', padding: '0 14px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>↗</a>
+      <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', padding: '0 14px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>↗</a>
     </div>
   );
 }
