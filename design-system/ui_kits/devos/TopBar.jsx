@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Dot */
 // TopBar — DevOS green brand mark + status dots.
 const { useMemo } = React;
 

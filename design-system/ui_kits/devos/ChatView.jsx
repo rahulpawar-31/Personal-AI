@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button, Input */
 // Chat — asymmetric bubbles, suggestion chips, bounce loading.
 
 const SUGGESTIONS = [

@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button */
 // Sidebar — 200px fixed nav with colored dots.
 
 function Sidebar({ view, setView, connected, setConnected }) {

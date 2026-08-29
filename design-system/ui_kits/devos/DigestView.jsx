@@ -1,4 +1,4 @@
-/* global React */
+/* global React, Button, Card, Eyebrow, StatTile, Tag */
 // Digest panel — stats + categorized cards. Mirrors DigestPanel.jsx structure.
 
 const SAMPLE_DIGEST = {
