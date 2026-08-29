@@ -42,6 +42,13 @@ export default function App() {
     const saved = localStorage.getItem('devos_view');
     return saved && VALID_VIEWS.has(saved) ? saved : 'digest';
   });
+  // ChatPanel's send() is a long-lived async closure (streaming response,
+  // can take seconds) that keeps whatever handleChatAction instance was in
+  // scope at send-time. Reading a live ref instead of the closed-over
+  // `view` means the "already there" check below is always current,
+  // regardless of which stale handleChatAction instance ends up called.
+  const viewRef = useRef(view);
+  useEffect(() => { viewRef.current = view; }, [view]);
   const [connected,      setConnected]      = useState(false);
   const [health,         setHealth]         = useState({});
   const [taskRefreshKey,     setTaskRefreshKey]     = useState(0);
@@ -124,7 +131,7 @@ export default function App() {
     // Chat and panels drive the same actions but look disconnected —
     // this makes the link visible instead of silently bumping a refresh key.
     const label = PANEL_LABEL[panel];
-    if (label && view !== panel) {
+    if (label && viewRef.current !== panel) {
       toast(`Updated ${label}`, 'success', 5000, { label: 'View →', onClick: () => handleViewChange(panel) });
     }
   }
