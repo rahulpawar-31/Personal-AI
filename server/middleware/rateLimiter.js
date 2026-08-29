@@ -1,8 +1,12 @@
-import { rateLimit } from 'express-rate-limit';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 
 // Per-user key: falls back to IP if userId isn't on the request yet (public endpoints).
+// ipKeyGenerator() normalizes IPv6 addresses — raw req.ip throws
+// ERR_ERL_KEY_GEN_IPV6 the moment this branch actually executes (currently
+// dead via each limiter's `skip: !req.user` guard, but a live footgun for
+// any future limiter that reuses this key function without that guard).
 function userKey(req) {
-  return req.user?.userId ? `user:${req.user.userId}` : req.ip;
+  return req.user?.userId ? `user:${req.user.userId}` : ipKeyGenerator(req.ip);
 }
 
 // Digest runs are slow and hit multiple external APIs — 10 per hour per user.
