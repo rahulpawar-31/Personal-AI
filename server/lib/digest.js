@@ -67,7 +67,7 @@ async function _runDigest(userId = null) {
     blockers:  digest.tasks.blockers.length    + ' blockers',
   });
 
-  await slack.sendDigest(digest);
+  await slack.sendDigest(digest, creds);
   return digest;
 }
 
@@ -89,12 +89,14 @@ export function setupCronJobs() {
     console.log('[cron] 7 AM calendar check');
     for (const userId of auth.getConnectedUserIds()) {
       try {
+        const creds    = await getUserCreds(userId);
         const conflicts = await calendar.scanConflicts(userId);
         if (conflicts.length) {
           await slack.sendAlert(
             `${conflicts.length} calendar conflict(s) today`,
             conflicts.map(c => `${c.eventA.title} ↔ ${c.eventB.title}`).join('\n'),
-            'high'
+            'high',
+            creds
           );
         }
         await calendar.blockFocusTime(userId);
@@ -102,5 +104,40 @@ export function setupCronJobs() {
         console.error(`[cron/calendar] user ${userId}:`, err.message);
       }
     }
+  });
+
+  // Pre-meeting briefs: every 5 min, check each connected user's next few
+  // events for one starting in ~10 minutes and push a Slack brief. Dedup via
+  // an in-memory set (resets on restart — worst case a brief re-sends once,
+  // never worse) since events aren't otherwise persisted anywhere to key off.
+  const briefedEvents = new Set();
+  cron.schedule('*/5 * * * *', async () => {
+    for (const userId of auth.getConnectedUserIds()) {
+      try {
+        const creds = await getUserCreds(userId);
+        if (!creds.SLACK_BOT_TOKEN) continue; // nothing to deliver to — skip the LLM call
+        const events = await calendar.getUpcoming(userId, 5);
+        for (const event of events) {
+          if (!event.start?.includes('T')) continue; // all-day event, no meeting time
+          const minsUntil = (new Date(event.start) - Date.now()) / 60000;
+          const key = `${userId}:${event.id}`;
+          if (minsUntil < 8 || minsUntil > 13 || briefedEvents.has(key)) continue;
+          briefedEvents.add(key);
+          const { brief } = await calendar.generateMeetingBrief(event);
+          if (!brief) continue;
+          const lines = [
+            `*${event.title}* starts in ${Math.round(minsUntil)} min`,
+            ...(brief.keyPoints ?? []).map(p => `• ${p}`),
+            brief.prepAction ? `_Prep: ${brief.prepAction}_` : null,
+          ].filter(Boolean);
+          await slack.sendAlert('Pre-meeting brief', lines.join('\n'), 'normal', creds);
+        }
+      } catch (err) {
+        console.error(`[cron/meeting-brief] user ${userId}:`, err.message);
+      }
+    }
+    // Bound memory — briefed keys older than a day are irrelevant since the
+    // 8-13 min window means an event can only ever match once anyway.
+    if (briefedEvents.size > 500) briefedEvents.clear();
   });
 }
