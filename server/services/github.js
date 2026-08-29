@@ -41,6 +41,16 @@ function resolveRepo(hint, creds = {}) {
   );
 }
 
+// Run a per-repo fetcher across every configured repo and flatten the results.
+// resolveRepo() defaults an omitted hint to repos[0] — right for the
+// interactive GitHub panel (one active repo at a time by design), wrong for
+// automated multi-repo summaries like the digest, which need all of them.
+export async function forEachRepo(fn, creds = {}) {
+  const repos = getRepos(creds);
+  const results = await Promise.all(repos.map(repo => fn(repo)));
+  return results.flat();
+}
+
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 function ghHeaders(creds = {}) {
@@ -214,7 +224,13 @@ export async function createIssue(title, body = '', labels = [], repoHint, creds
 // ─── Changelog ────────────────────────────────────────────────────────────────
 
 export async function generateChangelog(since, repoHint, creds = {}) {
-  const prs = await getMergedPRs(since, repoHint, creds);
+  // An explicit hint (the interactive panel's active-repo selector) stays
+  // scoped to that one repo; no hint means "summarize everything" — pull
+  // merged PRs from every configured repo instead of silently defaulting
+  // to just the first one.
+  const prs = repoHint
+    ? await getMergedPRs(since, repoHint, creds)
+    : await forEachRepo(repo => getMergedPRs(since, repo, creds), creds);
   if (!prs.length) return '## No merged PRs in this period.';
 
   const features = prs.filter(p => p.labels.includes('feature') || p.title.match(/^feat/i));
@@ -398,4 +414,4 @@ export async function getBranches(repoHint, creds = {}) {
   });
 }
 
-export default { isConfigured, getRepos, getOpenPRs, scanStalePRs, getMergedPRs, getIssues, createIssue, deleteIssue, closeIssue, reopenIssue, updateIssue, commentOnIssue, closePR, generateChangelog, getContributions, getBranches };
+export default { isConfigured, getRepos, forEachRepo, getOpenPRs, scanStalePRs, getMergedPRs, getIssues, createIssue, deleteIssue, closeIssue, reopenIssue, updateIssue, commentOnIssue, closePR, generateChangelog, getContributions, getBranches };
