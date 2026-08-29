@@ -174,6 +174,10 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
   const MAX_TOOL_RETRIES = 2;
 
   let lastErr;
+  // Intentionally sequential — this is a model fallback chain (try model A,
+  // only fall back to B on failure), not independent work. Running
+  // candidates in parallel would fire (and pay for) multiple LLM providers
+  // simultaneously even when the first one succeeds.
   for (const makeModel of candidates) {
     for (let attempt = 0; attempt <= MAX_TOOL_RETRIES; attempt += 1) {
       const model = makeModel();

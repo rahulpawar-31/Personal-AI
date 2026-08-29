@@ -106,9 +106,11 @@ async function migrateEnvCredentials() {
     ['linkedin', 'LINKEDIN_WEBHOOK_URL', process.env.LINKEDIN_WEBHOOK_URL],
   ];
 
-  let count = 0;
-  for (const [service, keyName, value] of candidates) {
-    if (!value) continue;
+  // Each candidate is an independent (service, keyName) write for the same
+  // adminUser — no ordering dependency between them, so run them concurrently
+  // instead of one round-trip at a time.
+  const imported = await Promise.all(candidates.map(async ([service, keyName, value]) => {
+    if (!value) return false;
     // Strip legacy secret_ntn_ prefix that Notion's old API prepended
     const clean = (keyName === 'NOTION_API_KEY' && value.startsWith('secret_ntn_'))
       ? value.slice('secret_'.length)
@@ -117,9 +119,11 @@ async function migrateEnvCredentials() {
     const needsFix = existing?.startsWith('secret_ntn_');
     if (!existing || needsFix) {
       await integrations.saveKey(adminUser.id, service, keyName, clean);
-      count += 1;
+      return true;
     }
-  }
+    return false;
+  }));
+  const count = imported.filter(Boolean).length;
   if (count > 0) {
     console.log(`[migration] Imported ${count} env credential(s) → user "${adminUser.username}" (ID ${adminUser.id})`);
   }
@@ -142,10 +146,15 @@ async function migrateJsonIntegrations() {
 
   if (!oldUsers.length) return;
 
-  let usersMigrated = 0, keysMigrated = 0;
-
-  for (const oldUser of oldUsers) {
+  // Each old user is an independent row — lookup-then-maybe-insert is guarded
+  // by ON CONFLICT DO NOTHING at the DB level, so users (and, within a user,
+  // their distinct-key integration rows) can migrate concurrently instead of
+  // one DB round-trip at a time. Counts are collected from results rather
+  // than mutated in place so the concurrent version's final tally matches
+  // the old sequential one exactly.
+  const results = await Promise.all(oldUsers.map(async oldUser => {
     let newId = null;
+    let userMigrated = false;
 
     const byUsername = await pool.query(
       'SELECT id FROM users WHERE username = $1', [oldUser.username]
@@ -172,22 +181,28 @@ async function migrateJsonIntegrations() {
           oldUser.googleId ?? oldUser.google_id ?? null,
         ]
       ).catch(() => null);
-      if (ins?.rows[0]) { newId = ins.rows[0].id; usersMigrated += 1; }
+      if (ins?.rows[0]) { newId = ins.rows[0].id; userMigrated = true; }
     }
 
-    if (!newId) continue;
+    if (!newId) return { userMigrated: false, keysMigrated: 0 };
 
     const keys = oldInteg.filter(r => String(r.userId) === String(oldUser.id));
-    for (const k of keys) {
+    const keyOutcomes = await Promise.all(keys.map(async k => {
       try {
         const plain = decrypt(k.keyValue);
         await integrations.saveKey(newId, k.service, k.keyName, plain);
-        keysMigrated += 1;
+        return true;
       } catch {
         console.warn(`[migration] Could not decrypt "${k.keyName}" for user "${oldUser.username}" — skipping (ENCRYPTION_SECRET mismatch?)`);
+        return false;
       }
-    }
-  }
+    }));
+
+    return { userMigrated, keysMigrated: keyOutcomes.filter(Boolean).length };
+  }));
+
+  const usersMigrated = results.filter(r => r.userMigrated).length;
+  const keysMigrated  = results.reduce((sum, r) => sum + r.keysMigrated, 0);
 
   if (usersMigrated > 0 || keysMigrated > 0)
     console.log(`[migration] JSON → Neon: ${usersMigrated} user(s), ${keysMigrated} key(s) imported`);

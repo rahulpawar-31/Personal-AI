@@ -184,6 +184,9 @@ export async function blockFocusTime(userId, projectName = 'Deep work', minBlock
   const blocks   = [];
   const timezone = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+  // Intentionally sequential with early exit — only one focus block is ever
+  // created per run (see `break` below), so at most one createEvent call
+  // actually happens; there's nothing to parallelize.
   for (let i = 0; i < events.length - 1; i += 1) {
     const gapStart = new Date(events[i].end);
     const gapEnd   = new Date(events[i + 1].start);

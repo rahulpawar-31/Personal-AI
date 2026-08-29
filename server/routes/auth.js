@@ -145,15 +145,19 @@ router.get('/api/auth/google/callback', async (req, res) => {
           user = existing;
         } else {
           const base = (email.split('@')[0] ?? name).replace(/\W/g, '').slice(0, 28) || 'user';
-          let username = base, attempt = 1;
-          while (true) {
+          let username = base;
+          const MAX_ATTEMPTS = 20; // bounded so a pathological collision streak can't hang the request forever
+          let attempt = 1;
+          for (; attempt <= MAX_ATTEMPTS; attempt += 1) {
             try {
+              // Each retry depends on whether the previous username was taken —
+              // inherently sequential, can't be parallelized.
               user = await userService.dbCreateGoogleUser({ username, email, googleId });
               break;
             } catch (e) {
               if (!e.message.includes('already taken') && !e.message.includes('unique')) throw e;
+              if (attempt === MAX_ATTEMPTS) throw new Error(`Could not find an available username after ${MAX_ATTEMPTS} attempts`);
               username = `${base}_${attempt}`;
-              attempt += 1;
             }
           }
         }

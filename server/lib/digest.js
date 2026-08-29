@@ -92,7 +92,10 @@ export function setupCronJobs() {
 
   cron.schedule('0 7 * * *', async () => {
     console.log('[cron] 7 AM calendar check');
-    for (const userId of auth.getConnectedUserIds()) {
+    // Each user's calendar/Slack work is independent — run concurrently
+    // instead of one user at a time; a per-user error stays isolated to that
+    // user via the try/catch, same as before.
+    await Promise.all(auth.getConnectedUserIds().map(async userId => {
       try {
         const creds    = await getUserCreds(userId);
         const conflicts = await calendar.scanConflicts(userId);
@@ -108,7 +111,7 @@ export function setupCronJobs() {
       } catch (err) {
         console.error(`[cron/calendar] user ${userId}:`, err.message);
       }
-    }
+    }));
   });
 
   // Pre-meeting briefs: every 5 min, check each connected user's next few
