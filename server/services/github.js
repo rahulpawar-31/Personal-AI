@@ -27,7 +27,7 @@ export function getRepos(creds = {}) {
 
 export function isConfigured(creds = {}) {
   const t = creds.GITHUB_TOKEN;
-  return !!(t && t !== 'your_github_personal_access_token' && getRepos(creds).length > 0);
+  return Boolean(t && t !== 'your_github_personal_access_token' && getRepos(creds).length > 0);
 }
 
 function resolveRepo(hint, creds = {}) {
@@ -157,7 +157,7 @@ export async function getOpenPRs(repoHint, creds = {}) {
   }));
 }
 
-export async function scanStalePRs(thresholdDays = 3, repoHint, creds = {}) {
+export async function scanStalePRs(repoHint, thresholdDays = 3, creds = {}) {
   const prs = await getOpenPRs(repoHint, creds);
   return prs.filter(pr => pr.daysStale >= thresholdDays);
 }
@@ -184,7 +184,7 @@ export async function getMergedPRs(since, repoHint, creds = {}) {
 
 // ─── Issues ───────────────────────────────────────────────────────────────────
 
-export async function getIssues(state = 'open', repoHint, creds = {}) {
+export async function getIssues(repoHint, state = 'open', creds = {}) {
   const repo = resolveRepo(repoHint, creds);
   if (!repo) return [];
   const data = await ghFetch(`/repos/${repo}/issues?state=${state}&per_page=20`, creds);
@@ -204,7 +204,7 @@ export async function getIssues(state = 'open', repoHint, creds = {}) {
     }));
 }
 
-export async function createIssue(title, body = '', labels = [], repoHint, creds = {}) {
+export async function createIssue(title, repoHint, body = '', labels = [], creds = {}) {
   const repo = resolveRepo(repoHint, creds);
   if (!repo) throw new Error('GitHub not configured');
   const data = await ghPost(`/repos/${repo}/issues`, {
@@ -261,7 +261,7 @@ export async function deleteIssue(issueNumber, repoHint, creds = {}) {
 
   const res = await fetch(`${BASE}/repos/${repo}/issues/${issueNumber}`, { headers: ghHeaders(creds) });
   if (res.status === 404 || res.status === 410) {
-    const open = await getIssues('open', repoHint, creds);
+    const open = await getIssues(repoHint, 'open', creds);
     const list = open.length ? open.map(i => `#${i.id} ${i.title}`).join(' | ') : 'none';
     throw new Error(`Issue #${issueNumber} not found in ${repo}. Open issues: ${list}`);
   }
@@ -292,7 +292,7 @@ export async function reopenIssue(issueNumber, repoHint, creds = {}) {
   return { id: data.number, title: data.title, state: data.state, url: data.html_url, repo };
 }
 
-export async function updateIssue(issueNumber, patches = {}, repoHint, creds = {}) {
+export async function updateIssue(issueNumber, repoHint, patches = {}, creds = {}) {
   const repo = resolveRepo(repoHint, creds);
   if (!repo) throw new Error('repo is required');
   const body = {};
@@ -325,7 +325,8 @@ export async function closePR(prNumber, repoHint, creds = {}) {
 export async function getContributions(repoHint, creds = {}) {
   const repos = getRepos(creds);
   if (!repos.length) return null;
-  const owner   = repos[0].split('/')[0];
+  const [firstRepo] = repos;
+  const owner   = firstRepo.split('/')[0];
   const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
 
   const events = await ghFetch(`/users/${owner}/events?per_page=100`, creds);
@@ -346,7 +347,7 @@ export async function getContributions(repoHint, creds = {}) {
 
   // Build 30-day array (oldest → newest)
   const days = [];
-  for (let i = 29; i >= 0; i--) {
+  for (let i = 29; i >= 0; i -= 1) {
     const d   = new Date(Date.now() - i * 86400000);
     const key = d.toISOString().slice(0, 10);
     days.push({ date: key, count: dailyMap[key] || 0 });
@@ -354,8 +355,8 @@ export async function getContributions(repoHint, creds = {}) {
 
   // Streak = consecutive active days backwards from today
   let streak = 0;
-  for (let i = days.length - 1; i >= 0; i--) {
-    if (days[i].count > 0) streak++;
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    if (days[i].count > 0) streak += 1;
     else break;
   }
 

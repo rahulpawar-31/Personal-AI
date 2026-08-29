@@ -60,21 +60,21 @@ function verifyState(stateStr) {
 router.get('/api/health', requireAuth, async (req, res) => {
   const creds = await getUserCreds(req.user.userId);
   const googleForUser = auth.isConnected(req.user.userId);
-  const geminiShared  = !!process.env.GEMINI_API_KEY;
-  const groqShared    = !!process.env.GROQ_API_KEY;
+  const geminiShared  = Boolean(process.env.GEMINI_API_KEY);
+  const groqShared    = Boolean(process.env.GROQ_API_KEY);
   res.json({
     ok:           true,
     google:       googleForUser,
-    gemini:       !!(creds.GEMINI_API_KEY) || geminiShared,
-    groq:         !!(creds.GROQ_API_KEY)   || groqShared,
+    gemini:       Boolean(creds.GEMINI_API_KEY) || geminiShared,
+    groq:         Boolean(creds.GROQ_API_KEY)   || groqShared,
     geminiShared,
     groqShared,
-    notion:       !!(creds.NOTION_API_KEY),
-    slack:        !!(creds.SLACK_BOT_TOKEN),
+    notion:       Boolean(creds.NOTION_API_KEY),
+    slack:        Boolean(creds.SLACK_BOT_TOKEN),
     github:       github.isConfigured(creds),
-    trello:       !!(creds.TRELLO_API_KEY),
-    todoist:      !!(creds.TODOIST_API_KEY),
-    linkedin:     !!(creds.LINKEDIN_WEBHOOK_URL),
+    trello:       Boolean(creds.TRELLO_API_KEY),
+    todoist:      Boolean(creds.TODOIST_API_KEY),
+    linkedin:     Boolean(creds.LINKEDIN_WEBHOOK_URL),
     tracing:      tracing.tracingStatus().enabled,
   });
 });
@@ -116,7 +116,7 @@ router.get('/api/auth/google/callback', async (req, res) => {
   // Re-validate the origin (defense in depth; the signature above is the
   // real CSRF guard) so a state that somehow verified with an untrusted
   // origin can't be used as an open-redirect target.
-  const originAllowed = !!(state?.origin && isAllowedOrigin(state.origin));
+  const originAllowed = Boolean(state?.origin && isAllowedOrigin(state.origin));
   const redirectBase  = originAllowed ? state.origin : frontendURL();
 
   if (!state) {
@@ -144,7 +144,7 @@ router.get('/api/auth/google/callback', async (req, res) => {
           await userService.dbLinkGoogleId(existing.id, googleId);
           user = existing;
         } else {
-          let base = (email.split('@')[0] ?? name).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 28) || 'user';
+          const base = (email.split('@')[0] ?? name).replace(/\W/g, '').slice(0, 28) || 'user';
           let username = base, attempt = 1;
           while (true) {
             try {
@@ -152,7 +152,8 @@ router.get('/api/auth/google/callback', async (req, res) => {
               break;
             } catch (e) {
               if (!e.message.includes('already taken') && !e.message.includes('unique')) throw e;
-              username = `${base}_${attempt++}`;
+              username = `${base}_${attempt}`;
+              attempt += 1;
             }
           }
         }

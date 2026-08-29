@@ -123,7 +123,7 @@ export function resolveDate(raw) {
   }
 
   const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-  for (let i = 0; i < days.length; i++) {
+  for (let i = 0; i < days.length; i += 1) {
     if (s.includes(days[i])) {
       const d    = new Date(now);
       const diff = (i - now.getDay() + 7) % 7 || 7;
@@ -140,14 +140,14 @@ export function resolveDate(raw) {
 function extractTime(s) {
   const m12 = s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
   if (m12) {
-    let h = parseInt(m12[1]);
-    const min = parseInt(m12[2] ?? '0');
+    let h = parseInt(m12[1], 10);
+    const min = parseInt(m12[2] ?? '0', 10);
     if (m12[3].toLowerCase() === 'pm' && h !== 12) h += 12;
     if (m12[3].toLowerCase() === 'am' && h === 12) h = 0;
     return { h, m: min };
   }
   const m24 = s.match(/(\d{1,2}):(\d{2})/);
-  if (m24) return { h: parseInt(m24[1]), m: parseInt(m24[2]) };
+  if (m24) return { h: parseInt(m24[1], 10), m: parseInt(m24[2], 10) };
   return null;
 }
 
@@ -167,22 +167,50 @@ export function preClassify(message) {
   const m = message.toLowerCase().trim();
   const acts = (...intents) => ({ actions: intents.map(intent => ({ intent, params: {} })), reply: '' });
 
-  if (/what.*(do i have|'?s on|s on).*(today|this week)|show.*(my day|today'?s?|schedule)|today.*(schedule|plan|agenda|on)|what'?s? (up|happening) today|what'?s? my (schedule|day|plan)/i.test(m))
-    return acts('get_calendar', 'get_tasks');
-  if (/show.*(my )?(calendar|events?|meetings?)|upcoming (events?|meetings?)|what.*(meetings?|events?).*(today|this week|tomorrow)|check.*(calendar|schedule)/i.test(m))
-    return acts('get_calendar');
-  if (/show.*(my )?(tasks?|todos?|to-dos?)|what.*(tasks?|todos?).*have|open tasks?|list.*tasks?/i.test(m))
-    return acts('get_tasks');
-  if (/show.*(my )?(emails?|inbox)|check.*(emails?|inbox)|any.*(urgent|unread|new).*(emails?|messages?)|what.*emails?/i.test(m))
-    return acts('get_emails');
-  if (/show.*(my )?(open )?(prs?|pull requests?)|open prs?|any.*(prs?|pull requests?)/i.test(m))
-    return acts('get_prs');
-  if (/show.*(my |open )?(github )?issues?|open issues?|list.*issues?/i.test(m))
-    return acts('get_issues');
-  if (/run.*(digest|briefing)|morning (digest|brief|summary)|daily (digest|brief)/i.test(m))
-    return acts('run_digest');
-  if (/(get|show|latest|today'?s?).*(digest|briefing)|what'?s? (the |my )?(digest|briefing)/i.test(m))
-    return acts('get_digest');
+  const asksScheduleToday = /what.*(do i have|'?s on|s on).*(today|this week)/i.test(m)
+    || /show.*(my day|today'?s?|schedule)/i.test(m)
+    || /today.*(schedule|plan|agenda|on)/i.test(m)
+    || /what'?s? (up|happening) today/i.test(m)
+    || /what'?s? my (schedule|day|plan)/i.test(m);
+  if (asksScheduleToday) return acts('get_calendar', 'get_tasks');
+
+  const asksCalendar = /show.*(my )?(calendar|events?|meetings?)/i.test(m)
+    || /upcoming (events?|meetings?)/i.test(m)
+    || /what.*(meetings?|events?).*(today|this week|tomorrow)/i.test(m)
+    || /check.*(calendar|schedule)/i.test(m);
+  if (asksCalendar) return acts('get_calendar');
+
+  const asksTasks = /show.*(my )?(tasks?|todos?|to-dos?)/i.test(m)
+    || /what.*(tasks?|todos?).*have/i.test(m)
+    || /open tasks?/i.test(m)
+    || /list.*tasks?/i.test(m);
+  if (asksTasks) return acts('get_tasks');
+
+  const asksEmails = /show.*(my )?(emails?|inbox)/i.test(m)
+    || /check.*(emails?|inbox)/i.test(m)
+    || /any.*(urgent|unread|new).*(emails?|messages?)/i.test(m)
+    || /what.*emails?/i.test(m);
+  if (asksEmails) return acts('get_emails');
+
+  const asksPRs = /show.*(my )?(open )?(prs?|pull requests?)/i.test(m)
+    || /open prs?/i.test(m)
+    || /any.*(prs?|pull requests?)/i.test(m);
+  if (asksPRs) return acts('get_prs');
+
+  const asksIssues = /show.*(my |open )?(github )?issues?/i.test(m)
+    || /open issues?/i.test(m)
+    || /list.*issues?/i.test(m);
+  if (asksIssues) return acts('get_issues');
+
+  const asksRunDigest = /run.*(digest|briefing)/i.test(m)
+    || /morning (digest|brief|summary)/i.test(m)
+    || /daily (digest|brief)/i.test(m);
+  if (asksRunDigest) return acts('run_digest');
+
+  const asksGetDigest = /(get|show|latest|today'?s?).*(digest|briefing)/i.test(m)
+    || /what'?s? (the |my )?(digest|briefing)/i.test(m);
+  if (asksGetDigest) return acts('get_digest');
+
   return null;
 }
 
@@ -191,16 +219,18 @@ export function preClassify(message) {
 export async function executeAction(intent, params, originalMessage = '', creds = {}, userId = null) {
   const apiKeys = { GEMINI_API_KEY: creds.GEMINI_API_KEY, GROQ_API_KEY: creds.GROQ_API_KEY };
 
-  switch (intent) {
-
-    case 'add_task': {
+  // One async handler per intent, closing over params/creds/originalMessage/
+  // userId/apiKeys — replaces a 32-case switch (SonarJS max-switch-cases) with
+  // a lookup. Each handler's body is unchanged from its former case block.
+  const handlers = {
+    async add_task() {
       if (!params.title?.trim()) return { error: 'Could not extract a task title from your message — please try again with a clear title.' };
       if (todoist.isConfigured(creds)) return await todoist.createTask(params.title.trim(), 'today', creds);
       if (notionReady(creds))          return await notion.createTask(params.title.trim(), 'Not started', creds);
       return { error: 'No task service configured. Add a Todoist or Notion key in Settings.' };
-    }
+    },
 
-    case 'update_task': {
+    async update_task() {
       if (!params.taskId) return { error: 'taskId is required' };
       const isTodoist = /^\d+$/.test(params.taskId) || params.source === 'todoist';
       if (params.status && !params.title) {
@@ -214,58 +244,64 @@ export async function executeAction(intent, params, originalMessage = '', creds 
       return isTodoist
         ? await todoist.updateTask(params.taskId, patches, creds)
         : await notion.updateTask(params.taskId, patches, creds);
-    }
+    },
 
-    case 'get_tasks': {
+    async get_tasks() {
       const [nt, tt] = await Promise.all([
         notionReady(creds)          ? notion.getTasks(creds)  : [],
         todoist.isConfigured(creds) ? todoist.getTasks('today | overdue', creds) : [],
       ]);
       return { notion: nt, todoist: tt };
-    }
+    },
 
-    case 'delete_task': {
+    async delete_task() {
       if (!params.taskId) return { error: 'taskId is required' };
       const isTodoist = /^\d+$/.test(params.taskId) || params.source === 'todoist';
       return isTodoist
         ? await todoist.deleteTask(params.taskId, creds)
         : await notion.deleteTask(params.taskId, creds);
-    }
+    },
 
-    case 'create_note':
+    async create_note() {
       if (!params.title) return null;
       if (!notionReady(creds)) return { error: 'Notion is not configured' };
       return await notion.createNote(params.title, params.body ?? '', creds);
+    },
 
-    case 'get_notes':
+    async get_notes() {
       return { notes: await notion.getNotes(creds) };
+    },
 
-    case 'get_emails':
+    async get_emails() {
       return { emails: await gmail.triageInbox(userId, 10) };
+    },
 
-    case 'get_emails_range': {
+    async get_emails_range() {
       const { startDate, endDate } = params;
       if (!startDate) return { error: 'startDate is required' };
       const emails = await gmail.getEmailsByDateRange(userId, startDate, endDate ?? new Date().toISOString().slice(0, 10));
       return { emails, count: emails.length, range: { startDate, endDate } };
-    }
+    },
 
-    case 'draft_email':
+    async draft_email() {
       if (params.to && params.body) {
         return await gmail.createDraft(userId, params.to, params.title ?? 'No subject', params.body);
       }
       return null;
+    },
 
-    case 'send_email':
+    async send_email() {
       if (params.to && params.body) {
         return await gmail.sendEmail(userId, params.to, params.title ?? 'No subject', params.body);
       }
       return null;
+    },
 
-    case 'archive_email':
+    async archive_email() {
       return params.taskId ? await gmail.archiveEmail(userId, params.taskId) : null;
+    },
 
-    case 'create_event': {
+    async create_event() {
       if (!params.title) return { error: 'title is required' };
       if (params.recurring && params.days?.length && params.time) {
         return await calendar.createRecurringEvent(userId, params.title, params.days, params.time, params.duration ?? 60);
@@ -277,15 +313,15 @@ export async function executeAction(intent, params, originalMessage = '', creds 
         return await calendar.createEvent(userId, params.title, resolved, params.duration ?? 60);
       }
       return { error: 'Provide a date for a single event, or days + time for a recurring event.' };
-    }
+    },
 
-    case 'delete_event': {
+    async delete_event() {
       const target = params.title || params.taskId;
       if (!target) return { error: 'Provide the event name to delete' };
       return await calendar.deleteEvent(userId, target);
-    }
+    },
 
-    case 'update_event': {
+    async update_event() {
       const target = params.title || params.taskId;
       if (!target) return { error: 'Provide the event name to update' };
       const patches = {};
@@ -293,29 +329,38 @@ export async function executeAction(intent, params, originalMessage = '', creds 
       if (params.date)     patches.date     = resolveDate(params.date) ?? params.date;
       if (params.duration) patches.duration = Number(params.duration);
       return await calendar.updateEvent(userId, target, patches);
-    }
+    },
 
-    case 'get_calendar':
+    async get_calendar() {
       return { events: await calendar.getUpcoming(userId, 5) };
+    },
 
-    case 'scan_conflicts':
+    async scan_conflicts() {
       return { conflicts: await calendar.scanConflicts(userId) };
+    },
 
-    case 'block_focus_time':
+    async block_focus_time() {
       return { blocks: await calendar.blockFocusTime(userId, params.title ?? 'Deep work') };
+    },
 
-    case 'get_prs':
-      return { prs: await github.getOpenPRs(params.repo, creds), stale: await github.scanStalePRs(3, params.repo, creds) };
+    async get_prs() {
+      return { prs: await github.getOpenPRs(params.repo, creds), stale: await github.scanStalePRs(params.repo, 3, creds) };
+    },
 
-    case 'create_issue': {
+    async create_issue() {
       if (!params.title) return { error: 'title is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) {
         return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       }
-      const labels = Array.isArray(params.labels)
-        ? params.labels.map(l => String(l).trim()).filter(Boolean)
-        : params.labels ? String(params.labels).split(',').map(l => l.trim()).filter(Boolean) : [];
+      let labels;
+      if (Array.isArray(params.labels)) {
+        labels = params.labels.map(l => String(l).trim()).filter(Boolean);
+      } else if (params.labels) {
+        labels = String(params.labels).split(',').map(l => l.trim()).filter(Boolean);
+      } else {
+        labels = [];
+      }
       const userContext = extractIssueBody(originalMessage, params.title);
       const body = await llm.generate(
         `Write a detailed GitHub issue body in markdown for the issue titled: "${params.title}"\n\nUser context: ${userContext}\n\n` +
@@ -324,45 +369,45 @@ export async function executeAction(intent, params, originalMessage = '', creds 
         `Use bullet points. Be specific and actionable. Do not repeat the title. Output only the markdown body.`,
         '', 'content', apiKeys
       ).catch(() => userContext);
-      return await github.createIssue(params.title, body, labels, params.repo, creds);
-    }
+      return await github.createIssue(params.title, params.repo, body, labels, creds);
+    },
 
-    case 'get_issues': {
+    async get_issues() {
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) {
         return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       }
-      return { issues: await github.getIssues('open', params.repo, creds), repo: params.repo };
-    }
+      return { issues: await github.getIssues(params.repo, 'open', creds), repo: params.repo };
+    },
 
-    case 'delete_issue': {
+    async delete_issue() {
       if (!params.taskId) return { error: 'Issue number is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       return await github.deleteIssue(params.taskId, params.repo, creds);
-    }
+    },
 
-    case 'close_issue': {
+    async close_issue() {
       if (!params.taskId) return { error: 'Issue number (taskId) is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       try {
         return await github.closeIssue(params.taskId, params.repo, creds);
       } catch (err) {
-        const open = await github.getIssues('open', params.repo, creds).catch(() => []);
+        const open = await github.getIssues(params.repo, 'open', creds).catch(() => []);
         const list = open.length ? open.map(i => `#${i.id} ${i.title}`).join(', ') : 'none';
         return { error: `Issue #${params.taskId} not found. Open issues: ${list}` };
       }
-    }
+    },
 
-    case 'reopen_issue': {
+    async reopen_issue() {
       if (!params.taskId) return { error: 'Issue number (taskId) is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       return await github.reopenIssue(params.taskId, params.repo, creds);
-    }
+    },
 
-    case 'update_issue': {
+    async update_issue() {
       if (!params.taskId) return { error: 'Issue number (taskId) is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
@@ -371,46 +416,51 @@ export async function executeAction(intent, params, originalMessage = '', creds 
       if (params.body)   patches.body   = params.body;
       if (params.labels) patches.labels = Array.isArray(params.labels) ? params.labels : String(params.labels).split(',').map(l => l.trim());
       if (params.status) patches.state  = params.status === 'closed' ? 'closed' : 'open';
-      return await github.updateIssue(params.taskId, patches, params.repo, creds);
-    }
+      return await github.updateIssue(params.taskId, params.repo, patches, creds);
+    },
 
-    case 'comment_issue': {
+    async comment_issue() {
       if (!params.taskId || !params.body) return { error: 'Issue number and comment body are required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       return await github.commentOnIssue(params.taskId, params.body, params.repo, creds);
-    }
+    },
 
-    case 'close_pr': {
+    async close_pr() {
       if (!params.taskId) return { error: 'PR number (taskId) is required' };
       const repos = github.getRepos(creds);
       if (!params.repo && repos.length > 1) return { error: `Which repo? Available: ${repos.map(r => r.split('/')[1]).join(', ')}` };
       return await github.closePR(params.taskId, params.repo, creds);
-    }
+    },
 
-    case 'get_trello':
+    async get_trello() {
       return { cards: await trello.getCards(creds), stale: await trello.scanStaleCards(5, creds) };
+    },
 
-    case 'run_digest':
+    async run_digest() {
       runDigest(userId).catch(console.error);
       return { triggered: true, message: 'Digest is running in the background.' };
+    },
 
-    case 'get_digest':
+    async get_digest() {
       return _digestCache.get(String(userId)) ?? { message: 'No digest yet — run one first.' };
+    },
 
-    case 'add_vip':
+    async add_vip() {
       return params.email ? { vips: await memory.addVIP(userId, params.email) } : null;
+    },
 
-    case 'save_memory': {
+    async save_memory() {
       if (!params.memKey || !params.memValue) return null;
       const facts = await memory.saveFact(userId, params.memKey, params.memValue);
       return { saved: true, key: params.memKey, value: params.memValue, totalFacts: facts.length };
-    }
+    },
 
-    case 'draft_linkedin':
+    async draft_linkedin() {
       return params.source ? await content.draftLinkedInPost(params.source, userId) : null;
+    },
+  };
 
-    default:
-      return null;
-  }
+  const handler = handlers[intent];
+  return handler ? await handler() : null;
 }

@@ -21,7 +21,7 @@ router.get('/api/prs', requireAuth, async (req, res) => {
 router.get('/api/github/issues', requireAuth, async (req, res) => {
   try {
     const creds = await getUserCreds(req.user.userId);
-    res.json(await github.getIssues('open', req.query.repo, creds));
+    res.json(await github.getIssues(req.query.repo, 'open', creds));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -30,7 +30,7 @@ router.post('/api/github/issues', requireAuth, async (req, res) => {
     const { title, body = '', labels = [], repo } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
     const creds = await getUserCreds(req.user.userId);
-    res.json(await github.createIssue(title.trim(), body, labels, repo, creds));
+    res.json(await github.createIssue(title.trim(), repo, body, labels, creds));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
