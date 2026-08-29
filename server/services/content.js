@@ -41,8 +41,11 @@ Return JSON:
 
 // ─── Changelog generator ──────────────────────────────────────────────────────
 
-export async function draftChangelog(since) {
-  const markdown = await github.generateChangelog(since);
+export async function draftChangelog(since, creds = {}) {
+  // Called with no repoHint — generateChangelog() aggregates merged PRs
+  // across every configured repo in that case, rather than defaulting to
+  // just the first one.
+  const markdown = await github.generateChangelog(since, undefined, creds);
 
   const polished = await llm.generate(
     `Polish this raw changelog into a clean, readable GitHub release note. Keep all PR links. Add a one-line release summary at the top.\n\n${markdown}`,

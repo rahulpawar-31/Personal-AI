@@ -36,7 +36,7 @@ async function _runDigest(userId = null) {
           ? (await import('../services/todoist.js')).default.getTasks('today | overdue', creds)
           : []
       ),
-      github.scanStalePRs(3, undefined, creds),
+      github.forEachRepo(repo => github.scanStalePRs(3, repo, creds), creds),
       trello.scanStaleCards(5, creds),
     ]).then(([tasks, stalePRs, staleCards]) => ({
       tasks,
@@ -46,9 +46,9 @@ async function _runDigest(userId = null) {
       ],
     })),
 
-    github.getMergedPRs(undefined, undefined, creds).then(async prs => {
+    github.forEachRepo(repo => github.getMergedPRs(undefined, repo, creds), creds).then(async prs => {
       if (!prs.length) return { drafts: [] };
-      const changelog = await content.draftChangelog();
+      const changelog = await content.draftChangelog(undefined, creds);
       return { drafts: [changelog] };
     }),
   ]);
