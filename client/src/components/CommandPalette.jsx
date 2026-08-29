@@ -25,6 +25,12 @@ export default function CommandPalette({ open, onClose, items }) {
 
   if (!open) return null;
 
+  // Clamped at use-time (not just reset via the query effect above) so
+  // Enter/highlighting stay correct even if `items` itself shrinks for a
+  // reason other than the search text changing (e.g. a service connects
+  // while the palette is open and its "Connect X" action disappears).
+  const safeIndex = filtered.length ? Math.min(activeIndex, filtered.length - 1) : 0;
+
   function select(item) {
     item.onSelect();
     onClose();
@@ -33,13 +39,20 @@ export default function CommandPalette({ open, onClose, items }) {
   function handleKeyDown(e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, filtered.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); }
-    if (e.key === 'Enter' && filtered[activeIndex]) { e.preventDefault(); select(filtered[activeIndex]); }
+    if (e.key === 'Enter' && filtered[safeIndex]) { e.preventDefault(); select(filtered[safeIndex]); }
   }
 
   let lastSection = null;
 
   return (
-    <div className="cmdk-backdrop" onClick={onClose}>
+    <div
+      className="cmdk-backdrop"
+      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="Close command palette"
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
+    >
       <div className="cmdk-box" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
         <input
           ref={inputRef}
@@ -60,8 +73,8 @@ export default function CommandPalette({ open, onClose, items }) {
                 {showSection && <div className="nav-section-label">{it.section}</div>}
                 <div
                   role="option"
-                  aria-selected={i === activeIndex}
-                  data-active={i === activeIndex}
+                  aria-selected={i === safeIndex}
+                  data-active={i === safeIndex}
                   className="cmdk-item"
                   onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => select(it)}

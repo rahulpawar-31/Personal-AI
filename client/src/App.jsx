@@ -17,6 +17,7 @@ import OnboardingWizard from './OnboardingWizard.jsx';
 import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
+import { flattenVisualOrder } from './navGroups.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: "Today's digest", dot: '#888780' },
@@ -105,6 +106,14 @@ export default function App() {
     setView(newView);
   }
 
+  // Keyboard/palette navigation bypasses Sidebar's own click handler (which
+  // also closes the mobile drawer) — route both through here so the drawer
+  // never gets left open over whatever panel was just jumped to.
+  function navigateTo(newView) {
+    handleViewChange(newView);
+    setSidebarOpen(false);
+  }
+
   function handleChatAction(panel) {
     if (panel === 'tasks')    setTaskRefreshKey(k => k + 1);
     if (panel === 'calendar') setCalendarRefreshKey(k => k + 1);
@@ -159,10 +168,15 @@ export default function App() {
     };
   }, [isLoggedIn, refreshAll]);
 
+  // Same order Sidebar renders its groups in (navGroups.js is the shared
+  // source of truth) — settings/admin are deliberately excluded, there's
+  // no room left in 1-9 once the 8 grouped panels take their slots.
+  const shortcutItems = flattenVisualOrder(navItems);
+
   useKeyboardShortcuts({
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && !showOnboarding,
     onCommandPalette: () => setPaletteOpen(true),
-    onNavigateIndex: i => { if (navItems[i]) handleViewChange(navItems[i].id); },
+    onNavigateIndex: i => { if (shortcutItems[i]) navigateTo(shortcutItems[i].id); },
     onEscape: () => {
       if (paletteOpen) setPaletteOpen(false);
       else if (sidebarOpen) setSidebarOpen(false);
@@ -172,7 +186,7 @@ export default function App() {
   const paletteItems = [
     ...navItems.map(n => ({
       id: `nav-${n.id}`, label: n.label, section: 'Go to', dot: n.dot,
-      onSelect: () => handleViewChange(n.id),
+      onSelect: () => navigateTo(n.id),
     })),
     { id: 'refresh-all', label: 'Refresh all panels', section: 'Actions', onSelect: refreshAll },
     ...(!connected ? [{ id: 'connect-google', label: 'Connect Google', section: 'Actions', onSelect: handleConnectGoogle }] : []),
