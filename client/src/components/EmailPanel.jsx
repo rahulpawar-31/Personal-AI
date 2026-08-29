@@ -39,7 +39,10 @@ function EmailIframe({ html }) {
       if (doc?.body) {
         ref.current.style.height = `${doc.body.scrollHeight + 32}px`;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Cross-origin iframe content throws on access — safe to ignore, the
+      // frame just won't auto-size to its content in that case.
+    }
   }
 
   return (
@@ -335,7 +338,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
             {/* Expanded — Gmail-style */}
             {isOpen && (
-              <div onClick={e => e.stopPropagation()} style={{ borderTop: '0.5px solid var(--border)' }}>
+              <div style={{ borderTop: '0.5px solid var(--border)' }}>
 
                 {/* Subject bar */}
                 <div style={{ padding: '14px 20px 0', background: '#fff' }}>

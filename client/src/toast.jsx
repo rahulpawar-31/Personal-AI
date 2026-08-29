@@ -12,10 +12,14 @@ export function toast(message, type = 'info', duration = 4000) {
 export function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
+  const dismiss = useCallback(id => {
+    setToasts(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   const onToast = useCallback(t => {
     setToasts(prev => [...prev, t]);
-    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== t.id)), t.duration);
-  }, []);
+    setTimeout(() => dismiss(t.id), t.duration);
+  }, [dismiss]);
 
   useEffect(() => {
     listeners.add(onToast);
@@ -55,7 +59,7 @@ export function ToastContainer() {
           }}>
             <span style={{ flex: 1 }}>{t.message}</span>
             <button
-              onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+              onClick={() => dismiss(t.id)}
               style={{
                 background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)',
                 cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0,

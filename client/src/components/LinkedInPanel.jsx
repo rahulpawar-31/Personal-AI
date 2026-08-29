@@ -148,7 +148,10 @@ export default function LinkedInPanel({ health = {} }) {
       await navigator.clipboard.writeText(text);
       setCopiedIdx(idx ?? 'final');
       setTimeout(() => setCopiedIdx(null), 1500);
-    } catch {}
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) —
+      // safe to ignore, the "Copied" feedback just won't show.
+    }
   }
 
   return (

@@ -17,7 +17,10 @@ export function useCache(defaultKey, ttlMs) {
     function set(data, key = defaultKey) {
       try {
         localStorage.setItem(key, JSON.stringify({ data, at: Date.now() }));
-      } catch {}
+      } catch {
+        // Storage can throw (quota exceeded, private-browsing restrictions) —
+        // safe to ignore, caching is a pure optimization here.
+      }
     }
 
     function clear(key = defaultKey) {
