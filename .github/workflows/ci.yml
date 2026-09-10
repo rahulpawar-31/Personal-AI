@@ -47,3 +47,6 @@ jobs:
 
       - name: Build client
         run: npm run build --prefix client
+
+      - name: Auth smoke test (every panel route requires a valid token)
+        run: bash server/tests/smoke-auth.sh
