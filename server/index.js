@@ -27,9 +27,10 @@ import contentRoutes     from './routes/content.js';
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
 
-// Render/Railway/Vercel all sit behind a single reverse-proxy hop — without
-// this, req.ip resolves to the proxy's internal address for every request,
-// which breaks per-client rate limiting (see server/middleware/rateLimiter.js).
+// Render (API) and Vercel (frontend proxy) both sit behind a single
+// reverse-proxy hop — without this, req.ip resolves to the proxy's internal
+// address for every request, which breaks per-client rate limiting
+// (see server/middleware/rateLimiter.js).
 app.set('trust proxy', 1);
 
 const allowedOrigins = [
