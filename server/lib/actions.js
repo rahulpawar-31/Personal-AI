@@ -19,6 +19,31 @@ export const EMAIL_ACTION_INTENTS    = new Set(['draft_email', 'send_email', 'ge
 export const DIGEST_ACTION_INTENTS   = new Set(['run_digest', 'get_digest']);
 export const QUERY_INTENTS_SET       = new Set(['get_tasks','get_emails','get_emails_range','get_calendar','get_notes','get_prs','get_trello','get_digest','get_issues']);
 
+// Write-capable intents that are destructive or externally visible (send,
+// cancel, delete, or create/update something a person or another system will
+// see) — see PRD P4 / SEC-2. Any route that lets an *autonomous* classifier
+// (the /api/chat intent classifier, or the LangChain /api/chat/agent tools —
+// see mkPending in langchain-agent.js) pick these must queue them as a
+// pending_actions row (dbCreatePendingAction) instead of running them via
+// executeAction, so a human approves/rejects via /api/actions/:id/approve|
+// reject first. This is the single source of truth for that gate — both chat
+// engines import it so the confirmation requirement can't drift between them.
+//
+// Deliberately NOT included (kept immediate — low risk, reviewed for P4):
+//   - get_*            read-only
+//   - draft_email, draft_linkedin  save a draft only; nothing is sent/posted
+//   - archive_email    reversible, visible only to the user's own inbox
+//   - add_vip          internal preference, no external side effect
+//   - run_digest       just triggers the digest compute job, not a write itself
+export const CONFIRM_REQUIRED_INTENTS = new Set([
+  'add_task', 'update_task', 'delete_task',
+  'create_note',
+  'create_event', 'update_event', 'delete_event', 'block_focus_time',
+  'send_email',
+  'create_issue', 'delete_issue', 'close_issue', 'reopen_issue', 'update_issue', 'comment_issue', 'close_pr',
+  'save_memory',
+]);
+
 export const ACTION_STATUS = {
   add_task:         'Adding task…',
   update_task:      'Updating task…',

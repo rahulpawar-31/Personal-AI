@@ -83,7 +83,7 @@ function buildTools({ executeAction, message, creds, userId }) {
       z.object({ filter: z.string().optional().describe('optional, e.g. "today" or "overdue"') }), 'get_tasks'),
     mkPending('add_task', 'Create a new task / to-do item.',
       z.object({ title: z.string().describe('the task text') }), 'add_task'),
-    mk('update_task', 'Update a task — mark done/in-progress or rename it.',
+    mkPending('update_task', 'Update a task — mark done/in-progress or rename it.',
       z.object({ taskId: z.string(), status: z.string().optional(), title: z.string().optional() }), 'update_task'),
 
     mk('get_calendar', 'Show upcoming calendar events.', noParams, 'get_calendar'),

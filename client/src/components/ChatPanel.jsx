@@ -6,22 +6,47 @@ const STORAGE_KEY = 'devos_chat_history';
 const storageKeyFor = userId => userId ? `devos_chat_history_${userId}` : STORAGE_KEY;
 
 const PENDING_ACTION_LABELS = {
-  add_task:     'Add task',
-  create_event: 'Create calendar event',
-  create_issue: 'Create GitHub issue',
-  create_note:  'Save Notion note',
-  save_memory:  'Remember fact',
+  add_task:      'add a task',
+  update_task:   'update a task',
+  delete_task:   'delete a task',
+  create_event:  'create a calendar event',
+  update_event:  'reschedule a calendar event',
+  delete_event:  'cancel a calendar event',
+  block_focus_time: 'block focus time',
+  create_issue:  'create a GitHub issue',
+  delete_issue:  'permanently delete a GitHub issue',
+  close_issue:   'close a GitHub issue',
+  reopen_issue:  'reopen a GitHub issue',
+  update_issue:  'update a GitHub issue',
+  comment_issue: 'comment on a GitHub issue',
+  close_pr:      'close a GitHub pull request',
+  create_note:   'save a Notion note',
+  save_memory:   'remember a fact',
+  send_email:    'send an email',
 };
 
 function pendingActionSummary(item) {
   const p = item.params || {};
+  const issueRef = `#${p.taskId}${p.repo ? ` in ${p.repo}` : ''}`;
   switch (item.actionType) {
-    case 'add_task':     return p.title;
-    case 'create_event': return `${p.title} — ${p.date}`;
-    case 'create_issue': return `${p.title}${p.repo ? ` in ${p.repo}` : ''}`;
-    case 'create_note':  return p.title;
-    case 'save_memory':  return `${p.memKey} = ${p.memValue}`;
-    default:              return JSON.stringify(p);
+    case 'add_task':      return p.title;
+    case 'update_task':   return [p.title, p.status].filter(Boolean).join(' — ') || p.taskId;
+    case 'delete_task':   return p.title || p.taskId;
+    case 'create_event':  return `${p.title} — ${p.date}`;
+    case 'update_event':  return `${p.title || p.taskId}${p.date ? ` → ${p.date}` : ''}`;
+    case 'delete_event':  return `${p.title || p.taskId}${p.date ? ` at ${p.date}` : ''}`;
+    case 'block_focus_time': return p.title || 'Deep work';
+    case 'create_issue':  return `${p.title}${p.repo ? ` in ${p.repo}` : ''}`;
+    case 'delete_issue':  return issueRef;
+    case 'close_issue':   return issueRef;
+    case 'reopen_issue':  return issueRef;
+    case 'update_issue':  return issueRef;
+    case 'comment_issue': return `${issueRef}: "${(p.body || '').slice(0, 60)}"`;
+    case 'close_pr':      return issueRef;
+    case 'create_note':   return p.title;
+    case 'save_memory':   return `${p.memKey} = ${p.memValue}`;
+    case 'send_email':    return `To: ${p.to} — "${p.title ?? 'No subject'}"`;
+    default:               return JSON.stringify(p);
   }
 }
 
@@ -43,10 +68,12 @@ function PendingActionCard({ item, onResolved }) {
     }
   }
 
+  const label = PENDING_ACTION_LABELS[item.actionType] ?? item.actionType.replace(/_/g, ' ');
+
   return (
     <div style={{ border: '1px solid var(--border)', background: '#f8fffe', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
-        Agent wants to: <strong>{PENDING_ACTION_LABELS[item.actionType] ?? item.actionType}</strong>
+        About to <strong>{label}</strong> — confirm?
       </div>
       <div style={{ fontSize: 13, marginBottom: 8, wordBreak: 'break-word' }}>{pendingActionSummary(item)}</div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -271,6 +298,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               });
             }
             (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
+            refreshPending();
 
           } else if (data.type === 'error') {
             setMessages(m => [...m, { role: 'assistant', content: `Error: ${data.text}`, at: Date.now() }]);
