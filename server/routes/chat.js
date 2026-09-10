@@ -7,11 +7,12 @@ import langchainAgent  from '../services/langchain-agent.js';
 import { requireAuth } from '../middleware/auth.js';
 import { chatLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds, notionReady } from '../lib/creds.js';
+import { dbCreatePendingAction } from '../services/db.js';
 import {
   executeAction, preClassify, buildRoutingRules, AGENT_SCHEMA,
   ACTION_STATUS, TASK_ACTION_INTENTS, CALENDAR_ACTION_INTENTS,
   GITHUB_ACTION_INTENTS, EMAIL_ACTION_INTENTS, DIGEST_ACTION_INTENTS,
-  QUERY_INTENTS_SET,
+  QUERY_INTENTS_SET, CONFIRM_REQUIRED_INTENTS,
 } from '../lib/actions.js';
 
 const router = Router();
@@ -62,8 +63,21 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
       const statusText = actions.map(a => ACTION_STATUS[a.intent] ?? 'Working…').join(' & ');
       send({ type: 'status', text: statusText });
 
+      // Destructive/externally-visible writes (send/cancel/delete, and the
+      // create/update actions called out in P4) never run straight off the
+      // classifier's output — they queue as a pending_actions row and wait for
+      // the user to approve or reject via the card the client renders from
+      // GET /api/actions/pending (see ChatPanel.jsx PendingActionCard). This
+      // mirrors the LangChain agent path's mkPending gate (langchain-agent.js)
+      // so both chat engines honor the same confirmation requirement — P4/SEC-2.
       const settled = await Promise.allSettled(
-        actions.map(a => executeAction(a.intent, a.params ?? {}, message, creds, req.user.userId))
+        actions.map(async a => {
+          if (CONFIRM_REQUIRED_INTENTS.has(a.intent)) {
+            const pending = await dbCreatePendingAction(req.user.userId, a.intent, a.params ?? {}, message);
+            return { pending: true, pendingId: pending.id };
+          }
+          return executeAction(a.intent, a.params ?? {}, message, creds, req.user.userId);
+        })
       );
       settled.forEach((s, i) => {
         const intent = actions[i].intent;
@@ -72,28 +86,40 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
           ? (s.value ?? { error: 'Action returned no result' })
           : { error: s.reason?.message ?? 'Unknown error' };
         const isErr = s.status === 'rejected' || result?.error;
-        memory.logActivity(req.user.userId, intent, params, isErr ? 'error' : 'success', isErr ? (s.reason?.message ?? result?.error) : null);
+        const status = result?.pending ? 'pending' : (isErr ? 'error' : 'success');
+        memory.logActivity(req.user.userId, intent, params, status, isErr ? (s.reason?.message ?? result?.error) : null);
         intents.push(intent);
         results.push(result);
       });
     }
 
+    // affectedPanels only reflects intents that actually ran — a queued action
+    // hasn't changed anything yet, so its panel shouldn't refresh as if it had.
+    const executedIntents = intents.filter((_, i) => !results[i]?.pending);
+    const queuedIntents   = intents.filter((_, i) => results[i]?.pending);
+
     const affectedPanels = [
-      intents.some(i => TASK_ACTION_INTENTS.has(i))     && 'tasks',
-      intents.some(i => CALENDAR_ACTION_INTENTS.has(i)) && 'calendar',
-      intents.some(i => GITHUB_ACTION_INTENTS.has(i))   && 'github',
-      intents.some(i => EMAIL_ACTION_INTENTS.has(i))    && 'comms',
-      intents.some(i => DIGEST_ACTION_INTENTS.has(i))   && 'digest',
+      executedIntents.some(i => TASK_ACTION_INTENTS.has(i))     && 'tasks',
+      executedIntents.some(i => CALENDAR_ACTION_INTENTS.has(i)) && 'calendar',
+      executedIntents.some(i => GITHUB_ACTION_INTENTS.has(i))   && 'github',
+      executedIntents.some(i => EMAIL_ACTION_INTENTS.has(i))    && 'comms',
+      executedIntents.some(i => DIGEST_ACTION_INTENTS.has(i))   && 'digest',
     ].filter(Boolean);
 
     const needsSummary = intents.some(i => QUERY_INTENTS_SET.has(i));
     const failedResult = results.find(r => r?.error);
+    // Never let the pre-execution classifier reply imply a queued action is
+    // done — append an explicit note instead so the user knows to confirm it.
+    const pendingNote = queuedIntents.length
+      ? ` ${queuedIntents.map(i => (ACTION_STATUS[i] ?? i).replace(/…$/, '')).join(', ')} queued for your approval — confirm it below before it runs.`
+      : '';
 
     if (results.length > 0 && failedResult) {
-      send({ type: 'done', reply: `I ran into an issue: ${failedResult.error ?? 'unknown error'}`, intents, affectedPanels });
+      send({ type: 'done', reply: `I ran into an issue: ${failedResult.error ?? 'unknown error'}${pendingNote}`, intents, affectedPanels });
 
     } else if (results.length > 0 && !needsSummary) {
-      send({ type: 'done', reply: classified.reply ?? 'Done.', intents, affectedPanels });
+      const baseReply = queuedIntents.length === intents.length ? 'Got it.' : (classified.reply ?? 'Done.');
+      send({ type: 'done', reply: `${baseReply}${pendingNote}`, intents, affectedPanels });
 
     } else {
       send({ type: 'status', text: needsSummary ? 'Summarizing…' : 'Thinking…' });
@@ -113,7 +139,9 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
 
       let streamMessages;
       if (needsSummary) {
-        const dataSummary = actions.map((a, i) => `${a.intent}: ${JSON.stringify(results[i])}`).join('\n');
+        const dataSummary = actions.map((a, i) =>
+          `${a.intent}: ${results[i]?.pending ? 'queued for approval — not executed yet' : JSON.stringify(results[i])}`
+        ).join('\n');
         streamMessages = [
           { role: 'system', content: `You are a data reporter. CRITICAL: Only report what exists in the JSON data below. Never invent, assume, or hallucinate any events, tasks, emails, names, or times. If a list is empty, say so clearly. ${summaryGuide}` },
           { role: 'user',   content: `User asked: "${message}"\nData:\n${dataSummary}` },
@@ -131,6 +159,13 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
       for await (const token of llm.streamTokens(streamMessages, { taskType: 'chat', maxTokens: 600, apiKeys })) {
         fullReply += token;
         send({ type: 'token', text: token });
+      }
+      if (pendingNote) {
+        // Client prefers the concatenated 'token' stream over the final
+        // 'reply' field once any tokens were sent, so the note has to be
+        // streamed too, not just appended to the 'done' payload below.
+        send({ type: 'token', text: pendingNote });
+        fullReply += pendingNote;
       }
       send({ type: 'done', reply: fullReply, intents: intents.length ? intents : ['general_chat'], affectedPanels });
     }

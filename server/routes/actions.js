@@ -28,8 +28,19 @@ router.post('/api/actions/:id/approve', requireAuth, async (req, res) => {
 
     const finalParams = { ...pending.params, ...(req.body?.edited ?? {}) };
     const creds  = await getUserCreds(uid);
-    const result = await executeAction(pending.actionType, finalParams, pending.sourceMessage ?? '', creds, uid);
-    const isErr  = !!result?.error;
+
+    // executeAction can reject (e.g. an unconfigured/expired integration
+    // throwing) as well as resolve with a `{ error }` payload. Either way the
+    // pending row must still be resolved and logged — otherwise a failed run
+    // is left stuck as "pending" forever with no audit trail of the attempt.
+    let result, isErr;
+    try {
+      result = await executeAction(pending.actionType, finalParams, pending.sourceMessage ?? '', creds, uid);
+      isErr  = !!result?.error;
+    } catch (execErr) {
+      result = { error: execErr.message };
+      isErr  = true;
+    }
 
     await dbResolvePendingAction(uid, id, isErr ? 'error' : 'approved', result);
     memory.recordApprovedDraft(uid, JSON.stringify(pending.params), JSON.stringify(finalParams), pending.actionType);
