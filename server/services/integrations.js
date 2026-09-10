@@ -196,32 +196,3 @@ export async function listKeysWithMeta(userId) {
   return result;
 }
 
-/**
- * Resolve a single credential for a user.
- * Priority: DB value → process.env fallback.
- * This is how the personal .env setup stays working while new users use the DB.
- */
-export async function resolveCredential(userId, keyName) {
-  if (userId) {
-    const dbValue = await getKey(userId, _serviceForKey(keyName), keyName).catch(() => null);
-    if (dbValue) return dbValue;
-  }
-  // Only fall back to env vars for system-level config, never for per-user service keys
-  const SYSTEM_KEYS = new Set(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ENCRYPTION_SECRET', 'JWT_SECRET']);
-  return SYSTEM_KEYS.has(keyName) ? (process.env[keyName] ?? null) : null;
-}
-
-// Maps a key name to its service bucket (used for JSON fallback lookups)
-function _serviceForKey(keyName) {
-  const map = {
-    NOTION_API_KEY: 'notion', NOTION_TASKS_DB_ID: 'notion', NOTION_NOTES_DB_ID: 'notion',
-    GITHUB_TOKEN: 'github', GITHUB_OWNER: 'github', GITHUB_REPO: 'github', GITHUB_REPOS: 'github', GITHUB_WEBHOOK_SECRET: 'github',
-    SLACK_BOT_TOKEN: 'slack', SLACK_CHANNEL_ID: 'slack',
-    TRELLO_API_KEY: 'trello', TRELLO_TOKEN: 'trello', TRELLO_BOARD_ID: 'trello',
-    TODOIST_API_KEY: 'todoist',
-    GEMINI_API_KEY: 'gemini', GROQ_API_KEY: 'groq',
-    GOOGLE_CLIENT_ID: 'google', GOOGLE_CLIENT_SECRET: 'google',
-    LINKEDIN_WEBHOOK_URL: 'linkedin',
-  };
-  return map[keyName] ?? 'other';
-}

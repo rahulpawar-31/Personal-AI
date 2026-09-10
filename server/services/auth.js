@@ -159,6 +159,18 @@ export function isConnected(userId) {
   }
 }
 
+// Disconnect Google for a user — clears both the local token file cache and
+// the DB-stored blob, so isConnected()/getAuthClient() stop seeing it as connected.
+export async function disconnectUser(userId) {
+  const tPath = tokenPath(userId);
+  if (fs.existsSync(tPath)) fs.unlinkSync(tPath);
+  try {
+    await integrations.deleteService(String(userId), 'google');
+  } catch (err) {
+    console.warn('[auth] Could not clear Google tokens from DB:', err.message);
+  }
+}
+
 export function getConnectedUserIds() {
   ensureTokensDir();
   try {
@@ -176,4 +188,4 @@ export function getAuthUrl(baseURLOverride, state = '') {
   return createOAuth2Client(baseURLOverride).generateAuthUrl(opts);
 }
 
-export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB };
+export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB, disconnectUser };
