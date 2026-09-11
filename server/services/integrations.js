@@ -2,94 +2,45 @@
 // Per-user integration key storage.
 // Postgres when available; JSON file fallback for local dev.
 // Values are AES-256-GCM encrypted at rest. The decrypt key never touches the DB.
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+//
+// Delegates to IntegrationStore (server/services/stores/integrationStore.js)
+// for persistence; encryption/decryption and per-caller shaping stay here.
+// The store is selected fresh on every call (not cached once at an init
+// step, unlike db.js's userStore/pendingActionStore) because this module has
+// no init lifecycle of its own — it just asks db.js's getPool() each time,
+// exactly as it already did before the store existed.
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getPool } from './db.js';
 import { encrypt, decrypt } from './encryption.js';
+import {
+  createPostgresIntegrationStore, createJsonFileIntegrationStore,
+} from './stores/integrationStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FILE      = path.join(__dirname, '..', 'integrations.json');
 
-// ─── JSON file helpers ────────────────────────────────────────────────────────
-
-function readFile() {
-  if (!existsSync(FILE)) return [];
-  try { return JSON.parse(readFileSync(FILE, 'utf8')); }
-  catch { return []; }
-}
-
-function writeFile(rows) {
-  writeFileSync(FILE, JSON.stringify(rows, null, 2));
+function currentStore() {
+  const pool = getPool();
+  return pool ? createPostgresIntegrationStore(pool) : createJsonFileIntegrationStore(FILE);
 }
 
 // ─── Core operations ──────────────────────────────────────────────────────────
 
 /** Save (insert or overwrite) one key for a user. Value is encrypted before storage. */
 export async function saveKey(userId, service, keyName, keyValue) {
-  const encrypted = encrypt(keyValue);
-  const pool = getPool();
-
-  if (pool) {
-    await pool.query(
-      `INSERT INTO user_integrations (user_id, service, key_name, key_value)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (user_id, service, key_name)
-       DO UPDATE SET key_value = EXCLUDED.key_value, updated_at = NOW()`,
-      [userId, service, keyName, encrypted]
-    );
-    return;
-  }
-
-  const rows = readFile();
-  const now  = new Date().toISOString();
-  const idx  = rows.findIndex(
-    r => String(r.userId) === String(userId) && r.service === service && r.keyName === keyName
-  );
-  const row = { userId: String(userId), service, keyName, keyValue: encrypted, updatedAt: now };
-  if (idx >= 0) rows[idx] = row;
-  else rows.push({ ...row, createdAt: now });
-  writeFile(rows);
+  await currentStore().set(userId, service, keyName, encrypt(keyValue));
 }
 
 /** Get one decrypted value, or null if not stored. */
 export async function getKey(userId, service, keyName) {
-  const pool = getPool();
-
-  if (pool) {
-    const r = await pool.query(
-      `SELECT key_value FROM user_integrations
-       WHERE user_id = $1 AND service = $2 AND key_name = $3`,
-      [userId, service, keyName]
-    );
-    if (!r.rows[0]) return null;
-    return decrypt(r.rows[0].key_value);
-  }
-
-  const row = readFile().find(
-    r => String(r.userId) === String(userId) && r.service === service && r.keyName === keyName
-  );
-  return row ? decrypt(row.keyValue) : null;
+  const encrypted = await currentStore().get(userId, service, keyName);
+  return encrypted ? decrypt(encrypted) : null;
 }
 
 /** Delete one key. */
 export async function deleteKey(userId, service, keyName) {
-  const pool = getPool();
-
-  if (pool) {
-    await pool.query(
-      `DELETE FROM user_integrations
-       WHERE user_id = $1 AND service = $2 AND key_name = $3`,
-      [userId, service, keyName]
-    );
-    return;
-  }
-
-  writeFile(
-    readFile().filter(
-      r => !(String(r.userId) === String(userId) && r.service === service && r.keyName === keyName)
-    )
-  );
+  await currentStore().delete(userId, service, keyName);
 }
 
 /**
@@ -97,19 +48,8 @@ export async function deleteKey(userId, service, keyName) {
  * Returns an array of { service, keyName } — values are never included.
  */
 export async function listKeys(userId) {
-  const pool = getPool();
-
-  if (pool) {
-    const r = await pool.query(
-      `SELECT service, key_name AS "keyName" FROM user_integrations WHERE user_id = $1`,
-      [userId]
-    );
-    return r.rows;
-  }
-
-  return readFile()
-    .filter(r => String(r.userId) === String(userId))
-    .map(r => ({ service: r.service, keyName: r.keyName }));
+  const rows = await currentStore().listForUser(userId);
+  return rows.map(({ service, keyName }) => ({ service, keyName }));
 }
 
 /**
@@ -117,21 +57,7 @@ export async function listKeys(userId) {
  * Used at request time to inject credentials into service calls.
  */
 export async function getUserCredentials(userId) {
-  const pool = getPool();
-  let rows;
-
-  if (pool) {
-    const r = await pool.query(
-      `SELECT service, key_name, key_value FROM user_integrations WHERE user_id = $1`,
-      [userId]
-    );
-    rows = r.rows.map(row => ({ keyName: row.key_name, keyValue: row.key_value }));
-  } else {
-    rows = readFile()
-      .filter(r => String(r.userId) === String(userId))
-      .map(r => ({ keyName: r.keyName, keyValue: r.keyValue }));
-  }
-
+  const rows  = await currentStore().listForUser(userId);
   const creds = {};
   for (const { keyName, keyValue } of rows) {
     try { creds[keyName] = decrypt(keyValue); }
@@ -142,21 +68,7 @@ export async function getUserCredentials(userId) {
 
 /** Delete all keys for a service (disconnect). */
 export async function deleteService(userId, service) {
-  const pool = getPool();
-
-  if (pool) {
-    await pool.query(
-      `DELETE FROM user_integrations WHERE user_id = $1 AND service = $2`,
-      [userId, service]
-    );
-    return;
-  }
-
-  writeFile(
-    readFile().filter(
-      r => !(String(r.userId) === String(userId) && r.service === service)
-    )
-  );
+  await currentStore().deleteAllForService(userId, service);
 }
 
 /**
@@ -164,23 +76,7 @@ export async function deleteService(userId, service) {
  * Returns { service: { keyName: { updatedAt, keyHint } } }.
  */
 export async function listKeysWithMeta(userId) {
-  const pool = getPool();
-  let rows;
-
-  if (pool) {
-    const r = await pool.query(
-      `SELECT service, key_name AS "keyName", key_value AS "keyValue",
-              updated_at AS "updatedAt"
-       FROM user_integrations WHERE user_id = $1`,
-      [userId]
-    );
-    rows = r.rows;
-  } else {
-    rows = readFile()
-      .filter(r => String(r.userId) === String(userId))
-      .map(r => ({ service: r.service, keyName: r.keyName, keyValue: r.keyValue, updatedAt: r.updatedAt ?? r.createdAt }));
-  }
-
+  const rows   = await currentStore().listForUser(userId);
   const result = {};
   for (const row of rows) {
     let keyHint = '••••••••';
@@ -195,4 +91,3 @@ export async function listKeysWithMeta(userId) {
   }
   return result;
 }
-
