@@ -151,7 +151,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
           aria-label="Next month"
           style={navBtn}
         >›</button>
-        <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-0.01em' }}>{monthLabel}</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: '-0.01em' }}>{monthLabel}</h2>
         <button onClick={() => setMonthStart(startOfMonth(new Date()))} style={{ fontSize: 12 }}>Today</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button
@@ -301,7 +301,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
         zIndex: 201, padding: '20px 22px 24px', boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>New event</span>
+          <span style={{ fontSize: 15, fontWeight: 500 }}>New event</span>
           <button onClick={onClose} aria-label="Close" style={{ ...miniNav, border: '1px solid var(--border)' }}>×</button>
         </div>
 

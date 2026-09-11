@@ -152,10 +152,10 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
             width: 26, height: 26, borderRadius: 7,
             background: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0,
+            color: '#fff', fontWeight: 500, fontSize: 13, flexShrink: 0,
             letterSpacing: '-0.02em',
           }}>D</div>
-          <span style={{ fontWeight: 650, fontSize: 14.5, color: 'var(--text)', letterSpacing: '-0.02em' }}>DevOS</span>
+          <span style={{ fontWeight: 500, fontSize: 14.5, color: 'var(--text)', letterSpacing: '-0.02em' }}>DevOS</span>
         </div>
 
         {/* Main nav */}
@@ -206,7 +206,7 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
             width: 26, height: 26, borderRadius: '50%',
             background: 'var(--sidebar-avatar-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)', fontWeight: 600, fontSize: 11, flexShrink: 0,
+            color: 'var(--muted)', fontWeight: 500, fontSize: 11, flexShrink: 0,
           }}>
             {user?.username?.charAt(0).toUpperCase()}
           </div>

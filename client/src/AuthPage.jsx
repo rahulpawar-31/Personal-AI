@@ -82,9 +82,9 @@ export default function AuthPage({ onAuth }) {
               width: 28, height: 28, borderRadius: 6,
               background: 'var(--accent)', display: 'flex',
               alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 13,
+              color: '#fff', fontWeight: 500, fontSize: 13,
             }}>D</span>
-            <span style={{ fontWeight: 600, fontSize: 18, color: 'var(--text)' }}>DevOS</span>
+            <span style={{ fontWeight: 500, fontSize: 18, color: 'var(--text)' }}>DevOS</span>
           </div>
           <p style={{ fontSize: 'var(--fs-base)', color: 'var(--muted)', margin: 0 }}>
             {isSignup ? 'Create your workspace' : 'Sign in to your workspace'}

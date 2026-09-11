@@ -142,7 +142,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
     <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 60 }}>
       {/* Page header */}
       <div style={{ marginBottom: 8 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.02em' }}>Settings</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 500, margin: '0 0 4px', letterSpacing: '-0.02em' }}>Settings</h1>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
           API keys are encrypted at rest and never logged.
         </p>
@@ -265,7 +265,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
             margin: '0 0 0 0', padding: '12px 20px 14px',
             background: 'var(--surface)', borderTop: '1px solid var(--border)',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
               GitHub Webhook URL
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -284,7 +284,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                   setTimeout(() => setWebhookCopied(false), 2000);
                 }}
                 style={{
-                  padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                  padding: '5px 12px', fontSize: 11, fontWeight: 500,
                   border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
                   background: webhookCopied ? '#22c55e22' : 'var(--bg)',
                   color: webhookCopied ? '#22c55e' : 'var(--muted)',

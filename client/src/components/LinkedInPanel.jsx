@@ -161,7 +161,7 @@ export default function LinkedInPanel({ health = {} }) {
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600 }}>LinkedIn Studio</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 500 }}>LinkedIn Studio</h2>
             <p style={{ fontSize: 12, color: 'var(--muted)' }}>Turn raw thoughts into polished posts</p>
           </div>
           <span style={{
@@ -227,7 +227,7 @@ export default function LinkedInPanel({ health = {} }) {
                     background: i === selected ? 'rgba(10,102,194,.06)' : 'var(--surface)',
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 600, color: i === selected ? '#0A66C2' : 'var(--muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: i === selected ? '#0A66C2' : 'var(--muted)', marginBottom: 3 }}>
                     {v.label}
                     {i === (draft.recommendedVariant ?? 0) && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)' }}>★ rec</span>}
                   </div>

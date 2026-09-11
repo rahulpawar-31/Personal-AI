@@ -66,7 +66,7 @@ export default function OnboardingWizard({ user, onComplete }) {
 
 function StepLabel({ n, of: total }) {
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)',
+    <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)',
       textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
       Step {n} of {total}
     </span>
@@ -77,7 +77,7 @@ function Field({ label, hint, value, onChange, placeholder, type = 'password', l
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{label}</label>
+        <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{label}</label>
         {linkText && (
           <a href={linkHref} target="_blank" rel="noreferrer"
             style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>
@@ -128,8 +128,8 @@ function ServiceCard({ title, icon, connected, children }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: connected ? 0 : 12 }}>
         <span style={{ fontSize: 16 }}>{icon}</span>
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{title}</span>
-        {connected && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>✓ Connected</span>}
+        <span style={{ fontWeight: 500, fontSize: 13 }}>{title}</span>
+        {connected && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>✓ Connected</span>}
       </div>
       {!connected && children}
     </div>
@@ -147,7 +147,7 @@ function WelcomeStep({ username, onNext }) {
   ];
   return (
     <>
-      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>
+      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>
         Welcome, {username}!
       </h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>
@@ -157,7 +157,7 @@ function WelcomeStep({ username, onNext }) {
         {features.map(f => (
           <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13,
             color: 'var(--muted)', padding: '4px 0' }}>
-            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span> {f}
+            <span style={{ color: 'var(--accent)', fontWeight: 500 }}>✓</span> {f}
           </div>
         ))}
       </div>
@@ -174,7 +174,7 @@ function GoogleStep({ onNext }) {
   return (
     <>
       <StepLabel n={1} of={4} />
-      <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Connect Google</h2>
+      <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 500 }}>Connect Google</h2>
       <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: '0 0 16px' }}>
         Unlocks Gmail triage, calendar management, and conflict detection.
       </p>
@@ -183,7 +183,7 @@ function GoogleStep({ onNext }) {
           'Schedule and reschedule calendar events', 'Detect scheduling conflicts automatically'].map(item => (
           <div key={item} style={{ display: 'flex', gap: 8, alignItems: 'center',
             fontSize: 13, color: 'var(--muted)', padding: '3px 0' }}>
-            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span> {item}
+            <span style={{ color: 'var(--accent)', fontWeight: 500 }}>✓</span> {item}
           </div>
         ))}
       </div>
@@ -244,7 +244,7 @@ function DevToolsStep({ onNext }) {
   return (
     <>
       <StepLabel n={2} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>Dev tools</h2>
+      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>Dev tools</h2>
       <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
         Connect GitHub and Slack — or skip and add them later in Settings.
       </p>
@@ -339,7 +339,7 @@ function ProductivityStep({ onNext }) {
   return (
     <>
       <StepLabel n={3} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>Productivity tools</h2>
+      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>Productivity tools</h2>
       <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
         Connect Notion and Todoist for task and note management.
       </p>
@@ -424,7 +424,7 @@ function AIKeysStep({ onNext }) {
   return (
     <>
       <StepLabel n={4} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>AI engine</h2>
+      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>AI engine</h2>
       <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6, margin: '0 0 6px' }}>
         DevOS needs at least one AI key for chat and digest to work.
         Both are free to start — add either one.
@@ -482,7 +482,7 @@ function DoneStep({ onComplete }) {
       }}>
         ✓
       </div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>You're all set!</h2>
+      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>You're all set!</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' }}>
         Your workspace is ready. You can add or change any integration any time from Settings.
       </p>

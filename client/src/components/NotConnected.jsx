@@ -10,7 +10,7 @@ export default function NotConnected({ title, description, primaryLabel, onPrima
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20, marginBottom: 16, color: 'var(--muted)',
       }}>○</div>
-      <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px', color: 'var(--text)' }}>
+      <h3 style={{ fontSize: 15, fontWeight: 500, margin: '0 0 8px', color: 'var(--text)' }}>
         {title}
       </h3>
       <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 24px' }}>

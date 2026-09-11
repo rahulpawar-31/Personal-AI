@@ -52,7 +52,7 @@ function SourceBadge({ source }) {
   const s = map[source] ?? map.notion;
   return (
     <span style={{
-      fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+      fontSize: 10, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase',
       padding: '2px 6px', borderRadius: 'var(--radius-sm)',
       background: s.bg, color: s.color,
     }}>
@@ -92,7 +92,7 @@ function Card({ task, onDragStart, onToggle }) {
       <div style={{ padding: '10px 12px 9px' }}>
         {/* Title */}
         <p style={{
-          margin: '0 0 9px', fontSize: 'var(--fs-base)', fontWeight: 450,
+          margin: '0 0 9px', fontSize: 'var(--fs-base)', fontWeight: 500,
           lineHeight: 'var(--lh-normal)', color: done ? 'var(--hint)' : 'var(--text)',
           textDecoration: done ? 'line-through' : 'none',
         }}>
@@ -202,11 +202,11 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
         display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
         borderBottom: '1px solid var(--border)',
       }}>
-        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)', flex: 1 }}>
+        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
           {col.name}
         </span>
         <span style={{
-          fontSize: 11, fontWeight: 600,
+          fontSize: 11, fontWeight: 500,
           color: col.accent, background: `${col.accent}14`,
           padding: '1px 8px', borderRadius: 'var(--radius-pill)',
           minWidth: 22, textAlign: 'center',
@@ -313,7 +313,7 @@ function NoteCard({ note }) {
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>
         </svg>
         <span style={{
-          flex: 1, fontSize: 'var(--fs-base)', fontWeight: 450, color: 'var(--text)',
+          flex: 1, fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {note.title || 'Untitled'}
@@ -394,11 +394,11 @@ function NotionNotesColumn({ notes, onAdd }) {
         padding: '11px 14px 10px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
       }}>
-        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)', flex: 1 }}>
+        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
           Notion Notes
         </span>
         <span style={{
-          fontSize: 11, fontWeight: 600, color: ACCENT,
+          fontSize: 11, fontWeight: 500, color: ACCENT,
           background: `${ACCENT}14`, padding: '1px 8px', borderRadius: 'var(--radius-pill)',
           minWidth: 22, textAlign: 'center',
         }}>
@@ -410,7 +410,7 @@ function NotionNotesColumn({ notes, onAdd }) {
           title="Export all notes as Markdown files"
           aria-label="Export all notes as Markdown files"
           style={{
-            padding: '2px 7px', fontSize: 10, fontWeight: 600,
+            padding: '2px 7px', fontSize: 10, fontWeight: 500,
             border: `1px solid ${ACCENT}30`, borderRadius: 'var(--radius-sm)',
             background: 'transparent', color: ACCENT, cursor: notes.length ? 'pointer' : 'default',
             opacity: notes.length ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 3,
