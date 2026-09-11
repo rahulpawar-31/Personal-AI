@@ -221,6 +221,9 @@ A DevOS card is:
 | `→`   | CTA suffix / step wayfinding  | "Continue →", field-hint breadcrumbs |
 | `↩`   | Return / sign-out              | Sidebar log-out button              |
 | `↵`   | Keyboard hint                  | "Enter ↵ to send"                   |
+| `■`   | Stop / recording               | Chat mic button while listening     |
+| `×`   | Close / dismiss                | Modal close, toggle-panel close state |
+| `↑`   | Send                           | Chat send button                    |
 
 ### Custom shapes
 - **Sender avatar:** 36×36 round, solid `#1a73e8` (Gmail-style blue inside email reader specifically — this is *not* DevOS green, it's a Gmail homage in the reader pane only), first-letter of sender, white text, 15px weight 500.

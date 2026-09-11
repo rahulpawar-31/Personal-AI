@@ -43,28 +43,8 @@ function toggleBtnState(expanded, connected) {
 }
 
 function ToggleBtnIcon({ expanded, connected }) {
-  if (expanded) {
-    // × close
-    return (
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    );
-  }
-  if (connected) {
-    // ✓ connected
-    return (
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20,6 9,17 4,12"/>
-      </svg>
-    );
-  }
-  // + add
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  );
+  const glyph = expanded ? '×' : connected ? '✓' : '+';
+  return <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>{glyph}</span>;
 }
 
 // Action button — green ✓ when connected, + when not, × when the panel is open
@@ -184,11 +164,9 @@ export function Modal({ open, onClose, title, children }) {
             width: 26, height: 26, borderRadius: 6, padding: 0,
             border: '1px solid var(--border)', background: 'transparent',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)',
+            color: 'var(--muted)', fontSize: 14, fontWeight: 700,
           }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            ×
           </button>
         </div>
         {/* Scrollable content */}
@@ -224,20 +202,9 @@ export function FieldGroup({ label, hint, linkText, linkHref, value, onChange, p
         />
         {isSecret && (
           <button type="button" onClick={() => setShow(v => !v)} tabIndex={-1}
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--hint)', display: 'flex', alignItems: 'center' }}
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--hint)', display: 'flex', alignItems: 'center', fontSize: 11, fontWeight: 500 }}
             aria-label={show ? 'Hide' : 'Show'}>
-            {show ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            )}
+            {show ? 'Hide' : 'Show'}
           </button>
         )}
       </div>
@@ -283,11 +250,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
             <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
               {setupLinkLabel ?? `${label} Setup`}
             </span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15,3 21,3 21,9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
+            <span style={{ fontSize: 14, color: 'var(--muted)' }}>↗</span>
           </div>
         </a>
       )}
