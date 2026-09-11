@@ -7,12 +7,19 @@
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",
     "build": "npm run build --prefix client",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "npm test --prefix server && npm test --prefix client",
+    "prepare": "husky"
   },
   "dependencies": {
     "concurrently": "^8.2.2"
   },
   "overrides": {
     "shell-quote": "^1.8.4"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.6"
   }
 }
