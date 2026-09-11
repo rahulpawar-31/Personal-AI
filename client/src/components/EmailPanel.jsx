@@ -162,11 +162,10 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
   useEffect(() => {
     if (!connected) return;
-    const cached = cache.get();
+    const cached = cache.getWithAge();
     if (cached) {
-      setEmails(Array.isArray(cached.data) ? cached.data : []);
-      const raw = JSON.parse(localStorage.getItem('devos_emails') || '{}');
-      setCacheAge(raw.at ?? Date.now());
+      setEmails(Array.isArray(cached.value.data) ? cached.value.data : []);
+      setCacheAge(cached.at);
       return;
     }
     load();

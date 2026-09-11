@@ -53,7 +53,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
   useEffect(() => {
     if (!refreshKey || !activeRepo) return;
     const cacheKey = `devos_github_${activeRepo.replace('/', '_')}`;
-    localStorage.removeItem(cacheKey);
+    cache.clear(cacheKey);
     load(activeRepo);
   }, [refreshKey]);
 
