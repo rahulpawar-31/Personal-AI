@@ -126,7 +126,7 @@ function Card({ task, onDragStart, onToggle }) {
               }}
             >
               {done && (
-                <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                <span style={{ color: '#fff', fontSize: 10, fontWeight: 500, lineHeight: 1 }}>✓</span>
               )}
             </button>
           )}

@@ -292,13 +292,13 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
         tabIndex={0}
         aria-label="Close dialog"
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.28)' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(20,20,18,0.28)' }}
       />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
         width: 440, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
         background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--border)',
-        zIndex: 201, padding: '20px 22px 24px', boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        zIndex: 201, padding: '20px 22px 24px', boxShadow: 'var(--shadow-2)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 15, fontWeight: 500 }}>New event</span>

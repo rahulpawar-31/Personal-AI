@@ -44,7 +44,7 @@ function toggleBtnState(expanded, connected) {
 
 function ToggleBtnIcon({ expanded, connected }) {
   const glyph = expanded ? '×' : connected ? '✓' : '+';
-  return <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>{glyph}</span>;
+  return <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1 }}>{glyph}</span>;
 }
 
 // Action button — green ✓ when connected, + when not, × when the panel is open
@@ -164,7 +164,7 @@ export function Modal({ open, onClose, title, children }) {
             width: 26, height: 26, borderRadius: 6, padding: 0,
             border: '1px solid var(--border)', background: 'transparent',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)', fontSize: 14, fontWeight: 700,
+            color: 'var(--muted)', fontSize: 14, fontWeight: 500,
           }}>
             ×
           </button>
