@@ -18,6 +18,9 @@ export default function AuthPage({ onAuth }) {
       const detail = params.get('detail');
       return detail ? `Google sign-in failed: ${detail}` : 'Google sign-in failed. Please try again.';
     }
+    if (params.get('auth_error') === 'signup_disabled') {
+      return 'Signups are currently invite-only.';
+    }
     return '';
   });
 

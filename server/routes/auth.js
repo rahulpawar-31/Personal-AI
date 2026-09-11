@@ -129,6 +129,13 @@ router.get('/api/auth/google/callback', async (req, res) => {
         if (existing) {
           await userService.dbLinkGoogleId(existing.id, googleId);
           user = existing;
+        } else if (process.env.OWNER_USERNAME) {
+          // Same P0 gate as password signup (server/services/users.js
+          // createUser) — no existing account matched this Google identity,
+          // so this would silently provision a brand-new account. In
+          // production (OWNER_USERNAME set) that's not allowed.
+          console.warn(`[auth/google/callback] rejected new-account provisioning via Google for unrecognized email (${email}) — signups are invite-only in production`);
+          return res.redirect(`${redirectBase}/?auth_error=signup_disabled`);
         } else {
           const base = (email.split('@')[0] ?? name).replace(/\W/g, '').slice(0, 28) || 'user';
           let username = base;
