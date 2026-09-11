@@ -151,9 +151,9 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
       {aiMissing && (
         <div style={{
           marginTop: 16, padding: '10px 14px',
-          borderRadius: 8, background: '#FFF8E1',
-          border: '1px solid #FFCA28',
-          fontSize: 12, color: '#6D4C00', lineHeight: 1.6,
+          borderRadius: 8, background: 'var(--tag-warn-bg)',
+          border: '1px solid var(--warning)',
+          fontSize: 12, color: 'var(--tag-warn-fg)', lineHeight: 1.6,
         }}>
           <strong>No AI engine configured.</strong> Add a Gemini or Groq API key to enable the agent.
         </div>
@@ -286,8 +286,8 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                 style={{
                   padding: '5px 12px', fontSize: 11, fontWeight: 500,
                   border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                  background: webhookCopied ? '#22c55e22' : 'var(--bg)',
-                  color: webhookCopied ? '#22c55e' : 'var(--muted)',
+                  background: webhookCopied ? 'var(--tag-success-bg)' : 'var(--bg)',
+                  color: webhookCopied ? 'var(--success)' : 'var(--muted)',
                   cursor: 'pointer', flexShrink: 0, transition: 'all .15s',
                 }}
               >

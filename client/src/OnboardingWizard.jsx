@@ -109,9 +109,9 @@ function StatusBadge({ status }) {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
       borderRadius: 'var(--radius-sm)', marginBottom: 14,
-      background: ok ? '#f0fdf4' : '#fef2f2',
-      border: `1px solid ${ok ? '#bbf7d0' : '#fecaca'}`,
-      fontSize: 12, color: ok ? '#166534' : '#991b1b',
+      background: ok ? 'var(--tag-success-bg)' : 'var(--tag-danger-bg)',
+      border: `1px solid ${ok ? 'var(--success)' : 'var(--danger)'}`,
+      fontSize: 12, color: ok ? 'var(--tag-success-fg)' : 'var(--tag-danger-fg)',
     }}>
       {ok ? '✓ Connected' : `✗ ${status}`}
     </div>
@@ -476,7 +476,7 @@ function DoneStep({ onComplete }) {
     <>
       <div style={{
         width: 52, height: 52, borderRadius: '50%',
-        background: '#f0fdf4', color: '#16a34a',
+        background: 'var(--tag-success-bg)', color: 'var(--success)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 24, marginBottom: 20,
       }}>

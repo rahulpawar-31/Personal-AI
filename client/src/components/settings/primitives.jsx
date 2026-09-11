@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import ServiceIcon from './ServiceIcon.jsx';
 
 const TAG_STYLES = {
-  required:    { background: '#FDECEA', color: '#B71C1C' },
-  recommended: { background: '#E8F5E9', color: '#1B5E20' },
-  optional:    { background: '#EDE7F6', color: '#311B92' },
+  required:    { background: 'var(--tag-danger-bg)',  color: 'var(--tag-danger-fg)' },
+  recommended: { background: 'var(--tag-success-bg)', color: 'var(--tag-success-fg)' },
+  optional:    { background: 'var(--tag-info-bg)',    color: 'var(--tag-info-fg)' },
 };
 
 export function SectionLabel({ label, tag }) {
@@ -25,11 +25,10 @@ export function SectionLabel({ label, tag }) {
 export function IntegrationGroup({ children }) {
   return (
     <div style={{
-      background: '#fff',
-      border: '1.5px solid rgba(0,0,0,0.1)',
+      background: 'var(--surface)',
+      border: 'var(--border-hairline)',
       borderRadius: 12,
       overflow: 'hidden',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
     }}>
       {children}
     </div>
@@ -38,9 +37,9 @@ export function IntegrationGroup({ children }) {
 
 // Colors + copy for ToggleBtn's 3 states — was a chain of nested ternaries.
 function toggleBtnState(expanded, connected) {
-  if (expanded)  return { bg: 'var(--text)', border: 'transparent',       color: '#fff',   title: 'Close' };
-  if (connected) return { bg: '#E8F5E9',     border: '#86c997',           color: '#1B7A33', title: 'Manage connection' };
-  return             { bg: '#fff',        border: 'rgba(0,0,0,0.18)', color: '#555',   title: 'Connect' };
+  if (expanded)  return { bg: 'var(--text)', border: 'transparent', color: '#fff', title: 'Close' };
+  if (connected) return { bg: 'var(--tag-success-bg)', border: 'var(--success)', color: 'var(--tag-success-fg)', title: 'Manage connection' };
+  return             { bg: 'var(--surface)', border: 'var(--border)', color: 'var(--muted)', title: 'Connect' };
 }
 
 function ToggleBtnIcon({ expanded, connected }) {
@@ -85,7 +84,6 @@ export function ToggleBtn({ expanded, onClick, connected }) {
         color,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
-        boxShadow: expanded ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
       }}
     >
       <ToggleBtnIcon expanded={expanded} connected={connected} />
@@ -100,10 +98,9 @@ export function IntegrationRow({ service, label, connected, children, actionSlot
         {/* Brand icon */}
         <div style={{
           width: 36, height: 36, borderRadius: 9,
-          background: '#fff', border: '1px solid var(--border)',
+          background: 'var(--surface)', border: 'var(--border-hairline)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, overflow: 'hidden',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
         }}>
           <ServiceIcon service={service} />
         </div>
@@ -113,8 +110,8 @@ export function IntegrationRow({ service, label, connected, children, actionSlot
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontWeight: 500, fontSize: 13.5, color: 'var(--text)' }}>{label}</span>
             {connected && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#1B7A33', background: '#E8F5E9', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1B7A33' }} />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--tag-success-fg)' }} />
                 {' '}Connected
               </span>
             )}
@@ -134,7 +131,7 @@ export function IntegrationRow({ service, label, connected, children, actionSlot
 }
 
 export function RowDivider() {
-  return <div style={{ height: 1, background: 'rgba(0,0,0,0.07)' }} />;
+  return <div style={{ height: 1, background: 'var(--border)' }} />;
 }
 
 // Floating modal dialog
@@ -158,7 +155,7 @@ export function Modal({ open, onClose, title, children }) {
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
         style={{
           position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(0,0,0,0.28)',
+          background: 'rgba(20,20,18,0.28)',
         }}
       />
       {/* Dialog */}
@@ -172,7 +169,7 @@ export function Modal({ open, onClose, title, children }) {
         border: '1px solid var(--border)',
         zIndex: 201,
         display: 'flex', flexDirection: 'column',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        boxShadow: 'var(--shadow-2)',
         overflow: 'hidden',
       }}>
         {/* Header */}
@@ -329,7 +326,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
 export function WarnMsg({ msg }) {
   if (!msg) return null;
   return (
-    <div style={{ marginTop: 8, fontSize: 12, color: '#7c4a00', background: '#fff8e1', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
+    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tag-warn-fg)', background: 'var(--tag-warn-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
       {msg}
     </div>
   );
@@ -338,7 +335,7 @@ export function WarnMsg({ msg }) {
 export function ErrorMsg({ msg }) {
   if (!msg) return null;
   return (
-    <div style={{ marginTop: 8, fontSize: 12, color: '#B71C1C', background: '#FDECEA', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
+    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tag-danger-fg)', background: 'var(--tag-danger-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
       {msg}
     </div>
   );

@@ -30,7 +30,7 @@ const BASE_NAV = [
   { id: 'chat',     label: 'Chat',           dot: '#378ADD' },
   { id: 'settings', label: 'Settings',       dot: null },
 ];
-const ADMIN_NAV = { id: 'admin', label: 'Admin', dot: '#c0392b' };
+const ADMIN_NAV = { id: 'admin', label: 'Admin', dot: 'var(--danger)' };
 
 // Panel a chat action affects → the toast copy pointing the user at it.
 const PANEL_LABEL = { tasks: 'Tasks', calendar: 'Calendar', github: 'GitHub', comms: 'Comms', digest: "Today's digest" };

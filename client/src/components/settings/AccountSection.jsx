@@ -119,8 +119,8 @@ export default function AccountSection({ user, onLogout }) {
         <div style={{
           margin: '0 20px 0', padding: '10px 14px',
           fontSize: 12, lineHeight: 1.5,
-          color: status.type === 'success' ? '#1B5E20' : '#B71C1C',
-          background: status.type === 'success' ? '#E8F5E9' : '#FDECEA',
+          color: status.type === 'success' ? 'var(--tag-success-fg)' : 'var(--tag-danger-fg)',
+          background: status.type === 'success' ? 'var(--tag-success-bg)' : 'var(--tag-danger-bg)',
           borderBottom: '1px solid var(--border)',
         }}>
           {status.msg}

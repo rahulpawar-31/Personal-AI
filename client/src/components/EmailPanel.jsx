@@ -94,13 +94,13 @@ function ReplyDraft({ email, toAddr, onSent }) {
   if (!email.draftReply) return null;
 
   return (
-    <div style={{ borderTop: '0.5px solid var(--border)', background: '#f8fffe', padding: '12px 20px 14px' }}>
+    <div style={{ borderTop: '0.5px solid var(--border)', background: 'var(--tag-success-bg)', padding: '12px 20px 14px' }}>
       {!open ? (
         <button
           onClick={() => setOpen(true)}
           style={{
-            fontSize: 12, color: '#1D9E75', fontWeight: 500,
-            background: 'none', border: '1px solid #1D9E75',
+            fontSize: 12, color: 'var(--accent)', fontWeight: 500,
+            background: 'none', border: '1px solid var(--accent)',
             borderRadius: 6, padding: '5px 12px', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6,
           }}
@@ -123,7 +123,7 @@ function ReplyDraft({ email, toAddr, onSent }) {
               width: '100%', fontSize: 13, lineHeight: 1.6,
               border: '1px solid var(--border)', borderRadius: 6,
               padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical',
-              background: '#fff', color: 'var(--text)',
+              background: 'var(--surface)', color: 'var(--text)',
             }}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -341,8 +341,8 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
               <div style={{ borderTop: '0.5px solid var(--border)' }}>
 
                 {/* Subject bar */}
-                <div style={{ padding: '14px 20px 0', background: '#fff' }}>
-                  <div style={{ fontSize: 20, fontWeight: 400, color: '#202124', marginBottom: 12 }}>
+                <div style={{ padding: '14px 20px 0', background: 'var(--surface)' }}>
+                  <div style={{ fontSize: 20, fontWeight: 400, color: 'var(--text)', marginBottom: 12 }}>
                     {email.subject}
                   </div>
 
@@ -359,25 +359,25 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                         {(name || addr).charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#202124' }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
                           {(full?.from || email.from).replace(/<.*>/, '').trim()}
                         </div>
-                        <div style={{ fontSize: 11, color: '#5f6368', marginTop: 2 }}>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                           {full?.from || email.from}
                         </div>
                         {full?.to && (
-                          <div style={{ fontSize: 11, color: '#5f6368' }}>to {full.to}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>to {full.to}</div>
                         )}
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: '#5f6368', whiteSpace: 'nowrap', marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginTop: 4 }}>
                       {new Date(email.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>
 
                 {/* Email body */}
-                <div style={{ background: '#fff', padding: '0 4px' }}>
+                <div style={{ background: 'var(--surface)', padding: '0 4px' }}>
                   {isLoading && <LoadingState label="Loading…" />}
                   {!isLoading && full?.htmlBody && (
                     <EmailIframe html={full.htmlBody} />
@@ -385,7 +385,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                   {!isLoading && !full?.htmlBody && (
                     <pre style={{
                       margin: 0, padding: '0 20px 20px',
-                      fontSize: 14, lineHeight: 1.7, color: '#202124',
+                      fontSize: 14, lineHeight: 1.7, color: 'var(--text)',
                       whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit',
                       maxHeight: 500, overflowY: 'auto',
                     }}>
@@ -400,11 +400,11 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                 {/* Action bar */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 20px 14px', background: '#fff',
+                  padding: '10px 20px 14px', background: 'var(--surface)',
                   borderTop: '0.5px solid var(--border)',
                 }}>
                   {email.intent && (
-                    <span style={{ fontSize: 11, color: '#5f6368', flex: 1 }}>{email.intent}</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted)', flex: 1 }}>{email.intent}</span>
                   )}
                   <button
                     onClick={e => archive(email.id, e)}

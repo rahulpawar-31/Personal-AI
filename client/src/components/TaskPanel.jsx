@@ -5,11 +5,15 @@ import { LoadingState, EmptyState } from './ui/States.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PRIORITY_COLOR = { 4: '#D85A30', 3: '#BA7517', 2: '#378ADD' };
+const PRIORITY_COLOR = { 4: 'var(--danger)', 3: 'var(--warning)', 2: 'var(--info)' };
 
+// A decorative palette for arbitrary user-created columns — beyond the 3
+// built-in statuses, there's no semantic token for "the 7th distinct hue",
+// so most of these stay literal. The 4 that do match an existing token
+// (warning/accent/danger/info) reference it instead of duplicating the hex.
 const COL_ACCENTS = [
-  '#6366f1','#BA7517','#1D9E75','#D85A30',
-  '#8b5cf6','#378ADD','#ec4899','#14b8a6','#f97316','#64748b',
+  '#6366f1','var(--warning)','var(--accent)','var(--danger)',
+  '#8b5cf6','var(--info)','#ec4899','#14b8a6','#f97316','#64748b',
 ];
 
 const STATUS_COL = {
@@ -26,8 +30,8 @@ const COL_STATUS = {
 
 const BUILT_IN = [
   { id: 'todo',       name: 'To Do',       accent: '#6366f1' },
-  { id: 'inprogress', name: 'In Progress', accent: '#BA7517' },
-  { id: 'done',       name: 'Done',        accent: '#1D9E75' },
+  { id: 'inprogress', name: 'In Progress', accent: 'var(--warning)' },
+  { id: 'done',       name: 'Done',        accent: 'var(--accent)' },
 ];
 
 function dueFmt(iso) {
@@ -35,9 +39,9 @@ function dueFmt(iso) {
   const d = new Date(iso.includes('T') ? iso : `${iso}T00:00:00`);
   const today = new Date(); today.setHours(0,0,0,0);
   const diff  = Math.round((d - today) / 86400000);
-  if (diff === 0)  return { text: 'Today',    color: '#BA7517' };
-  if (diff === 1)  return { text: 'Tomorrow', color: '#1D9E75' };
-  if (diff < 0)    return { text: d.toLocaleDateString('en-US',{ month:'short', day:'numeric' }), color: '#D85A30' };
+  if (diff === 0)  return { text: 'Today',    color: 'var(--warning)' };
+  if (diff === 1)  return { text: 'Tomorrow', color: 'var(--accent)' };
+  if (diff < 0)    return { text: d.toLocaleDateString('en-US',{ month:'short', day:'numeric' }), color: 'var(--danger)' };
   return { text: d.toLocaleDateString('en-US',{ month:'short', day:'numeric' }), color: 'var(--muted)' };
 }
 
@@ -64,7 +68,6 @@ function SourceBadge({ source }) {
 // ─── Kanban card ──────────────────────────────────────────────────────────────
 
 function Card({ task, onDragStart, onToggle }) {
-  const [hovered, setHovered] = useState(false);
   const due    = dueFmt(task.due);
   const done   = task.status === 'Done';
   const pColor = PRIORITY_COLOR[task.priority];
@@ -73,19 +76,14 @@ function Card({ task, onDragStart, onToggle }) {
     <div
       draggable
       onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('id', task.id); onDragStart(task); }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderLeft: pColor ? `3px solid ${pColor}` : '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
+        border: 'var(--border-hairline)',
+        borderLeft: pColor ? `3px solid ${pColor}` : undefined,
+        borderRadius: pColor ? '0 var(--radius) var(--radius) 0' : 'var(--radius)',
         marginBottom: 6,
-        boxShadow: hovered ? 'var(--shadow-2)' : 'var(--shadow-1)',
         cursor: 'grab',
         userSelect: 'none',
-        transition: 'box-shadow var(--t-fast), transform var(--t-fast)',
-        transform: hovered ? 'translateY(-1px)' : 'none',
         overflow: 'hidden',
       }}
     >
@@ -292,19 +290,13 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
 // ─── Notion Notes column ──────────────────────────────────────────────────────
 
 function NoteCard({ note }) {
-  const [hovered, setHovered] = useState(false);
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'var(--surface)',
-        border: '1px solid var(--border)',
+        border: 'var(--border-hairline)',
         borderRadius: 'var(--radius)',
         marginBottom: 6,
-        boxShadow: hovered ? 'var(--shadow-2)' : 'var(--shadow-1)',
-        transition: 'box-shadow var(--t-fast), transform var(--t-fast)',
-        transform: hovered ? 'translateY(-1px)' : 'none',
         overflow: 'hidden',
       }}
     >

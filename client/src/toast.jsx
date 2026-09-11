@@ -28,7 +28,7 @@ export function ToastContainer() {
 
   if (!toasts.length) return null;
 
-  const BG = { success: '#1D9E75', error: '#D85A30', info: '#333' };
+  const BG = { success: 'var(--accent)', error: 'var(--danger)', info: 'var(--text)' };
 
   return (
     <>
@@ -51,7 +51,7 @@ export function ToastContainer() {
             borderRadius: 8,
             fontSize: 13,
             lineHeight: 1.5,
-            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+            boxShadow: 'var(--shadow-2)',
             maxWidth: 360,
             display: 'flex', alignItems: 'flex-start', gap: 10,
             pointerEvents: 'all',
