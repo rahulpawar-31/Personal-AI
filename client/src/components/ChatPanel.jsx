@@ -551,15 +551,13 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         borderRadius: 16,
         padding: '10px 10px 10px 14px',
         display: 'flex', alignItems: 'flex-end', gap: 8,
-        transition: 'border-color 0.15s, box-shadow 0.15s',
+        transition: 'border-color 0.15s',
       }}
         onFocusCapture={e => {
           e.currentTarget.style.borderColor = 'var(--accent)';
-          e.currentTarget.style.boxShadow = '0 0 0 2.5px rgba(29,158,117,.12)';
         }}
         onBlurCapture={e => {
           e.currentTarget.style.borderColor = 'var(--border)';
-          e.currentTarget.style.boxShadow = 'none';
         }}
       >
         <textarea
@@ -629,7 +627,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             {loading ? (
               <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
             ) : (
-              <span style={{ fontSize: 15, fontWeight: 700 }}>↑</span>
+              <span style={{ fontSize: 15, fontWeight: 500 }}>↑</span>
             )}
           </button>
         </div>
