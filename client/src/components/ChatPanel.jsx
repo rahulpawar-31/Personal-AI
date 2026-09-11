@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api.js';
+import { streamChat } from '../lib/chatStream.js';
 import { toast } from '../toast.jsx';
 
 const STORAGE_KEY = 'devos_chat_history';
@@ -243,66 +244,39 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
     }
 
     try {
-      const response = await apiFetch('/api/chat', {
-        method: 'POST',
-        body:   JSON.stringify({ message: text, history: messages.slice(-10) }),
-      });
+      for await (const data of streamChat({ message: text, history: messages.slice(-10) })) {
+        if (data.type === 'status') {
+          setStatusText(data.text);
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ error: 'Server error' }));
-        throw new Error(err.error ?? 'Server error');
-      }
-
-      const reader  = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop(); // keep incomplete line
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          let data;
-          try { data = JSON.parse(line.slice(6)); } catch { continue; }
-
-          if (data.type === 'status') {
-            setStatusText(data.text);
-
-          } else if (data.type === 'token') {
-            assistantContent += data.text;
-            if (!assistantAdded) {
-              setMessages(m => [...m, { role: 'assistant', content: assistantContent, at: Date.now() }]);
-              assistantAdded = true;
-            } else {
-              setMessages(m => {
-                const copy = [...m];
-                copy[copy.length - 1] = { ...copy[copy.length - 1], content: assistantContent };
-                return copy;
-              });
-            }
-
-          } else if (data.type === 'done') {
-            const finalContent = assistantContent || data.reply || '';
-            if (!assistantAdded) {
-              setMessages(m => [...m, { role: 'assistant', content: finalContent, intents: data.intents, at: Date.now() }]);
-            } else {
-              setMessages(m => {
-                const copy = [...m];
-                copy[copy.length - 1] = { ...copy[copy.length - 1], content: finalContent, intents: data.intents };
-                return copy;
-              });
-            }
-            (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
-            refreshPending();
-
-          } else if (data.type === 'error') {
-            setMessages(m => [...m, { role: 'assistant', content: `Error: ${data.text}`, at: Date.now() }]);
+        } else if (data.type === 'token') {
+          assistantContent += data.text;
+          if (!assistantAdded) {
+            setMessages(m => [...m, { role: 'assistant', content: assistantContent, at: Date.now() }]);
+            assistantAdded = true;
+          } else {
+            setMessages(m => {
+              const copy = [...m];
+              copy[copy.length - 1] = { ...copy[copy.length - 1], content: assistantContent };
+              return copy;
+            });
           }
+
+        } else if (data.type === 'done') {
+          const finalContent = assistantContent || data.reply || '';
+          if (!assistantAdded) {
+            setMessages(m => [...m, { role: 'assistant', content: finalContent, intents: data.intents, at: Date.now() }]);
+          } else {
+            setMessages(m => {
+              const copy = [...m];
+              copy[copy.length - 1] = { ...copy[copy.length - 1], content: finalContent, intents: data.intents };
+              return copy;
+            });
+          }
+          (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
+          refreshPending();
+
+        } else if (data.type === 'error') {
+          setMessages(m => [...m, { role: 'assistant', content: `Error: ${data.text}`, at: Date.now() }]);
         }
       }
     } catch (err) {
