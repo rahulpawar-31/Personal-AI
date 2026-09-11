@@ -1,8 +1,19 @@
 // server/services/stores/pendingActionStore.js
 // PendingActionStore: one interface (createPendingAction, getPendingAction,
-// listPendingActions, resolvePendingAction), three adapters — see userStore.js
-// for the same pattern and rationale.
+// listPendingActions, transitionPendingAction), three adapters — see
+// userStore.js for the same pattern and rationale.
+//
+// transitionPendingAction(userId, id, fromStatus, toStatus, result) is one
+// atomic "move this row from fromStatus to toStatus, only if it's still in
+// fromStatus" primitive, reused three ways by routes/actions.js:
+//   - claim:    pending    -> processing  (before running the side effect)
+//   - finalize: processing -> approved/error (after running it)
+//   - reject:   pending    -> rejected    (no side effect, one step)
+// The atomic guard is what prevents a pending action from ever being
+// processed twice by two concurrent approve requests — see docs/adr/0003.
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+
+const TERMINAL_STATUSES = new Set(['approved', 'rejected', 'error']);
 
 // ─── Postgres adapter — production ────────────────────────────────────────────
 
@@ -38,12 +49,13 @@ export function createPostgresPendingActionStore(pool) {
       return r.rows;
     },
 
-    async resolvePendingAction(userId, id, status, result = null) {
+    async transitionPendingAction(userId, id, fromStatus, toStatus, result = null) {
+      const resolvedAtClause = TERMINAL_STATUSES.has(toStatus) ? 'NOW()' : 'resolved_at';
       const r = await pool.query(
-        `UPDATE pending_actions SET status = $1, result = $2, resolved_at = NOW()
-         WHERE id = $3 AND user_id = $4 AND status = 'pending'
+        `UPDATE pending_actions SET status = $1, result = $2, resolved_at = ${resolvedAtClause}
+         WHERE id = $3 AND user_id = $4 AND status = $5
          RETURNING ${SELECT_COLUMNS}`,
-        [status, result != null ? JSON.stringify(result) : null, id, userId]
+        [toStatus, result != null ? JSON.stringify(result) : null, id, userId, fromStatus]
       );
       return r.rows[0] ?? null;
     },
@@ -93,11 +105,14 @@ function createArrayBackedPendingActionStore({ read, write }) {
         .map(toPendingActionRow);
     },
 
-    async resolvePendingAction(userId, id, status, result = null) {
+    async transitionPendingAction(userId, id, fromStatus, toStatus, result = null) {
       const rows = read();
-      const idx  = rows.findIndex(r => String(r.id) === String(id) && String(r.userId) === String(userId) && r.status === 'pending');
+      const idx  = rows.findIndex(r => String(r.id) === String(id) && String(r.userId) === String(userId) && r.status === fromStatus);
       if (idx < 0) return null;
-      rows[idx] = { ...rows[idx], status, result, resolvedAt: new Date().toISOString() };
+      rows[idx] = {
+        ...rows[idx], status: toStatus, result,
+        resolvedAt: TERMINAL_STATUSES.has(toStatus) ? new Date().toISOString() : rows[idx].resolvedAt,
+      };
       write(rows);
       return toPendingActionRow(rows[idx]);
     },
