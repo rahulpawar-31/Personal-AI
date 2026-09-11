@@ -140,7 +140,7 @@ A **calm, paper-warm dashboard** that looks like it was designed by a backend en
 | `--success`  | `#639922` | Done states, ✓ confirmations.                   |
 
 **Panel dots** — each navigation row + status indicator carries a 7×7 colored dot:
-- Digest `#888780` (gray), Comms `#1D9E75` (green), Calendar `#7F77DD` (lavender), Tasks `#D85A30` (orange), GitHub `#24292f` (graphite), LinkedIn `#0A66C2` (LinkedIn blue), Slack `#611f69` (Slack aubergine), Chat `#378ADD` (azure). One purple bonus: `#8B5CF6` for `class/study/dsa` calendar events.
+- Digest `#888780` (gray), Comms `#1D9E75` (green), Calendar `#7F77DD` (lavender), Tasks `#D85A30` (orange), GitHub `#24292f` (graphite), LinkedIn `#0A66C2` (LinkedIn blue), Slack `#611f69` (Slack aubergine), Chat `#378ADD` (azure). One muted-lavender bonus: `#9488b6` for `research/interview/study/dsa/test` calendar events — part of a 6-color muted event-category palette (`#7591b0`/`#7ba88c`/`#9488b6`/`#c08fa1`/`#c0a37c`/`#a3abb4`), deliberately softer than the vivid semantic colors above.
 
 **No gradients.** Anywhere. The brand is flat.
 **No dark mode** in the source. If you need one, derive — don't invent.

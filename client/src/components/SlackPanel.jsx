@@ -55,7 +55,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ fontSize: 16, fontWeight: 500 }}>Slack</h2>
-        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: '#dcfce7', color: '#166534' }}>● Connected</span>
+        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--tag-success-bg)', color: 'var(--tag-success-fg)' }}>● Connected</span>
       </div>
 
       {/* Send DM */}

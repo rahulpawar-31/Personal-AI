@@ -154,9 +154,9 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
   function activityColor(count, pct) {
     if (count === 0)  return 'var(--border)';
-    if (pct < 0.33)   return '#bbf7d0';
-    if (pct < 0.66)   return '#4ade80';
-    return '#16a34a';
+    if (pct < 0.33)   return 'color-mix(in srgb, var(--accent) 35%, var(--bg))';
+    if (pct < 0.66)   return 'color-mix(in srgb, var(--accent) 65%, var(--bg))';
+    return 'var(--accent)';
   }
 
   function branchAccentColor(b) {
@@ -167,12 +167,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
   function labelColor(label) {
     const l = label.toLowerCase();
-    if (l === 'bug')                            return { bg: '#FAECE7', color: '#712B13' };
-    if (l === 'feature' || l === 'enhancement') return { bg: '#E6F1FB', color: '#0C447C' };
-    if (l === 'docs' || l === 'documentation')  return { bg: '#F1EFE8', color: '#444441' };
-    if (l === 'good first issue')               return { bg: '#EAF3DE', color: '#27500A' };
-    if (l.includes('phase') || l.includes('integration')) return { bg: '#F3EEFF', color: '#5B21B6' };
-    return { bg: '#F1EFE8', color: '#444441' };
+    if (l === 'bug')                            return { bg: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)' };
+    if (l === 'feature' || l === 'enhancement') return { bg: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)' };
+    if (l === 'docs' || l === 'documentation')  return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
+    if (l === 'good first issue')               return { bg: 'var(--tag-success-bg)', color: 'var(--tag-success-fg)' };
+    if (l.includes('phase') || l.includes('integration')) return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
+    return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
   }
 
   if (!connected) return (
@@ -255,7 +255,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
               { label: 'Issues',      value: issues.length,   warn: false },
             ].map(s => (
               <div key={s.label} style={{
-                background: s.warn ? '#FEF5F2' : 'var(--surface)',
+                background: s.warn ? 'var(--tag-danger-bg)' : 'var(--surface)',
                 border: `0.5px solid ${s.warn ? 'var(--danger)' : 'var(--border)'}`,
                 borderRadius: 'var(--radius)', padding: '12px 14px', textAlign: 'center',
               }}>
@@ -294,7 +294,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
                     <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
                     <span style={{ flex: 1, fontSize: 13 }}>{pr.title}</span>
-                    <span style={{ fontSize: 10, color: 'var(--success)', background: '#EAF3DE', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
+                    <span style={{ fontSize: 10, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
                     <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
                   </div>
                 ))}
@@ -394,12 +394,9 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
               {/* Streak */}
               {contributions.streak > 0 && (
-                <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '0.5px solid #bbf7d0', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 24 }}>🔥</span>
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: 14, color: '#166534' }}>{contributions.streak}-day streak</div>
-                    <div style={{ fontSize: 12, color: '#15803d' }}>Keep it up — you've committed every day for {contributions.streak} days</div>
-                  </div>
+                <div style={{ background: 'var(--tag-success-bg)', border: 'var(--border-hairline)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20 }}>
+                  <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--tag-success-fg)' }}>{contributions.streak}-day streak</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Keep it up — you've committed every day for {contributions.streak} days</div>
                 </div>
               )}
 
@@ -466,7 +463,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
               {/* Stale warning */}
               {branches.filter(b => b.stale).length > 0 && (
-                <div style={{ background: '#FEF9E7', border: '0.5px solid #F9C74F', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#7D4F00' }}>
+                <div style={{ background: 'var(--tag-warn-bg)', border: '0.5px solid var(--warning)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--tag-warn-fg)' }}>
                   <strong>{branches.filter(b => b.stale).length} stale branch{branches.filter(b => b.stale).length > 1 ? 'es' : ''}</strong> — no commits in 14+ days. Consider merging or deleting them.
                 </div>
               )}
@@ -477,7 +474,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                   <div key={b.name} style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     background: 'var(--surface)',
-                    border: `0.5px solid ${b.stale ? '#F9C74F' : 'var(--border)'}`,
+                    border: `0.5px solid ${b.stale ? 'var(--warning)' : 'var(--border)'}`,
                     borderLeft: `3px solid ${branchAccentColor(b)}`,
                     borderRadius: '0 var(--radius) var(--radius) 0',
                     padding: '9px 12px',
@@ -488,13 +485,13 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0 }}>
                       {b.isDefault && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 500 }}>default</span>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)', fontWeight: 500 }}>default</span>
                       )}
                       {b.protected && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#F3EEFF', color: '#5B21B6', fontWeight: 500 }}>🔒 protected</span>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)', fontWeight: 500 }}>protected</span>
                       )}
                       {b.stale && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FEF9E7', color: '#7D4F00', fontWeight: 500 }}>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-warn-bg)', color: 'var(--tag-warn-fg)', fontWeight: 500 }}>
                           {b.daysOld}d stale
                         </span>
                       )}
@@ -546,7 +543,7 @@ function PRCard({ pr, stale }) {
           <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
           <span style={{ fontSize: 13, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</span>
           {stale && (
-            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FAECE7', color: '#712B13', fontWeight: 500, flexShrink: 0 }}>
+            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)', fontWeight: 500, flexShrink: 0 }}>
               {pr.daysStale}d stale
             </span>
           )}

@@ -106,7 +106,7 @@ function NavItem({ id, label, active, onClick, dot }) {
 function ServiceDot({ label, ok }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--sidebar-item-color)' }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: ok ? '#22c55e' : '#e5392a', flexShrink: 0 }} />
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: ok ? 'var(--success)' : 'var(--danger)', flexShrink: 0 }} />
       {label}
     </span>
   );

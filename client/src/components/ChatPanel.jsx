@@ -72,7 +72,7 @@ function PendingActionCard({ item, onResolved }) {
   const label = PENDING_ACTION_LABELS[item.actionType] ?? item.actionType.replace(/_/g, ' ');
 
   return (
-    <div style={{ border: '1px solid var(--border)', background: '#f8fffe', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
+    <div style={{ border: '1px solid var(--border)', background: 'var(--tag-success-bg)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
         About to <strong>{label}</strong> — confirm?
       </div>
@@ -311,7 +311,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, #1D9E75, #15805e)',
+            background: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 500, fontSize: 14,
           }}>D</div>
@@ -364,11 +364,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 36, paddingBottom: 24 }}>
               <div style={{
                 width: 56, height: 56, borderRadius: 16,
-                background: 'linear-gradient(135deg, #1D9E75, #15805e)',
+                background: 'var(--accent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontWeight: 500, fontSize: 22,
                 marginBottom: 14,
-                boxShadow: '0 4px 16px rgba(29,158,117,0.25)',
               }}>D</div>
               <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 6 }}>How can I help?</div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, textAlign: 'center', maxWidth: 340, lineHeight: 1.6 }}>
@@ -446,7 +445,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               {!isUser && (
                 <div style={{
                   width: 28, height: 28, borderRadius: 8,
-                  background: showAvatar ? 'linear-gradient(135deg, #1D9E75, #15805e)' : 'transparent',
+                  background: showAvatar ? 'var(--accent)' : 'transparent',
                   flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: '#fff', fontWeight: 500, fontSize: 12,
@@ -500,7 +499,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, paddingBottom: 12 }}>
             <div style={{
               width: 28, height: 28, borderRadius: 8,
-              background: 'linear-gradient(135deg, #1D9E75, #15805e)',
+              background: 'var(--accent)',
               flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#fff', fontWeight: 500, fontSize: 12,
             }}>D</div>
@@ -548,20 +547,19 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         flexShrink: 0,
         marginTop: 12,
         background: 'var(--bg)',
-        border: '1.5px solid #000',
+        border: '1.5px solid var(--border)',
         borderRadius: 16,
         padding: '10px 10px 10px 14px',
         display: 'flex', alignItems: 'flex-end', gap: 8,
-        boxShadow: '0 0 0 4px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.06)',
         transition: 'border-color 0.15s, box-shadow 0.15s',
       }}
         onFocusCapture={e => {
-          e.currentTarget.style.borderColor = '#000';
-          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)';
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.boxShadow = '0 0 0 2.5px rgba(29,158,117,.12)';
         }}
         onBlurCapture={e => {
-          e.currentTarget.style.borderColor = '#000';
-          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.06)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.boxShadow = 'none';
         }}
       >
         <textarea
@@ -596,9 +594,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             aria-label={listening ? 'Stop listening' : 'Voice input'}
             style={{
               width: 34, height: 34, borderRadius: 10, padding: 0,
-              border: `1px solid ${listening ? '#D85A30' : 'var(--border)'}`,
-              background: listening ? '#fff3f0' : 'var(--surface)',
-              color: listening ? '#D85A30' : 'var(--muted)',
+              border: `1px solid ${listening ? 'var(--danger)' : 'var(--border)'}`,
+              background: listening ? 'var(--tag-danger-bg)' : 'var(--surface)',
+              color: listening ? 'var(--danger)' : 'var(--muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
               transition: 'all 0.15s',
@@ -626,7 +624,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               borderRadius: 10,
               background: input.trim() && !loading ? 'var(--accent)' : '#E8E7E3',
               border: 'none',
-              color: input.trim() && !loading ? '#fff' : '#A8A7A3',
+              color: input.trim() && !loading ? '#fff' : 'var(--hint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 17, fontWeight: 500, padding: 0,
               transition: 'background 0.15s, color 0.15s',
