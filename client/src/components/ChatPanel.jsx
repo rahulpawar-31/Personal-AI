@@ -603,14 +603,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             }}
           >
             {listening ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2"/>
-              </svg>
+              <span style={{ fontSize: 14 }}>■</span>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <rect x="9" y="2" width="6" height="11" rx="3"/>
-                <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
-              </svg>
+              <span style={{ fontSize: 14 }}>●</span>
             )}
           </button>
 
@@ -634,9 +629,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             {loading ? (
               <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
             ) : (
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7.5 12V3M3 6.5l4.5-4.5 4.5 4.5"/>
-              </svg>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>↑</span>
             )}
           </button>
         </div>

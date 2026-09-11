@@ -106,9 +106,6 @@ function Card({ task, onDragStart, onToggle }) {
               fontSize: 'var(--fs-sm)', color: due.color,
               display: 'flex', alignItems: 'center', gap: 3,
             }}>
-              <svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor" style={{ opacity: 0.7 }}>
-                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
-              </svg>
               {due.text}
             </span>
           )}
@@ -129,9 +126,7 @@ function Card({ task, onDragStart, onToggle }) {
               }}
             >
               {done && (
-                <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                  <polyline points="1.5,5 4,7.5 8.5,2.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>
               )}
             </button>
           )}
@@ -147,10 +142,7 @@ function Card({ task, onDragStart, onToggle }) {
               title="Open"
               aria-label="Open in source"
             >
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
-                <path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
-              </svg>
+              <span style={{ fontSize: 12 }}>↗</span>
             </a>
           )}
         </div>
@@ -276,9 +268,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-            </svg>
+            +
             Add a card
           </button>
         )}
@@ -301,9 +291,6 @@ function NoteCard({ note }) {
       }}
     >
       <div style={{ padding: '10px 12px 9px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ flexShrink: 0 }}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>
-        </svg>
         <span style={{
           flex: 1, fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -317,10 +304,7 @@ function NoteCard({ note }) {
             title="Open in Notion"
             aria-label="Open in Notion"
           >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
-              <path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
-            </svg>
+            <span style={{ fontSize: 12 }}>↗</span>
           </a>
         )}
       </div>
@@ -408,10 +392,6 @@ function NotionNotesColumn({ notes, onAdd }) {
             opacity: notes.length ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 3,
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-          </svg>
           {exporting ? '…' : 'MD'}
         </button>
       </div>
@@ -475,9 +455,7 @@ function NotionNotesColumn({ notes, onAdd }) {
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-            </svg>
+            +
             New page
           </button>
         )}
@@ -616,12 +594,6 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
       {!loading && !hasAny && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <EmptyState
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-                <line x1="15" y1="3" x2="15" y2="21"/>
-              </svg>
-            }
             title="No tasks yet"
             description="Connect Todoist, Notion, or Trello in Settings"
             actionLabel="Open Settings"
