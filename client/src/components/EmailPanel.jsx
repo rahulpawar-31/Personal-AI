@@ -307,7 +307,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                 width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                 background: avatarColor(addr || name), color: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 15, fontWeight: 600,
+                fontSize: 15, fontWeight: 500,
               }}>
                 {(name || addr).charAt(0).toUpperCase()}
               </div>
@@ -315,7 +315,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Sender name + email */}
                 <div style={{ fontSize: 13, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>{name}</span>
+                  <span style={{ fontWeight: 500, color: 'var(--text)' }}>{name}</span>
                   {addr && <span style={{ color: 'var(--hint)', marginLeft: 4 }}>&lt;{addr}&gt;</span>}
                 </div>
                 {/* Preview: subject, then snippet */}

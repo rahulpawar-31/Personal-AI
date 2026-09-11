@@ -259,7 +259,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                 border: `0.5px solid ${s.warn ? 'var(--danger)' : 'var(--border)'}`,
                 borderRadius: 'var(--radius)', padding: '12px 14px', textAlign: 'center',
               }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: s.warn ? 'var(--danger)' : 'var(--text)', lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 22, fontWeight: 500, color: s.warn ? 'var(--danger)' : 'var(--text)', lineHeight: 1 }}>{s.value}</div>
                 <div style={{ fontSize: 10, color: s.warn ? 'var(--danger)' : 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
               </div>
             ))}
@@ -386,7 +386,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                   { label: 'Reviews done',      value: contributions.reviewsDone,   color: 'var(--info)' },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: 28, fontWeight: 500, color: s.color, lineHeight: 1 }}>{s.value}</div>
                     <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
                   </div>
                 ))}
@@ -397,7 +397,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                 <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '0.5px solid #bbf7d0', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 24 }}>🔥</span>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#166534' }}>{contributions.streak}-day streak</div>
+                    <div style={{ fontWeight: 500, fontSize: 14, color: '#166534' }}>{contributions.streak}-day streak</div>
                     <div style={{ fontSize: 12, color: '#15803d' }}>Keep it up — you've committed every day for {contributions.streak} days</div>
                   </div>
                 </div>
@@ -405,7 +405,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
               {/* 30-day activity heatmap */}
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
                   Activity — last 30 days
                 </div>
                 <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
@@ -458,7 +458,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
                   { label: 'Stale',    value: branches.filter(b => b.stale).length,       color: branches.some(b => b.stale) ? 'var(--warning)' : 'var(--muted)' },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: 24, fontWeight: 500, color: s.color, lineHeight: 1 }}>{s.value}</div>
                     <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
                   </div>
                 ))}
@@ -488,13 +488,13 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0 }}>
                       {b.isDefault && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>default</span>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 500 }}>default</span>
                       )}
                       {b.protected && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#F3EEFF', color: '#5B21B6', fontWeight: 600 }}>🔒 protected</span>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#F3EEFF', color: '#5B21B6', fontWeight: 500 }}>🔒 protected</span>
                       )}
                       {b.stale && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FEF9E7', color: '#7D4F00', fontWeight: 600 }}>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FEF9E7', color: '#7D4F00', fontWeight: 500 }}>
                           {b.daysOld}d stale
                         </span>
                       )}
@@ -524,7 +524,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
 function SectionLabel({ label, danger, noMargin }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 600, color: danger ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: noMargin ? 0 : 8 }}>
+    <div style={{ fontSize: 11, fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: noMargin ? 0 : 8 }}>
       {label}
     </div>
   );
@@ -546,7 +546,7 @@ function PRCard({ pr, stale }) {
           <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
           <span style={{ fontSize: 13, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</span>
           {stale && (
-            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FAECE7', color: '#712B13', fontWeight: 600, flexShrink: 0 }}>
+            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#FAECE7', color: '#712B13', fontWeight: 500, flexShrink: 0 }}>
               {pr.daysStale}d stale
             </span>
           )}

@@ -62,7 +62,7 @@ export default function AdminPage({ user }) {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Admin dashboard</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Admin dashboard</h2>
       <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 24 }}>Manage users and view system health.</p>
 
       {/* Stats row */}

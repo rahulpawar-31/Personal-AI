@@ -62,12 +62,12 @@ export default function AccountSection({ user, onLogout }) {
           width: 38, height: 38, borderRadius: '50%',
           background: 'var(--accent)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 700, fontSize: 16,
+          color: '#fff', fontWeight: 500, fontSize: 16,
         }}>
           {user.username?.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>@{user.username}</div>
+          <div style={{ fontWeight: 500, fontSize: 14 }}>@{user.username}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>Personal account</div>
         </div>
       </div>
@@ -129,7 +129,7 @@ export default function AccountSection({ user, onLogout }) {
 
       {/* Danger zone */}
       <div style={{ padding: '16px 20px', background: 'var(--bg)' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: 10 }}>
           Danger zone
         </div>
         {!showDelete ? (

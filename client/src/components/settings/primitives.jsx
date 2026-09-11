@@ -11,10 +11,10 @@ export function SectionLabel({ label, tag }) {
   const tc = TAG_STYLES[tag] ?? TAG_STYLES.optional;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '32px 0 10px' }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 7px', borderRadius: 99, ...tc }}>
+      <span style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 7px', borderRadius: 99, ...tc }}>
         {tag}
       </span>
       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -113,7 +113,7 @@ export function IntegrationRow({ service, label, connected, children, actionSlot
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontWeight: 500, fontSize: 13.5, color: 'var(--text)' }}>{label}</span>
             {connected && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#1B7A33', background: '#E8F5E9', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: '#1B7A33', background: '#E8F5E9', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#1B7A33' }} />
                 {' '}Connected
               </span>
@@ -182,7 +182,7 @@ export function Modal({ open, onClose, title, children }) {
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{title}</span>
+          <span style={{ fontWeight: 500, fontSize: 14, color: 'var(--text)' }}>{title}</span>
           <button onClick={onClose} aria-label="Close" style={{
             width: 26, height: 26, borderRadius: 6, padding: 0,
             border: '1px solid var(--border)', background: 'transparent',
@@ -210,7 +210,7 @@ export function FieldGroup({ label, hint, linkText, linkHref, value, onChange, p
   return (
     <div style={{ marginBottom: 16 }}>
       {/* Label with required marker */}
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
         {label}
         {required && <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
       </div>
@@ -297,7 +297,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
 
       {/* ── Credentials section ── */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>
           {credentialsTitle ?? CREDENTIALS_TITLES[service] ?? `${label} Credentials`}
         </div>
         <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 16px', lineHeight: 1.5 }}>

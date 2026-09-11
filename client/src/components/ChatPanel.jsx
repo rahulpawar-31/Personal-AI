@@ -313,10 +313,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             width: 32, height: 32, borderRadius: 10,
             background: 'linear-gradient(135deg, #1D9E75, #15805e)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 700, fontSize: 14,
+            color: '#fff', fontWeight: 500, fontSize: 14,
           }}>D</div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-0.01em' }}>DevOS Agent</div>
+            <div style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.01em' }}>DevOS Agent</div>
             <div style={{ fontSize: 11, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
               {useAgent ? 'LangChain agent' : 'Online'}
@@ -366,11 +366,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                 width: 56, height: 56, borderRadius: 16,
                 background: 'linear-gradient(135deg, #1D9E75, #15805e)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 700, fontSize: 22,
+                color: '#fff', fontWeight: 500, fontSize: 22,
                 marginBottom: 14,
                 boxShadow: '0 4px 16px rgba(29,158,117,0.25)',
               }}>D</div>
-              <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>How can I help?</div>
+              <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 6 }}>How can I help?</div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, textAlign: 'center', maxWidth: 340, lineHeight: 1.6 }}>
                 Ask me anything — emails, calendar, tasks, PRs, drafts, or your whole day.
               </div>
@@ -449,7 +449,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                   background: showAvatar ? 'linear-gradient(135deg, #1D9E75, #15805e)' : 'transparent',
                   flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: 12,
+                  color: '#fff', fontWeight: 500, fontSize: 12,
                 }}>
                   {showAvatar ? 'D' : ''}
                 </div>
@@ -502,7 +502,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               width: 28, height: 28, borderRadius: 8,
               background: 'linear-gradient(135deg, #1D9E75, #15805e)',
               flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 12,
+              color: '#fff', fontWeight: 500, fontSize: 12,
             }}>D</div>
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--border)',
@@ -628,7 +628,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               border: 'none',
               color: input.trim() && !loading ? '#fff' : '#A8A7A3',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 17, fontWeight: 600, padding: 0,
+              fontSize: 17, fontWeight: 500, padding: 0,
               transition: 'background 0.15s, color 0.15s',
               cursor: input.trim() && !loading ? 'pointer' : 'default',
             }}
