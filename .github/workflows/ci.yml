@@ -50,3 +50,6 @@ jobs:
 
       - name: Auth smoke test (every panel route requires a valid token)
         run: bash server/tests/smoke-auth.sh
+
+      - name: Server unit tests
+        run: npm test --prefix server
