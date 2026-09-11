@@ -105,7 +105,7 @@ DevOS Agent speaks like a senior developer's terminal — terse, lowercase-leani
 ### Punctuation & casing rules
 - Ellipsis is the **typographic ellipsis (…)**, never three periods.
 - Use **·** as an inline separator, not commas: `email@x.com · Mar 4, 2:13 PM`.
-- Use **↗** for external link affordances, **▾** for expandables, **✓** for completion, **●** for status. *Never* use other arrow glyphs.
+- Use **↗** for external link affordances, **▾** for expandables, **✓** for completion, **●** for status. Don't invent new semantic glyphs beyond these. (`→` is a separate, on-brand case for CTA suffixes and step wayfinding — see Iconography below.)
 - **No emoji** in production strings except `✓` (and `↗`/`▾`/`●` if you count them, which we don't).
 - Numbers are bare: `4 sub-agents`, `3d stale`, not `four sub-agents`.
 - Time formats: `2:13 PM`, `Mar 4`, `Today` / `Tomorrow` / weekday name.
@@ -127,17 +127,17 @@ A **calm, paper-warm dashboard** that looks like it was designed by a backend en
 
 | Token        | Hex       | Use                                             |
 |--------------|-----------|-------------------------------------------------|
-| `--bg`       | `#f9f9f8` | App background. **Warm** off-white, not blue-white. |
+| `--bg`       | `#F7F7F5` | App background. **Warm** off-white, not blue-white. |
 | `--surface`  | `#ffffff` | Cards, sidebar, top bar.                        |
 | `--border`   | `#e5e4e0` | Hairline borders (drawn at **0.5px**).          |
-| `--text`     | `#1a1a18` | Body text — near-black with a warm tint.        |
-| `--muted`    | `#6b6b68` | Secondary text, metadata.                       |
-| `--hint`     | `#a0a09d` | Timestamps, counts, very faint info.            |
+| `--text`     | `#18181A` | Body text — near-black with a warm tint.        |
+| `--muted`    | `#6E6D6A` | Secondary text, metadata.                       |
+| `--hint`     | `#A8A7A3` | Timestamps, counts, very faint info.            |
 | `--accent`   | `#1D9E75` | DevOS green — primary CTAs, sender avatar, "Connected" state, brand mark. |
 | `--danger`   | `#D85A30` | P1 emails, blockers, conflict bars.             |
 | `--warning`  | `#BA7517` | P2 emails, scheduling warnings.                 |
 | `--info`     | `#378ADD` | Focus blocks, links, "Soon" tags.               |
-| `--success`  | `#639922` | Done states, ✓ confirmations.                   |
+| `--success`  | `#22c55e` | Done states, ✓ confirmations.                   |
 
 **Panel dots** — each navigation row + status indicator carries a 7×7 colored dot:
 - Digest `#888780` (gray), Comms `#1D9E75` (green), Calendar `#7F77DD` (lavender), Tasks `#D85A30` (orange), GitHub `#24292f` (graphite), LinkedIn `#0A66C2` (LinkedIn blue), Slack `#611f69` (Slack aubergine), Chat `#378ADD` (azure). One muted-lavender bonus: `#9488b6` for `research/interview/study/dsa/test` calendar events — part of a 6-color muted event-category palette (`#7591b0`/`#7ba88c`/`#9488b6`/`#c08fa1`/`#c0a37c`/`#a3abb4`), deliberately softer than the vivid semantic colors above.
@@ -218,6 +218,9 @@ A DevOS card is:
 | `+`   | Create new                    | "+ New Event"                      |
 | `·`   | Inline separator              | Between attendees, intents          |
 | `↔`   | Two-way conflict              | Calendar conflicts: "EventA ↔ EventB" |
+| `→`   | CTA suffix / step wayfinding  | "Continue →", field-hint breadcrumbs |
+| `↩`   | Return / sign-out              | Sidebar log-out button              |
+| `↵`   | Keyboard hint                  | "Enter ↵ to send"                   |
 
 ### Custom shapes
 - **Sender avatar:** 36×36 round, solid `#1a73e8` (Gmail-style blue inside email reader specifically — this is *not* DevOS green, it's a Gmail homage in the reader pane only), first-letter of sender, white text, 15px weight 500.

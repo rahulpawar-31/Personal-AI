@@ -4,10 +4,10 @@ import { apiFetch } from '../api.js';
 const LINKEDIN_MAX = 3000;
 
 const TEMPLATES = [
-  { label: 'Achievement',    icon: '🏆', hint: 'Shipped X that does Y, proud of Z...' },
-  { label: 'Lesson learned', icon: '💡', hint: 'Biggest mistake I made this year was...' },
-  { label: 'Behind the scenes', icon: '🔧', hint: 'Here\'s how we actually built X...' },
-  { label: 'Hot take',       icon: '🔥', hint: 'Unpopular opinion: most devs are wrong about...' },
+  { label: 'Achievement',       hint: 'Shipped X that does Y, proud of Z…' },
+  { label: 'Lesson learned',    hint: 'Biggest mistake I made this year was…' },
+  { label: 'Behind the scenes', hint: 'Here\'s how we actually built X…' },
+  { label: 'Hot take',          hint: 'Unpopular opinion: most devs are wrong about…' },
 ];
 
 function CharBar({ text }) {
@@ -134,7 +134,7 @@ export default function LinkedInPanel({ health = {} }) {
         body: JSON.stringify({ original: draft.variants[0].body, edited: body, type: 'linkedin', postNow }),
       });
       const data = await r.json();
-      setStatus(postNow && data.posted ? '✓ Posted to LinkedIn!' : '✓ Saved to voice profile');
+      setStatus(postNow && data.posted ? '✓ Posted to LinkedIn' : '✓ Saved to voice profile');
       setDraft(null); setSource(''); setEditedBody(''); setHashtags([]); setActiveHashtags(new Set());
     } catch {
       setStatus('Action failed.');
@@ -187,7 +187,7 @@ export default function LinkedInPanel({ health = {} }) {
                 cursor: 'pointer', color: 'var(--text)',
               }}
             >
-              <span>{t.icon}</span>{t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -330,7 +330,7 @@ export default function LinkedInPanel({ health = {} }) {
           <PostCard key={p.at ?? i} post={p} onCopy={text => copyText(text, i)} />
         ))}
         {copiedIdx !== null && copiedIdx !== 'final' && (
-          <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>Copied!</p>
+          <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>Copied</p>
         )}
       </div>
     </div>

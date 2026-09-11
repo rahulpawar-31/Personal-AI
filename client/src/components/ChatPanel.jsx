@@ -460,7 +460,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                   background: isUser ? 'var(--accent)' : 'var(--surface)',
                   color: isUser ? '#fff' : 'var(--text)',
                   border: isUser ? 'none' : '1px solid var(--border)',
-                  borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                   padding: '10px 14px',
                   fontSize: 13,
                   lineHeight: 1.65,
@@ -505,7 +505,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             }}>D</div>
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: '16px 16px 16px 4px',
+              borderRadius: '12px 12px 12px 2px',
               padding: '10px 14px',
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
@@ -642,7 +642,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         </div>
       </div>
       <div style={{ fontSize: 10, color: 'var(--hint)', textAlign: 'center', marginTop: 6 }}>
-        {listening ? '🔴 Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
+        {listening ? '● Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
       </div>
 
       <style>{`

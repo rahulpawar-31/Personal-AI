@@ -291,7 +291,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                   cursor: 'pointer', flexShrink: 0, transition: 'all .15s',
                 }}
               >
-                {webhookCopied ? 'Copied!' : 'Copy'}
+                {webhookCopied ? 'Copied' : 'Copy'}
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>

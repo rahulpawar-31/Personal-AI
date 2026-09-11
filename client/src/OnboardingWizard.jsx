@@ -7,7 +7,7 @@ const STEPS = [
   { id: 'dev-tools',    title: 'Dev tools' },
   { id: 'productivity', title: 'Productivity tools' },
   { id: 'ai-keys',      title: 'AI engine' },
-  { id: 'done',         title: "You're all set!" },
+  { id: 'done',         title: "You're all set" },
 ];
 
 export default function OnboardingWizard({ user, onComplete }) {
@@ -118,7 +118,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function ServiceCard({ title, icon, connected, children }) {
+function ServiceCard({ title, connected, children }) {
   return (
     <div style={{
       border: `1px solid ${connected ? 'var(--accent)' : 'var(--border)'}`,
@@ -127,7 +127,6 @@ function ServiceCard({ title, icon, connected, children }) {
       transition: 'border-color 0.2s',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: connected ? 0 : 12 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
         <span style={{ fontWeight: 500, fontSize: 13 }}>{title}</span>
         {connected && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>✓ Connected</span>}
       </div>
@@ -148,7 +147,7 @@ function WelcomeStep({ username, onNext }) {
   return (
     <>
       <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>
-        Welcome, {username}!
+        Set up DevOS, {username}
       </h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>
         DevOS is your personal AI command centre. Let's connect your tools — takes about 3 minutes.
@@ -249,7 +248,7 @@ function DevToolsStep({ onNext }) {
         Connect GitHub and Slack — or skip and add them later in Settings.
       </p>
 
-      <ServiceCard title="GitHub" icon="🐙" connected={ghSt === 'ok'}>
+      <ServiceCard title="GitHub" connected={ghSt === 'ok'}>
         <Field label="Personal Access Token" value={gh.token} onChange={v => setGh(g => ({ ...g, token: v }))}
           placeholder="ghp_… or github_pat_…"
           linkText="Generate token" linkHref="https://github.com/settings/tokens" />
@@ -272,7 +271,7 @@ function DevToolsStep({ onNext }) {
         </button>
       </ServiceCard>
 
-      <ServiceCard title="Slack" icon="💬" connected={slackSt === 'ok'}>
+      <ServiceCard title="Slack" connected={slackSt === 'ok'}>
         <Field label="Bot Token" value={slack.botToken} onChange={v => setSlack(s => ({ ...s, botToken: v }))}
           placeholder="xoxb-…"
           linkText="Create Slack app" linkHref="https://api.slack.com/apps" />
@@ -344,7 +343,7 @@ function ProductivityStep({ onNext }) {
         Connect Notion and Todoist for task and note management.
       </p>
 
-      <ServiceCard title="Notion" icon="📝" connected={notionSt === 'ok'}>
+      <ServiceCard title="Notion" connected={notionSt === 'ok'}>
         <Field label="Integration Secret" value={notion.apiKey} onChange={v => setNotion(n => ({ ...n, apiKey: v }))}
           placeholder="ntn_… or secret_ntn_…"
           linkText="Get token" linkHref="https://www.notion.so/profile/integrations" />
@@ -361,7 +360,7 @@ function ProductivityStep({ onNext }) {
         </button>
       </ServiceCard>
 
-      <ServiceCard title="Todoist" icon="✅" connected={todoistSt === 'ok'}>
+      <ServiceCard title="Todoist" connected={todoistSt === 'ok'}>
         <Field label="API Token" value={todoist} onChange={setTodoist}
           placeholder="Todoist API token"
           linkText="Get token" linkHref="https://app.todoist.com/app/settings/integrations/developer" />
@@ -433,7 +432,7 @@ function AIKeysStep({ onNext }) {
         Don't have one yet? The app will use a shared key with limited capacity until you add your own.
       </p>
 
-      <ServiceCard title="Gemini (recommended)" icon="✦" connected={geminiSt === 'ok'}>
+      <ServiceCard title="Gemini (recommended)" connected={geminiSt === 'ok'}>
         <Field label="Gemini API Key" value={gemini} onChange={setGemini}
           placeholder="AIzaSy…"
           linkText="Get free key" linkHref="https://aistudio.google.com/app/apikey"
@@ -447,7 +446,7 @@ function AIKeysStep({ onNext }) {
         </button>
       </ServiceCard>
 
-      <ServiceCard title="Groq" icon="⚡" connected={groqSt === 'ok'}>
+      <ServiceCard title="Groq" connected={groqSt === 'ok'}>
         <Field label="Groq API Key" value={groq} onChange={setGroq}
           placeholder="gsk_…"
           linkText="Get free key" linkHref="https://console.groq.com/keys"
@@ -482,7 +481,7 @@ function DoneStep({ onComplete }) {
       }}>
         ✓
       </div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>You're all set!</h2>
+      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>You're all set</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' }}>
         Your workspace is ready. You can add or change any integration any time from Settings.
       </p>
