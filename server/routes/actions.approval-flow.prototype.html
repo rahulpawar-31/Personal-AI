@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PROTOTYPE — Pending-Action Approval Flow</title>
+<style>
+  :root { --accent: #15805e; --bg: #faf9f7; --panel: #ffffff; --border: #e3e1dc; --text: #1c1b19; --muted: #6b6862; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .badge { display: inline-block; background: #fde68a; color: #78350f; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; margin-bottom: 12px; }
+  .question { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 16px 0 32px; font-size: 14px; }
+  .question b { color: var(--accent); }
+  section { margin-bottom: 36px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid #f0efec; vertical-align: top; }
+  .empty { color: var(--muted); font-style: italic; padding: 8px; }
+  .status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .status.pending  { background: #fef3c7; color: #92400e; }
+  .status.approved { background: #d1fae5; color: #065f46; }
+  .status.rejected { background: #e5e7eb; color: #374151; }
+  .status.error    { background: #fee2e2; color: #991b1b; }
+  .row-actions button { margin-right: 4px; }
+  button { font: inherit; font-size: 13px; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.danger { border-color: #dc2626; color: #991b1b; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .free-play { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .log { background: #0f172a; color: #e2e8f0; font-family: ui-monospace, monospace; font-size: 12px; border-radius: 8px; padding: 14px 16px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+  .log .fired { color: #fbbf24; }
+  .log .committed { color: #34d399; }
+  .log .dropped { color: #f87171; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { padding: 8px 14px; border-radius: 6px 6px 0 0; border: 1px solid var(--border); border-bottom: none; background: #f3f2ee; cursor: pointer; font-size: 13px; color: var(--muted); }
+  .tab.active { background: var(--panel); color: var(--text); font-weight: 600; }
+  .scenario-body { display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 18px 20px; }
+  .scenario-body.active { display: block; }
+  .scenario-desc { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 6px; }
+  .step { display: flex; align-items: center; gap: 10px; }
+  .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--border); color: var(--muted); font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step.done .step-num { background: var(--accent); color: #fff; }
+  .verdict { margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+  .verdict.show { display: block; }
+  .verdict.bug { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .verdict.ok { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+</style>
+</head>
+<body>
+<main>
+
+  <span class="badge">Prototype — throwaway</span>
+  <h1>Pending-Action Approval Flow</h1>
+
+  <div class="question">
+    <b>Question:</b> when the LangChain agent queues a write action for human approval
+    (<code>pending_actions</code>, SEC-2), does the approve/reject flow ever let the underlying
+    action run more than once, or let a caller believe their request succeeded when it didn't
+    actually take effect? This models <code>server/routes/actions.js</code>'s real approve/reject
+    handlers as closely as the pure logic allows — same three steps in the same order: check the
+    row is still <code>pending</code>, run the side effect, then write the result back with an
+    atomic <code>WHERE status = 'pending'</code> guard.
+  </div>
+
+  <section>
+    <h2>Current state — pending_actions</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>id</th><th>action</th><th>status</th><th>result</th><th>row actions</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Free play</h2>
+    <div class="free-play">
+      <button class="primary" onclick="uiCreate()">+ New pending action</button>
+      <button onclick="uiReset()">Reset everything</button>
+    </div>
+    <div class="panel">
+      <h2 style="margin-top:0">Execution log</h2>
+      <div class="log" id="log">// every time the simulated executeAction() actually fires, and every time
+// the DB write commits or gets silently dropped, shows up here.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="scenario-bodies"></div>
+  </section>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+// PURE MODULE — models server/routes/actions.js's approve/reject handlers.
+// No DOM in here. This is the bit that would lift into the real code if the
+// question turns up a real bug.
+// ─────────────────────────────────────────────────────────────────────────
+
+function createInitialState() {
+  return { rows: [], nextId: 1 };
+}
+
+function createPendingAction(state, actionType) {
+  const row = { id: state.nextId, actionType, status: 'pending', result: null };
+  return { ...state, rows: [...state.rows, row], nextId: state.nextId + 1 };
+}
+
+// Mirrors the real handler's first check: GET the row, 404 if missing,
+// 409 "Already {status}" if not pending. Read-only.
+function checkStillPending(state, id) {
+  const row = state.rows.find(r => r.id === id);
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (row.status !== 'pending') return { ok: false, reason: 'already_resolved', status: row.status };
+  return { ok: true, row };
+}
+
+// Mirrors dbResolvePendingAction: the ONLY atomic step — updates the row
+// only if it's still 'pending' at the moment of the write. Returns
+// committed:false if it lost the race. The real route code never checks
+// this return value.
+function commitResolution(state, id, nextStatus, result) {
+  const idx = state.rows.findIndex(r => r.id === id && r.status === 'pending');
+  if (idx < 0) return { state, committed: false };
+  const rows = state.rows.slice();
+  rows[idx] = { ...rows[idx], status: nextStatus, result };
+  return { state: { ...state, rows }, committed: true };
+}
+
+// Simulates one HTTP request to POST /:id/approve, exactly as the real
+// handler is sequenced: check -> execute (side effect) -> commit (atomic).
+// executeOutcome is a stand-in for the real executeAction() call.
+function approveRequest(state, id, executeOutcome, log) {
+  const check = checkStillPending(state, id);
+  if (!check.ok) {
+    log(`request denied at the door (${check.reason}${check.status ? ': ' + check.status : ''}) — executeAction never runs`);
+    return { state, responded: check };
+  }
+  log(`check passed (row still pending) — running executeAction…`, 'fired');
+  const result = executeOutcome();
+  log(`executeAction finished: ${JSON.stringify(result)}`, 'fired');
+  const { state: nextState, committed } = commitResolution(state, id, result.error ? 'error' : 'approved', result);
+  log(committed
+    ? `DB write committed — row is now "${result.error ? 'error' : 'approved'}"`
+    : `DB write DROPPED (row was no longer pending by the time we wrote) — but this request still returns 200 with a result, exactly like it succeeded`,
+    committed ? 'committed' : 'dropped');
+  // This mirrors the real route: it responds with `result` regardless of `committed`.
+  return { state: nextState, responded: { ok: true, result, committed } };
+}
+
+function rejectRequest(state, id, log) {
+  const check = checkStillPending(state, id);
+  if (!check.ok) {
+    log(`request denied at the door (${check.reason}${check.status ? ': ' + check.status : ''})`);
+    return { state, responded: check };
+  }
+  const { state: nextState, committed } = commitResolution(state, id, 'rejected', null);
+  log(committed ? `DB write committed — row is now "rejected"` : `DB write DROPPED (already resolved) — but this request still returns { rejected: true }`,
+    committed ? 'committed' : 'dropped');
+  return { state: nextState, responded: { ok: true, rejected: true, committed } };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PAGE SHELL — everything below is throwaway.
+// ─────────────────────────────────────────────────────────────────────────
+
+let state = createInitialState();
+const ACTION_TYPES = ['Send email', 'Create GitHub issue', 'Delete calendar event'];
+let atIdx = 0;
+
+function appendLog(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function render() {
+  const tbody = document.getElementById('rows');
+  tbody.innerHTML = '';
+  if (!state.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">no pending actions — click "New pending action"</td></tr>';
+    return;
+  }
+  for (const row of state.rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>#${row.id}</td>
+      <td>${row.actionType}</td>
+      <td><span class="status ${row.status}">${row.status}</span></td>
+      <td>${row.result ? JSON.stringify(row.result) : '—'}</td>
+      <td class="row-actions"></td>
+    `;
+    const actionsCell = tr.querySelector('.row-actions');
+    const mkBtn = (label, fn, cls) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (cls) b.className = cls;
+      b.onclick = fn;
+      return b;
+    };
+    actionsCell.appendChild(mkBtn('Approve', () => uiApprove(row.id, false)));
+    actionsCell.appendChild(mkBtn('Reject', () => uiReject(row.id), 'danger'));
+    actionsCell.appendChild(mkBtn('⚡ Simulate 2 concurrent approvals', () => uiApprove(row.id, true)));
+    tbody.appendChild(tr);
+  }
+}
+
+function uiCreate() {
+  state = createPendingAction(state, ACTION_TYPES[atIdx % ACTION_TYPES.length]);
+  atIdx++;
+  render();
+}
+
+function uiApprove(id, simulateRace, failOutcome) {
+  const outcome = () => failOutcome ? { error: 'network error talking to GitHub' } : { sent: true, id };
+  if (!simulateRace) {
+    const r = approveRequest(state, id, outcome, appendLog);
+    state = r.state;
+    render();
+    return r.responded;
+  }
+  // Two "requests" racing against the SAME starting snapshot — this is what
+  // two real concurrent HTTP requests look like: both read the row as
+  // pending before either has written anything back.
+  appendLog(`— simulating two concurrent POST /actions/${id}/approve requests —`);
+  const snapshot = state;
+  const r1 = approveRequest(snapshot, id, outcome, (m, c) => appendLog('  [request A] ' + m, c));
+  const r2 = approveRequest(snapshot, id, outcome, (m, c) => appendLog('  [request B] ' + m, c));
+  // Both requests write back sequentially (this is how it plays out on a
+  // real server too — writes serialize, reads and the side effect don't).
+  const afterA = commitResolution(snapshot, id, r1.responded.result?.error ? 'error' : 'approved', r1.responded.result);
+  const afterB = commitResolution(afterA.state, id, r2.responded.result?.error ? 'error' : 'approved', r2.responded.result);
+  state = afterB.state;
+  const bothClaimedSuccess = r1.responded.ok && r2.responded.ok;
+  const executedTwice = true; // both branches always call executeOutcome() before either commits
+  appendLog(`— result: executeAction ran 2 times, HTTP responses both say success, DB only recorded 1 approval —`, 'dropped');
+  render();
+  return { bothClaimedSuccess, executedTwice };
+}
+
+function uiReject(id) {
+  const r = rejectRequest(state, id, appendLog);
+  state = r.state;
+  render();
+}
+
+function uiReset() {
+  state = createInitialState();
+  atIdx = 0;
+  document.getElementById('log').innerHTML = '// log cleared';
+  render();
+}
+
+// ─── Guided walkthroughs ───────────────────────────────────────────────────
+
+const scenarios = [
+  {
+    key: 'happy',
+    label: 'Happy path',
+    desc: 'Create a pending action, approve it, watch it resolve cleanly.',
+    steps: [
+      { label: 'Create a pending action', run: () => { state = createInitialState(); atIdx = 0; document.getElementById('log').innerHTML = ''; uiCreate(); } },
+      { label: 'Approve it', run: () => uiApprove(1, false) },
+    ],
+    verdict: (s) => ({ cls: 'ok', text: `Row #1 is "${s.rows[0]?.status}". Executed once, committed once. Works as expected.` }),
+  },
+  {
+    key: 'race',
+    label: 'Double-approve race (the bug)',
+    desc: 'Two approve requests hit the server for the same action at nearly the same instant — e.g. a double-click, or a retried request after a slow response. What actually happens?',
+    steps: [
+      { label: 'Create a pending action', run: () => { state = createInitialState(); atIdx = 0; document.getElementById('log').innerHTML = ''; uiCreate(); } },
+      { label: 'Fire two concurrent approvals for it', run: () => uiApprove(1, true) },
+    ],
+    verdict: (s) => ({
+      cls: 'bug',
+      text: `Row #1 is "${s.rows[0]?.status}" — only resolved once, as intended. But scroll the log: executeAction fired TWICE ("Send email" would have sent twice), and both HTTP responses reported success. A caller polling for the result of "their" request can't tell whether it was the one that actually committed.`,
+    }),
+  },
+  {
+    key: 'illegal',
+    label: 'Reject after approve',
+    desc: 'Someone approves an action, then a second, slightly-delayed click tries to reject the same one (not concurrent — sequential). Is the illegal transition correctly blocked?',
+    steps: [
+      { label: 'Create a pending action', run: () => { state = createInitialState(); atIdx = 0; document.getElementById('log').innerHTML = ''; uiCreate(); } },
+      { label: 'Approve it', run: () => uiApprove(1, false) },
+      { label: 'Now try to reject the same one', run: () => uiReject(1) },
+    ],
+    verdict: (s) => ({ cls: 'ok', text: `Row #1 stays "${s.rows[0]?.status}" — the reject was correctly denied at the door (already_resolved), and no side effect ran for it. This sequential case is safe; only the concurrent case is not.` }),
+  },
+  {
+    key: 'failure',
+    label: 'executeAction throws mid-approval',
+    desc: 'The underlying action fails (e.g. GitHub API error) during approval. Does the row get stuck "pending" forever, or resolve to a visible error state?',
+    steps: [
+      { label: 'Create a pending action', run: () => { state = createInitialState(); atIdx = 0; document.getElementById('log').innerHTML = ''; uiCreate(); } },
+      { label: 'Approve it, simulating a failure', run: () => uiApprove(1, false, true) },
+    ],
+    verdict: (s) => ({ cls: 'ok', text: `Row #1 is "${s.rows[0]?.status}" with a result recorded — not stuck pending. This matches the fix already shipped in PR #318.` }),
+  },
+];
+
+let activeScenario = scenarios[0].key;
+let activeStep = {};
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  for (const sc of scenarios) {
+    const el = document.createElement('div');
+    el.className = 'tab' + (sc.key === activeScenario ? ' active' : '');
+    el.textContent = sc.label;
+    el.onclick = () => { activeScenario = sc.key; renderTabs(); renderScenarios(); };
+    tabs.appendChild(el);
+  }
+}
+
+function renderScenarios() {
+  const container = document.getElementById('scenario-bodies');
+  container.innerHTML = '';
+  for (const sc of scenarios) {
+    const body = document.createElement('div');
+    body.className = 'scenario-body' + (sc.key === activeScenario ? ' active' : '');
+    const doneCount = activeStep[sc.key] ?? 0;
+
+    const stepsHtml = sc.steps.map((step, i) => `
+      <div class="step ${i < doneCount ? 'done' : ''}">
+        <div class="step-num">${i < doneCount ? '✓' : i + 1}</div>
+        <button ${i === doneCount ? '' : 'disabled'} data-scenario="${sc.key}" data-step="${i}">${step.label}</button>
+      </div>
+    `).join('');
+
+    const verdictShown = doneCount === sc.steps.length;
+    const v = verdictShown ? sc.verdict(state) : null;
+
+    body.innerHTML = `
+      <div class="scenario-desc">${sc.desc}</div>
+      <div class="steps">${stepsHtml}</div>
+      <div class="verdict ${v ? 'show ' + v.cls : ''}">${v ? v.text : ''}</div>
+    `;
+    container.appendChild(body);
+  }
+
+  container.querySelectorAll('button[data-scenario]').forEach(btn => {
+    btn.onclick = () => {
+      const key = btn.dataset.scenario;
+      const i = Number(btn.dataset.step);
+      scenarios.find(s => s.key === key).steps[i].run();
+      activeStep[key] = i + 1;
+      renderScenarios();
+    };
+  });
+}
+
+renderTabs();
+renderScenarios();
+render();
+</script>
+</body>
+</html>
