@@ -18,22 +18,54 @@ test('listPendingActions filters by user and status', async () => {
   const store = createInMemoryPendingActionStore();
   const a = await store.createPendingAction(1, 'add_task', {}, '');
   await store.createPendingAction(2, 'add_task', {}, '');
-  await store.resolvePendingAction(1, a.id, 'approved', { ok: true });
+  await store.transitionPendingAction(1, a.id, 'pending', 'approved', { ok: true });
 
   assert.deepEqual((await store.listPendingActions(1, 'pending')).map(r => r.id), []);
   assert.deepEqual((await store.listPendingActions(2, 'pending')).map(r => r.id).length, 1);
 });
 
-test('resolvePendingAction only resolves a row that is still pending, and is scoped to the owning user', async () => {
+test('transitionPendingAction only transitions a row currently in fromStatus, and is scoped to the owning user', async () => {
   const store = createInMemoryPendingActionStore();
   const row = await store.createPendingAction(1, 'add_task', {}, '');
 
-  assert.equal(await store.resolvePendingAction(2, row.id, 'approved', null), null, 'wrong user must not resolve it');
-  const resolved = await store.resolvePendingAction(1, row.id, 'approved', { ok: true });
+  assert.equal(await store.transitionPendingAction(2, row.id, 'pending', 'approved', null), null, 'wrong user must not transition it');
+  const resolved = await store.transitionPendingAction(1, row.id, 'pending', 'approved', { ok: true });
   assert.equal(resolved.status, 'approved');
 
-  // already resolved — resolving again must return null, not silently overwrite
-  assert.equal(await store.resolvePendingAction(1, row.id, 'rejected', null), null);
+  // already resolved — transitioning again from 'pending' must return null, not silently overwrite
+  assert.equal(await store.transitionPendingAction(1, row.id, 'pending', 'rejected', null), null);
+});
+
+test('transitionPendingAction stamps resolvedAt on a terminal status but not on an intermediate one', async () => {
+  const store = createInMemoryPendingActionStore();
+  const row = await store.createPendingAction(1, 'add_task', {}, '');
+
+  const claimed = await store.transitionPendingAction(1, row.id, 'pending', 'processing');
+  assert.equal(claimed.resolvedAt, null, 'processing is not a terminal state');
+
+  const finalized = await store.transitionPendingAction(1, row.id, 'processing', 'approved', { ok: true });
+  assert.ok(finalized.resolvedAt, 'approved is terminal — resolvedAt must be set');
+});
+
+test('claim-before-execute prevents a pending action from being processed twice, even under concurrent claim attempts', async () => {
+  const store = createInMemoryPendingActionStore();
+  const row = await store.createPendingAction(1, 'send_email', {}, '');
+
+  let executeCount = 0;
+  async function simulateApprove() {
+    const claimed = await store.transitionPendingAction(1, row.id, 'pending', 'processing');
+    if (!claimed) return { claimed: false };
+    executeCount += 1; // stand-in for the real executeAction() side effect actually running
+    const finalized = await store.transitionPendingAction(1, row.id, 'processing', 'approved', { ok: true });
+    return { claimed: true, finalized };
+  }
+
+  const [a, b] = await Promise.all([simulateApprove(), simulateApprove()]);
+  const claimedCount = [a, b].filter(r => r.claimed).length;
+
+  assert.equal(claimedCount, 1, 'exactly one concurrent approval attempt should win the claim');
+  assert.equal(executeCount, 1, 'the side effect must run exactly once');
+  assert.equal((await store.getPendingAction(1, row.id)).status, 'approved');
 });
 
 test('ids are assigned via a monotonic counter, never collide even when created in the same tick', async () => {

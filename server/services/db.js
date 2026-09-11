@@ -155,6 +155,6 @@ export async function dbCreatePendingAction(userId, actionType, params, sourceMe
 }
 export async function dbGetPendingAction(userId, id)          { return pendingActionStore.getPendingAction(userId, id); }
 export async function dbListPendingActions(userId, status = 'pending') { return pendingActionStore.listPendingActions(userId, status); }
-export async function dbResolvePendingAction(userId, id, status, result = null) {
-  return pendingActionStore.resolvePendingAction(userId, id, status, result);
+export async function dbTransitionPendingAction(userId, id, fromStatus, toStatus, result = null) {
+  return pendingActionStore.transitionPendingAction(userId, id, fromStatus, toStatus, result);
 }
