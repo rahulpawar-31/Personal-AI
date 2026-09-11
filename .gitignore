@@ -10,5 +10,7 @@ server/pending_actions.json
 server/fix-notion-token.mjs
 dist/
 .DS_Store
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 .vercel
