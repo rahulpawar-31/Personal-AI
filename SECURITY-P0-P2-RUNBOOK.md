@@ -10,11 +10,35 @@ copy-pasteable and verifiable. P3/P4/P5 (code) are being handled separately.
 
 ## P0 — Lock down public access (today)
 
+**Verified 2026-09-11 via curl against the live app** — `requireAuth` is
+already correctly blocking unauthenticated panel access on both
+`personal-ai-blue.vercel.app` and `personal-ai-f2f9.onrender.com` directly
+(`/api/emails`, `/api/calendar`, `/api/tasks`, `/api/github/repos` all
+returned `401 {"error":"Not authenticated"}`), and per-user credential
+scoping (`getUserCreds(uid)`, `auth.isConnected(uid)`) was confirmed in code
+— so panel data itself is not exposed.
+
+**But found and fixed a real gap the same pass:** `POST /api/auth/signup`
+and the Google OAuth sign-in new-account path had zero restriction — anyone
+could self-provision a live account (empty dashboard, not your data, but
+still an open door on a zero-user tool). Fixed in `server/services/users.js`
+and `server/routes/auth.js` — when `OWNER_USERNAME` is set, only that
+account may exist; verified locally both the rejection and the
+owner-succeeds case.
+
 **Confirmed live setup** (per `vercel.json` + your confirmation): Vercel
 serves the frontend and proxies `/api/*` to `https://personal-ai-f2f9.onrender.com`.
 That Render service is the real API — gating only Vercel is not enough if the
-Render URL is directly reachable.
+Render URL is directly reachable. The remaining steps below are still
+platform-level defense-in-depth on top of the app-layer fix above, not a
+replacement for it.
 
+0. **Confirm `OWNER_USERNAME` is actually set in Render's env vars** (Dashboard → service → Environment) — I can't check this myself. If it's unset, the signup-gate fix above is a no-op in production. Set it to your actual username, then redeploy, then verify:
+   ```
+   curl -s -X POST https://personal-ai-f2f9.onrender.com/api/auth/signup \
+     -H "Content-Type: application/json" -d '{"username":"someoneelse","password":"testpassword123"}'
+   ```
+   Must return `{"error":"Signups are currently invite-only."}`, not a token.
 1. **Vercel** — Project → Settings → Deployment Protection → enable
    "Vercel Authentication" (password or account gate) for Production.
 2. **Render** — the proxied API is a second public URL
@@ -127,6 +151,7 @@ wherever you track the PRD's completion, even if the answer is inconclusive.
 
 ## Status
 
-- [ ] P0 — access gate live on both Vercel and Render, verified via outside curl
+- [x] P0 (partial) — app-layer auth verified live; open-signup gap found and fixed (needs `OWNER_USERNAME` confirmed set in Render + a redeploy to take effect)
+- [ ] P0 (remaining) — platform-level access gate live on both Vercel and Render, verified via outside curl
 - [ ] P1 — every credential rotated/revoked, old values confirmed rejected
 - [ ] P2 — documented answer on prior exploitation (or "inconclusive")
