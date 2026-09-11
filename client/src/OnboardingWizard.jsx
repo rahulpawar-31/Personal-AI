@@ -66,7 +66,7 @@ export default function OnboardingWizard({ user, onComplete }) {
 
 function StepLabel({ n, of: total }) {
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)',
+    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)',
       textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
       Step {n} of {total}
     </span>
@@ -97,7 +97,7 @@ function Field({ label, hint, value, onChange, placeholder, type = 'password', l
           background: 'var(--bg)', color: 'var(--text)', outline: 'none',
         }}
       />
-      {hint && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>{hint}</p>}
+      {hint && <p style={{ fontSize: 11, color: 'var(--muted)', margin: '4px 0 0' }}>{hint}</p>}
     </div>
   );
 }
@@ -150,13 +150,13 @@ function WelcomeStep({ username, onNext }) {
       <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>
         Welcome, {username}!
       </h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>
         DevOS is your personal AI command centre. Let's connect your tools — takes about 3 minutes.
       </p>
       <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: 28 }}>
         {features.map(f => (
           <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13,
-            color: 'var(--text-muted)', padding: '4px 0' }}>
+            color: 'var(--muted)', padding: '4px 0' }}>
             <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span> {f}
           </div>
         ))}
@@ -175,14 +175,14 @@ function GoogleStep({ onNext }) {
     <>
       <StepLabel n={1} of={4} />
       <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700 }}>Connect Google</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7, margin: '0 0 16px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: '0 0 16px' }}>
         Unlocks Gmail triage, calendar management, and conflict detection.
       </p>
       <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: 24 }}>
         {['Read and triage your inbox by priority', 'Draft and send emails via the agent',
           'Schedule and reschedule calendar events', 'Detect scheduling conflicts automatically'].map(item => (
           <div key={item} style={{ display: 'flex', gap: 8, alignItems: 'center',
-            fontSize: 13, color: 'var(--text-muted)', padding: '3px 0' }}>
+            fontSize: 13, color: 'var(--muted)', padding: '3px 0' }}>
             <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span> {item}
           </div>
         ))}
@@ -199,7 +199,7 @@ function GoogleStep({ onNext }) {
           }}>
           Connect Gmail &amp; Calendar
         </button>
-        <button onClick={onNext} style={{ width: '100%', padding: '9px 16px', color: 'var(--text-muted)',
+        <button onClick={onNext} style={{ width: '100%', padding: '9px 16px', color: 'var(--muted)',
           background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13 }}>
           Skip for now
         </button>
@@ -245,7 +245,7 @@ function DevToolsStep({ onNext }) {
     <>
       <StepLabel n={2} of={4} />
       <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>Dev tools</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 20px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
         Connect GitHub and Slack — or skip and add them later in Settings.
       </p>
 
@@ -296,7 +296,7 @@ function DevToolsStep({ onNext }) {
         </button>
       </div>
       <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 12,
-        color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+        color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
         Skip all dev tools
       </button>
     </>
@@ -340,7 +340,7 @@ function ProductivityStep({ onNext }) {
     <>
       <StepLabel n={3} of={4} />
       <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>Productivity tools</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 20px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
         Connect Notion and Todoist for task and note management.
       </p>
 
@@ -379,7 +379,7 @@ function ProductivityStep({ onNext }) {
         Continue →
       </button>
       <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 12,
-        color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+        color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
         Skip productivity tools
       </button>
     </>
@@ -425,11 +425,11 @@ function AIKeysStep({ onNext }) {
     <>
       <StepLabel n={4} of={4} />
       <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700 }}>AI engine</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.6, margin: '0 0 6px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6, margin: '0 0 6px' }}>
         DevOS needs at least one AI key for chat and digest to work.
         Both are free to start — add either one.
       </p>
-      <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '0 0 20px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 20px' }}>
         Don't have one yet? The app will use a shared key with limited capacity until you add your own.
       </p>
 
@@ -483,10 +483,10 @@ function DoneStep({ onComplete }) {
         ✓
       </div>
       <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>You're all set!</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' }}>
         Your workspace is ready. You can add or change any integration any time from Settings.
       </p>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 28px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 28px' }}>
         The agent is standing by — try asking it <em>"What's on my plate today?"</em>
       </p>
       <button className="primary" onClick={onComplete}
