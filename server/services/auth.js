@@ -71,6 +71,26 @@ export function createOAuth2Client(baseURLOverride) {
   );
 }
 
+// Writes tokens to both the local file (fast reads) and DB (survives
+// container restarts) — the one place that invariant is maintained.
+// merge: true reads the existing file first and layers `tokens` on top
+// (Google's auto-refresh event only carries the fields that changed, e.g. a
+// new access_token + expiry, not the refresh_token); merge: false (the
+// default) overwrites, for when `tokens` is already the full set.
+async function persistTokens(userId, tokens, { merge = false } = {}) {
+  const tPath  = tokenPath(userId);
+  const toSave = merge && fs.existsSync(tPath)
+    ? { ...JSON.parse(fs.readFileSync(tPath, 'utf8')), ...tokens }
+    : tokens;
+  fs.writeFileSync(tPath, JSON.stringify(toSave));
+  try {
+    await integrations.saveKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS', JSON.stringify(toSave));
+  } catch (err) {
+    console.warn('[auth] Could not persist tokens to DB:', err.message);
+  }
+  return toSave;
+}
+
 export async function getAuthClient(userId) {
   const client = createOAuth2Client();
   const tPath  = tokenPath(userId);
@@ -96,11 +116,8 @@ export async function getAuthClient(userId) {
 
     // When Google auto-refreshes an access token, persist both to file and DB
     client.on('tokens', updated => {
-      const existing = fs.existsSync(tPath) ? JSON.parse(fs.readFileSync(tPath, 'utf8')) : {};
-      const merged   = { ...existing, ...updated };
-      fs.writeFileSync(tPath, JSON.stringify(merged));
-      integrations.saveKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS', JSON.stringify(merged))
-        .catch(() => {});
+      persistTokens(userId, updated, { merge: true })
+        .catch(err => console.warn('[auth] Could not persist refreshed tokens:', err.message));
     });
   }
 
@@ -110,14 +127,7 @@ export async function getAuthClient(userId) {
 // Save tokens to both the local file (fast reads) and DB (survives restarts).
 export async function saveTokens(tokens, userId) {
   if (!userId) throw new Error('userId is required to save Google tokens');
-  const tPath = tokenPath(userId);
-  fs.writeFileSync(tPath, JSON.stringify(tokens));
-  try {
-    await integrations.saveKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS', JSON.stringify(tokens));
-  } catch (err) {
-    // DB not available in local dev — file storage is sufficient
-    console.warn('[auth] Could not persist tokens to DB:', err.message);
-  }
+  await persistTokens(userId, tokens);
 }
 
 // Called at server startup: restores Google token files from DB.
