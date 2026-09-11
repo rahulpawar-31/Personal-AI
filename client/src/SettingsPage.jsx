@@ -265,7 +265,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
             margin: '0 0 0 0', padding: '12px 20px 14px',
             background: 'var(--surface)', borderTop: '1px solid var(--border)',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
               GitHub Webhook URL
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -287,14 +287,14 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                   padding: '5px 12px', fontSize: 11, fontWeight: 600,
                   border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
                   background: webhookCopied ? '#22c55e22' : 'var(--bg)',
-                  color: webhookCopied ? '#22c55e' : 'var(--text-muted)',
+                  color: webhookCopied ? '#22c55e' : 'var(--muted)',
                   cursor: 'pointer', flexShrink: 0, transition: 'all .15s',
                 }}
               >
                 {webhookCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
               Paste this URL in your GitHub repo → Settings → Webhooks.
               {webhookInfo.secret ? ' Webhook secret is configured.' : ' Set GITHUB_WEBHOOK_SECRET in .env for HMAC verification.'}
             </div>

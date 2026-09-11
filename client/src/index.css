@@ -84,7 +84,7 @@
   --ease:     cubic-bezier(.4,0,.2,1);
 
   /* ---- Layout ---- */
-  --border-hairline: 1px solid var(--border);
+  --border-hairline: 0.5px solid var(--border);
   --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px;
   --space-5: 10px; --space-6: 12px; --space-7: 14px; --space-8: 16px;
   --space-10: 20px;
@@ -204,7 +204,7 @@ input::placeholder, textarea::placeholder { color: var(--hint); }
 /* ============================================================
    Type helpers
    ============================================================ */
-.t-h1     { font-size: var(--fs-h1); font-weight: 600; color: var(--text); line-height: var(--lh-tight); letter-spacing: -0.02em; }
+.t-h1     { font-size: var(--fs-h1); font-weight: 500; color: var(--text); line-height: var(--lh-tight); letter-spacing: -0.02em; }
 .t-h2     { font-size: var(--fs-h2); font-weight: 500; color: var(--text); }
 .t-stat   { font-size: var(--fs-stat); font-weight: 500; line-height: 1; }
 .t-body   { font-size: var(--fs-base); line-height: var(--lh-normal); color: var(--text); }
@@ -238,7 +238,7 @@ input::placeholder, textarea::placeholder { color: var(--hint); }
 }
 .page-header__title {
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   letter-spacing: -0.02em;
   line-height: 1.25;
@@ -349,7 +349,7 @@ input::placeholder, textarea::placeholder { color: var(--hint); }
    ============================================================ */
 .nav-section-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--hint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
