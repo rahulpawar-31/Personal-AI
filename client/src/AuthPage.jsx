@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { setToken } from './api.js';
 
 function submitButtonLabel(loading, isSignup) {
   if (loading) return '…';
@@ -51,7 +52,7 @@ export default function AuthPage({ onAuth }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Something went wrong'); return; }
-      localStorage.setItem('devos_token', data.token);
+      setToken(data.token);
       onAuth(data.user, mode === 'signup');
     } catch {
       setError('Network error — is the server running?');

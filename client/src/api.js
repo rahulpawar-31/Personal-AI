@@ -1,7 +1,30 @@
 // client/src/api.js
-// Thin fetch wrapper that attaches the auth token to every request.
+// Thin fetch wrapper that attaches the auth token to every request, and the
+// session module: getToken/setToken/clearSession are the only code that
+// should touch 'devos_token' directly.
+const TOKEN_KEY      = 'devos_token';
+const ONBOARDING_KEY = 'devos_onboarding'; // cleared alongside the token — see clearSession()
+
 export function getToken() {
-  return localStorage.getItem('devos_token');
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+// Token-only clear — for call sites that must not touch the onboarding flag
+// (e.g. a 401 mid-onboarding, or account deletion). Does not navigate or
+// reset React state; callers keep doing that themselves.
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// Clears the token and the onboarding flag together — the two are cleared
+// in lockstep at logout and at a 401 on the startup auth check.
+export function clearSession() {
+  clearToken();
+  localStorage.removeItem(ONBOARDING_KEY);
 }
 
 // The access token is short-lived (15m) — the server keeps a long-lived
@@ -16,7 +39,7 @@ function refreshAccessToken() {
       .then(async r => {
         if (!r.ok) throw new Error('refresh failed');
         const data = await r.json();
-        localStorage.setItem('devos_token', data.token);
+        setToken(data.token);
         return data.token;
       })
       .finally(() => { refreshPromise = null; });

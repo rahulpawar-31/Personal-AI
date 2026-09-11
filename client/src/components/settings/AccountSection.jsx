@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { apiFetch } from '../../api.js';
+import { apiFetch, clearToken } from '../../api.js';
 
 export default function AccountSection({ user, onLogout }) {
   const [email, setEmail]           = useState(user.email || '');
@@ -42,7 +42,7 @@ export default function AccountSection({ user, onLogout }) {
     const r = await apiFetch('/api/users/me', { method: 'DELETE', body: JSON.stringify({ password: deletePass }) });
     const d = await r.json();
     if (d.ok) {
-      localStorage.removeItem('devos_token');
+      clearToken();
       window.location.href = '/';
     } else {
       setStatus({ type: 'error', msg: d.error });
