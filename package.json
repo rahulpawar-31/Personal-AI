@@ -9,6 +9,7 @@
     "build": "npm run build --prefix client",
     "start": "node server/index.js",
     "test": "npm test --prefix server && npm test --prefix client",
+    "lint:design-system": "node scripts/lint-design-system.mjs",
     "prepare": "husky"
   },
   "dependencies": {
