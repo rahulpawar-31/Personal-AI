@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from './api.js';
+import { apiFetch, clearToken } from './api.js';
 
 const STEPS = [
   { id: 'welcome',      title: 'Welcome to DevOS' },
@@ -192,7 +192,7 @@ function GoogleStep({ onNext }) {
           onClick={async () => {
             try {
               const r = await apiFetch('/api/auth/google/init');
-              if (!r.ok) { if (r.status === 401) { localStorage.removeItem('devos_token'); window.location.reload(); } return; }
+              if (!r.ok) { if (r.status === 401) { clearToken(); window.location.reload(); } return; }
               const d = await r.json();
               if (d.url) window.location.href = d.url;
             } catch { /* network error */ }

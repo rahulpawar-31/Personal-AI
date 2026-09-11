@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from './api.js';
+import { apiFetch, getToken, setToken, clearSession } from './api.js';
 import { ToastContainer, toast } from './toast.jsx';
 import ChatPanel       from './components/ChatPanel.jsx';
 import EmailPanel      from './components/EmailPanel.jsx';
@@ -85,8 +85,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('devos_token');
-    localStorage.removeItem('devos_onboarding');
+    clearSession();
     setUser(null);
   }
 
@@ -200,7 +199,7 @@ export default function App() {
   ];
 
   useEffect(() => {
-    const token = localStorage.getItem('devos_token');
+    const token = getToken();
     if (token) {
       // Use apiFetch (not raw fetch) so an expired 15m access token gets a
       // silent refresh attempt via the httpOnly refresh cookie before we
@@ -212,8 +211,7 @@ export default function App() {
           // 502/503 means the server is restarting — keep the token so the
           // user stays logged in once the server comes back up.
           if (r.status === 401) {
-            localStorage.removeItem('devos_token');
-            localStorage.removeItem('devos_onboarding');
+            clearSession();
           }
           return null;
         })
@@ -233,7 +231,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const googleToken = new URLSearchParams(window.location.hash.slice(1)).get('google_token');
     if (googleToken) {
-      localStorage.setItem('devos_token', googleToken);
+      setToken(googleToken);
       window.history.replaceState({}, '', '/');
       fetch('/api/users/me', { headers: { Authorization: `Bearer ${googleToken}` } })
         .then(r => (r.ok ? r.json() : null))
@@ -243,7 +241,7 @@ export default function App() {
       return;
     }
 
-    if (localStorage.getItem('devos_token')) fetchHealth();
+    if (getToken()) fetchHealth();
 
     if (window.location.search.includes('connected=true')) {
       setConnected(true);
