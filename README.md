@@ -159,6 +159,34 @@ devos-agent/
 
 ---
 
+## Deployment
+
+DevOS runs as a split frontend/backend deploy today. Two deploy configs are
+committed **on purpose** — both are live and both are required, this is not
+duplicate/leftover config:
+
+| Config          | What it is                          | Status                          |
+|------------------|--------------------------------------|----------------------------------|
+| `vercel.json`    | Frontend build (`client/dist`) + proxies `/api/*` to the Render API | **Live** — `personal-ai-blue.vercel.app` |
+| `render.yaml`    | Backend API (Express server)         | **Live** — `personal-ai-f2f9.onrender.com` |
+| `VPS-DEPLOY.md` / `.github/workflows/deploy-vps.yml` | Planned migration to a self-hosted Vultr VPS | **Not live yet** — future work, do not treat as active |
+
+Why both Vercel and Render: Vercel serves the static frontend and rewrites
+`/api/*` requests to the Render-hosted backend (see the `rewrites` entry in
+`vercel.json`). Render runs the actual Node/Express API and database access.
+Neither one is redundant with the other — removing either breaks the app.
+
+There used to be a third config, `nixpacks.toml` (a Railway builder file).
+Railway was dropped as a deploy target; the file has been removed and
+`server/lib/env.js` is host-agnostic (`NODE_ENV` / `PUBLIC_URL`) rather than
+Railway-specific.
+
+**The only two live URLs are:**
+- Frontend: `https://personal-ai-blue.vercel.app`
+- API: `https://personal-ai-f2f9.onrender.com`
+
+---
+
 ## Troubleshooting
 
 | Error                              | Fix                                                                                   |

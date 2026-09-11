@@ -72,6 +72,17 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
     }
   }
 
+  async function handleGoogleDisconnect() {
+    setGoogleError(null);
+    try {
+      await apiFetch('/api/auth/google/disconnect', { method: 'POST' });
+      setGoogleConnected(false);
+      setGoogleEmail(null);
+    } catch {
+      setGoogleError('Network error — is the server running?');
+    }
+  }
+
   async function testAndSave(service, payload) {
     setTesting(service);
     setErrors(e => ({ ...e, [service]: null }));
@@ -199,6 +210,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
           connected={googleConnected}
           email={googleEmail}
           onConnect={handleGoogleConnect}
+          onDisconnect={handleGoogleDisconnect}
           error={googleError}
         />
       </IntegrationGroup>
