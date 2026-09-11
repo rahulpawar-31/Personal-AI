@@ -3,7 +3,7 @@ import { apiFetch } from '../api.js';
 import { LoadingState, EmptyState } from './ui/States.jsx';
 
 function runButtonLabel(loading, digest) {
-  if (loading) return 'Running...';
+  if (loading) return 'Running…';
   if (digest)  return 'Refresh digest';
   return 'Run digest';
 }
