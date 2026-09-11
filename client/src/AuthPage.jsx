@@ -18,6 +18,9 @@ export default function AuthPage({ onAuth }) {
       const detail = params.get('detail');
       return detail ? `Google sign-in failed: ${detail}` : 'Google sign-in failed. Please try again.';
     }
+    if (params.get('auth_error') === 'signup_disabled') {
+      return 'Signups are currently invite-only.';
+    }
     return '';
   });
 
@@ -32,6 +35,10 @@ export default function AuthPage({ onAuth }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (username.includes('@')) {
+      setError('Username can\'t contain "@" — that looks like an email address. Put your email in the email field instead.');
+      return;
+    }
     setLoading(true);
     try {
       const body = { username, password };
@@ -85,6 +92,9 @@ export default function AuthPage({ onAuth }) {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input
+            name="username"
+            id="username"
+            type="text"
             placeholder="Username"
             aria-label="Username"
             value={username}
@@ -102,6 +112,8 @@ export default function AuthPage({ onAuth }) {
           />
           {isSignup && (
             <input
+              name="email"
+              id="email"
               type="email"
               placeholder="Email (optional)"
               aria-label="Email (optional)"
@@ -112,6 +124,8 @@ export default function AuthPage({ onAuth }) {
           )}
           <div style={{ position: 'relative' }}>
             <input
+              name="password"
+              id="password"
               type={showPwd ? 'text' : 'password'}
               placeholder="Password"
               aria-label="Password"

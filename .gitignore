@@ -6,6 +6,7 @@ server/memory.json
 server/state.json
 server/users.json
 server/integrations.json
+server/pending_actions.json
 server/fix-notion-token.mjs
 dist/
 .DS_Store

@@ -94,20 +94,6 @@ router.get('/api/auth/google/signin', (req, res) => {
   res.redirect(auth.getAuthUrl(origin, state));
 });
 
-router.get('/api/auth/google', (req, res) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return res.redirect(`${frontendURL()}/`);
-  try {
-    const payload = userService.verifyToken(header.slice(7));
-    const fromSettings = req.query.from === 'settings';
-    const origin = resolveRequestOrigin(req) ?? frontendURL();
-    const state  = signState({ mode: 'connect', uid: payload.userId, fromSettings, origin });
-    res.redirect(auth.getAuthUrl(origin, state));
-  } catch {
-    return res.redirect(`${frontendURL()}/`);
-  }
-});
-
 router.get('/api/auth/google/callback', async (req, res) => {
   // CSRF/tamper check + everything we need about the initiating request all
   // come from this one signature verification — no cookie involved.
@@ -143,6 +129,13 @@ router.get('/api/auth/google/callback', async (req, res) => {
         if (existing) {
           await userService.dbLinkGoogleId(existing.id, googleId);
           user = existing;
+        } else if (process.env.OWNER_USERNAME) {
+          // Same P0 gate as password signup (server/services/users.js
+          // createUser) — no existing account matched this Google identity,
+          // so this would silently provision a brand-new account. In
+          // production (OWNER_USERNAME set) that's not allowed.
+          console.warn(`[auth/google/callback] rejected new-account provisioning via Google for unrecognized email (${email}) — signups are invite-only in production`);
+          return res.redirect(`${redirectBase}/?auth_error=signup_disabled`);
         } else {
           const base = (email.split('@')[0] ?? name).replace(/\W/g, '').slice(0, 28) || 'user';
           let username = base;
@@ -200,6 +193,15 @@ router.get('/api/auth/google/email', requireAuth, async (req, res) => {
 
 router.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ connected: auth.isConnected(req.user.userId) });
+});
+
+router.post('/api/auth/google/disconnect', requireAuth, async (req, res) => {
+  try {
+    await auth.disconnectUser(req.user.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Account auth ─────────────────────────────────────────────────────────────

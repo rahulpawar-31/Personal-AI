@@ -23,13 +23,15 @@ import githubRoutes      from './routes/github.js';
 import digestRoutes      from './routes/digest.js';
 import webhooksRoutes    from './routes/webhooks.js';
 import contentRoutes     from './routes/content.js';
+import actionsRoutes     from './routes/actions.js';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
 
-// Render/Railway/Vercel all sit behind a single reverse-proxy hop — without
-// this, req.ip resolves to the proxy's internal address for every request,
-// which breaks per-client rate limiting (see server/middleware/rateLimiter.js).
+// Render (API) and Vercel (frontend proxy) both sit behind a single
+// reverse-proxy hop — without this, req.ip resolves to the proxy's internal
+// address for every request, which breaks per-client rate limiting
+// (see server/middleware/rateLimiter.js).
 app.set('trust proxy', 1);
 
 const allowedOrigins = [
@@ -59,6 +61,7 @@ app.use(githubRoutes);
 app.use(digestRoutes);
 app.use(webhooksRoutes);
 app.use(contentRoutes);
+app.use(actionsRoutes);
 
 // ─── Serve React build in production ─────────────────────────────────────────
 

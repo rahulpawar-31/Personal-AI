@@ -23,6 +23,16 @@ export async function createUser(username, password, email) {
   if (!password?.trim())                    throw new Error('Password cannot be blank or only spaces');
   if (password.length < 8)                 throw new Error('Password must be at least 8 characters');
 
+  // PRD P0: this is a single-owner tool with zero intended signups right now —
+  // open registration let a stranger get a valid JWT for a live production
+  // instance. When OWNER_USERNAME is set (production), only that account may
+  // sign up. Unset in dev/CI (see server/tests/smoke-auth.sh), where open
+  // signup is expected and harmless.
+  const ownerUsername = process.env.OWNER_USERNAME;
+  if (ownerUsername && username.trim() !== ownerUsername) {
+    throw new Error('Signups are currently invite-only.');
+  }
+
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   try {
     return await dbCreateUser({ username: username.trim(), email: email?.trim() || null, passwordHash });

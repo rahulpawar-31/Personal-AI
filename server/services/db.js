@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
+const PENDING_ACTIONS_FILE = path.join(__dirname, '..', 'pending_actions.json');
 
 let pool = null;
 
@@ -83,6 +84,22 @@ export async function initDB() {
         user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         data       JSONB        NOT NULL DEFAULT '[]',
         fetched_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ── Pending agent actions — state-changing tool calls awaiting human
+    // approval before executeAction actually runs them (see SEC-2 remediation).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_actions (
+        id             SERIAL PRIMARY KEY,
+        user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        action_type    TEXT NOT NULL,
+        params         JSONB NOT NULL DEFAULT '{}',
+        source_message TEXT,
+        status         TEXT NOT NULL DEFAULT 'pending',
+        result         JSONB,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        resolved_at    TIMESTAMPTZ
       )
     `);
 
@@ -269,4 +286,112 @@ export async function dbIsAdmin(userId) {
   }
   const u = readUsers().find(u => String(u.id) === String(userId));
   return u?.isAdmin ?? false;
+}
+
+// ─── Pending agent actions ────────────────────────────────────────────────────
+// Queued state-changing tool calls awaiting explicit human approval — see SEC-2.
+
+function readPendingActions() {
+  if (!existsSync(PENDING_ACTIONS_FILE)) return [];
+  try { return JSON.parse(readFileSync(PENDING_ACTIONS_FILE, 'utf8')); }
+  catch { return []; }
+}
+
+function savePendingActions(rows) {
+  writeFileSync(PENDING_ACTIONS_FILE, JSON.stringify(rows, null, 2));
+}
+
+function toPendingActionRow(r) {
+  return {
+    id:            r.id,
+    userId:        r.userId,
+    actionType:    r.actionType,
+    params:        r.params,
+    sourceMessage: r.sourceMessage ?? null,
+    status:        r.status,
+    result:        r.result ?? null,
+    createdAt:     r.createdAt,
+    resolvedAt:    r.resolvedAt ?? null,
+  };
+}
+
+export async function dbCreatePendingAction(userId, actionType, params, sourceMessage = '') {
+  if (pool) {
+    const r = await pool.query(
+      `INSERT INTO pending_actions (user_id, action_type, params, source_message)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, user_id AS "userId", action_type AS "actionType", params,
+                 source_message AS "sourceMessage", status, result,
+                 created_at AS "createdAt", resolved_at AS "resolvedAt"`,
+      [userId, actionType, JSON.stringify(params ?? {}), sourceMessage]
+    );
+    return r.rows[0];
+  }
+
+  const rows = readPendingActions();
+  const row = {
+    id:            rows.length ? Math.max(...rows.map(r => r.id)) + 1 : 1,
+    userId,
+    actionType,
+    params:        params ?? {},
+    sourceMessage,
+    status:        'pending',
+    result:        null,
+    createdAt:     new Date().toISOString(),
+    resolvedAt:    null,
+  };
+  savePendingActions([...rows, row]);
+  return toPendingActionRow(row);
+}
+
+export async function dbGetPendingAction(userId, id) {
+  if (pool) {
+    const r = await pool.query(
+      `SELECT id, user_id AS "userId", action_type AS "actionType", params,
+              source_message AS "sourceMessage", status, result,
+              created_at AS "createdAt", resolved_at AS "resolvedAt"
+       FROM pending_actions WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    return r.rows[0] ?? null;
+  }
+  const row = readPendingActions().find(r => String(r.id) === String(id) && String(r.userId) === String(userId));
+  return row ? toPendingActionRow(row) : null;
+}
+
+export async function dbListPendingActions(userId, status = 'pending') {
+  if (pool) {
+    const r = await pool.query(
+      `SELECT id, user_id AS "userId", action_type AS "actionType", params,
+              source_message AS "sourceMessage", status, result,
+              created_at AS "createdAt", resolved_at AS "resolvedAt"
+       FROM pending_actions WHERE user_id = $1 AND status = $2 ORDER BY created_at`,
+      [userId, status]
+    );
+    return r.rows;
+  }
+  return readPendingActions()
+    .filter(r => String(r.userId) === String(userId) && r.status === status)
+    .map(toPendingActionRow);
+}
+
+export async function dbResolvePendingAction(userId, id, status, result = null) {
+  if (pool) {
+    const r = await pool.query(
+      `UPDATE pending_actions SET status = $1, result = $2, resolved_at = NOW()
+       WHERE id = $3 AND user_id = $4 AND status = 'pending'
+       RETURNING id, user_id AS "userId", action_type AS "actionType", params,
+                 source_message AS "sourceMessage", status, result,
+                 created_at AS "createdAt", resolved_at AS "resolvedAt"`,
+      [status, result != null ? JSON.stringify(result) : null, id, userId]
+    );
+    return r.rows[0] ?? null;
+  }
+
+  const rows = readPendingActions();
+  const idx  = rows.findIndex(r => String(r.id) === String(id) && String(r.userId) === String(userId) && r.status === 'pending');
+  if (idx < 0) return null;
+  rows[idx] = { ...rows[idx], status, result, resolvedAt: new Date().toISOString() };
+  savePendingActions(rows);
+  return toPendingActionRow(rows[idx]);
 }
