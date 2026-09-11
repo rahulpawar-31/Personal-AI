@@ -48,6 +48,9 @@ jobs:
       - name: Build client
         run: npm run build --prefix client
 
+      - name: Design-system lint (fontWeight, CSS custom properties)
+        run: npm run lint:design-system
+
       - name: Client unit tests
         run: npm test --prefix client
 
