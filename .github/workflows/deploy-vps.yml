@@ -3,6 +3,9 @@ name: Deploy to VPS
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy
@@ -10,7 +13,7 @@ jobs:
 
     steps:
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -19,8 +22,8 @@ jobs:
             set -e
             cd /var/www/personal-ai
             git pull
-            npm install
-            npm install --prefix server
-            npm install --include=dev --prefix client
+            npm ci
+            npm ci --prefix server
+            npm ci --include=dev --prefix client
             npm run build
             pm2 reload devos-agent

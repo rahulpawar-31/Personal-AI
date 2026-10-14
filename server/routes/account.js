@@ -41,7 +41,9 @@ router.get('/api/admin/users', requireAdmin, async (req, res) => {
     const withCounts = await Promise.all(users.map(async u => {
       try {
         const keys = await integrations.listKeysWithMeta(u.id);
-        return { ...u, integrationCount: keys.length };
+        // keys is { service: { keyName: meta } }; the admin "Keys" column counts every saved key.
+        const integrationCount = Object.values(keys).reduce((n, service) => n + Object.keys(service).length, 0);
+        return { ...u, integrationCount };
       } catch {
         return { ...u, integrationCount: 0 };
       }
