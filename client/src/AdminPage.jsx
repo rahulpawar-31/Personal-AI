@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
 import { LoadingState, ErrorState } from './components/ui/States.jsx';
@@ -9,6 +9,8 @@ export default function AdminPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [confirmingId, setConfirmingId] = useState(null);
+  const armedAt = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -29,8 +31,26 @@ export default function AdminPage({ user }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Two-step delete: the confirm state resets itself after a few seconds.
+  useEffect(() => {
+    if (confirmingId === null) return undefined;
+    const t = setTimeout(() => setConfirmingId(null), 4000);
+    return () => clearTimeout(t);
+  }, [confirmingId]);
+
+  // A fast double-click on Delete would otherwise hit "Confirm delete" before
+  // anyone can read it, so a confirm click right after arming is ignored.
+  function onDeleteClick(u) {
+    if (confirmingId !== u.id) {
+      armedAt.current = Date.now();
+      setConfirmingId(u.id);
+    } else if (Date.now() - armedAt.current > 500) {
+      deleteUser(u);
+    }
+  }
+
   async function deleteUser(u) {
-    if (!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
+    setConfirmingId(null);
     setDeleting(u.id);
     try {
       const r = await apiFetch(`/api/admin/users/${u.id}`, { method: 'DELETE' });
@@ -127,13 +147,24 @@ export default function AdminPage({ user }) {
                 </td>
                 <td style={{ padding: '9px 12px', textAlign: 'right' }}>
                   {u.id !== user.id && (
-                    <button
-                      onClick={() => deleteUser(u)}
-                      disabled={deleting === u.id}
-                      style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
-                    >
-                      {deleting === u.id ? '…' : 'Delete'}
-                    </button>
+                    <>
+                      {confirmingId === u.id && (
+                        <button
+                          onClick={() => setConfirmingId(null)}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', marginRight: 6 }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDeleteClick(u)}
+                        disabled={deleting === u.id}
+                        title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
+                      >
+                        {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>

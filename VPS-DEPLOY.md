@@ -84,7 +84,7 @@ JWT_SECRET="${JWT_SECRET}"
 GOOGLE_CLIENT_ID="<paste from Railway>"
 GOOGLE_CLIENT_SECRET="<paste from Railway>"
 
-OWNER_USERNAME="<your admin account's username, optional>"
+OWNER_USERNAME="<your admin account's username — required, the server refuses to start in production without it>"
 GITHUB_WEBHOOK_SECRET="<paste from Railway, optional>"
 EOF
 

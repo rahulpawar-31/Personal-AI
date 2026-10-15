@@ -14,7 +14,7 @@ function isTypingTarget(el) {
 // that responds — otherwise a digit key could unmount the panel behind
 // it and discard whatever the user was typing into the modal.
 function isBlockingModalOpen() {
-  return !!document.querySelector('[role="dialog"]:not(.cmdk-box)');
+  return Boolean(document.querySelector('[role="dialog"]:not(.cmdk-box)'));
 }
 
 // Global keyboard shortcuts for the app shell: ⌘K / Ctrl+K opens the
