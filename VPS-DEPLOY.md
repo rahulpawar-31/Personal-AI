@@ -24,7 +24,7 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 node -v
 ```
-Node 22 — matches this repo's CI (`.github/workflows/ci.yml`) and `nixpacks.toml`.
+Node 22 — matches this repo's CI (`.github/workflows/ci.yml`).
 ```bash
 apt install -y nginx
 npm install -g pm2

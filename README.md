@@ -178,7 +178,9 @@ Neither one is redundant with the other — removing either breaks the app.
 
 `server/lib/env.js` is host-agnostic: a deploy counts as production when
 `NODE_ENV=production` (set in `render.yaml`), and its public URL comes from
-`PUBLIC_URL` or, on Render, `RENDER_EXTERNAL_URL`.
+`PUBLIC_URL` or, on Render, `RENDER_EXTERNAL_URL`. Because that one variable
+switches the production safety checks on, the server also refuses to start if it
+sees it is running on Render (`RENDER=true`) without `NODE_ENV=production`.
 
 **The only two live URLs are:**
 - Frontend: `https://personal-ai-blue.vercel.app`
