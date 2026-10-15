@@ -120,6 +120,8 @@ export function setupCronJobs() {
   // never worse) since events aren't otherwise persisted anywhere to key off.
   const briefedEvents = new Set();
   cron.schedule('*/5 * * * *', async () => {
+    // Sequential on purpose: each iteration makes an LLM call and a Slack post,
+    // and running users in parallel would burst the provider's rate limit.
     for (const userId of auth.getConnectedUserIds()) {
       try {
         const creds = await getUserCreds(userId);

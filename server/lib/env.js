@@ -6,7 +6,7 @@
 // RAILWAY_PUBLIC_DOMAIN keeps working unchanged for existing Railway deploys.
 
 export function isProduction() {
-  return !!process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NODE_ENV === 'production';
+  return Boolean(process.env.RAILWAY_PUBLIC_DOMAIN) || process.env.NODE_ENV === 'production';
 }
 
 // The externally-reachable origin (scheme + host, no trailing slash), or null
