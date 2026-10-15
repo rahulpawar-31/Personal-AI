@@ -232,13 +232,17 @@ router.post('/api/auth/login', authLimiter, async (req, res) => {
 
 // Silent refresh — frontend calls this when the access token expires.
 // The httpOnly refresh cookie is sent automatically by the browser.
-router.post('/api/auth/refresh', authLimiter, (req, res) => {
+router.post('/api/auth/refresh', authLimiter, async (req, res) => {
   const rt = req.cookies?.refresh_token;
   if (!rt) return res.status(401).json({ error: 'No refresh token' });
   try {
     const payload = userService.verifyToken(rt);
     if (payload.type !== 'refresh') return res.status(401).json({ error: 'Invalid token type' });
-    const user  = { id: payload.userId, username: payload.username };
+    // The cookie outlives the account: a deleted or deactivated user must not
+    // be able to mint new access tokens for the rest of its 30 days.
+    const account = await userService.getUserById(payload.userId);
+    if (!account || account.isActive === false) throw new Error('Account no longer active');
+    const user  = { id: account.id, username: account.username };
     const token = userService.signToken(user);
     userService.setRefreshCookie(res, user); // rotate the cookie
     res.json({ token });
@@ -257,7 +261,7 @@ router.get('/api/users/me', async (req, res) => {
   const auth_header = req.headers.authorization;
   if (!auth_header?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   try {
-    const payload = userService.verifyToken(auth_header.slice(7));
+    const payload = userService.verifyAccessToken(auth_header.slice(7));
     const user    = await userService.getUserById(payload.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { dbIsAdmin } = await import('../services/db.js');
