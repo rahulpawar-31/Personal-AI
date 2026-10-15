@@ -232,20 +232,38 @@ router.post('/api/auth/login', authLimiter, async (req, res) => {
 
 // Silent refresh — frontend calls this when the access token expires.
 // The httpOnly refresh cookie is sent automatically by the browser.
-router.post('/api/auth/refresh', authLimiter, (req, res) => {
+router.post('/api/auth/refresh', authLimiter, async (req, res) => {
   const rt = req.cookies?.refresh_token;
   if (!rt) return res.status(401).json({ error: 'No refresh token' });
+  let payload;
   try {
-    const payload = userService.verifyToken(rt);
+    payload = userService.verifyToken(rt);
     if (payload.type !== 'refresh') return res.status(401).json({ error: 'Invalid token type' });
-    const user  = { id: payload.userId, username: payload.username };
-    const token = userService.signToken(user);
-    userService.setRefreshCookie(res, user); // rotate the cookie
-    res.json({ token });
   } catch {
     userService.clearRefreshCookie(res);
-    res.status(401).json({ error: 'Refresh token expired — please log in again' });
+    return res.status(401).json({ error: 'Refresh token expired — please log in again' });
   }
+
+  // The cookie outlives the account: a deleted or deactivated user must not
+  // be able to mint new access tokens for the rest of its 30 days.
+  let account;
+  try {
+    account = await userService.getUserById(payload.userId);
+  } catch (err) {
+    // A failed lookup says nothing about the account. Keep the cookie so the
+    // user isn't signed out by a database blip; the client retries later.
+    console.error('[auth/refresh] account lookup failed:', err.message);
+    return res.status(503).json({ error: 'Temporarily unavailable — please try again' });
+  }
+  if (!account || account.isActive === false) {
+    userService.clearRefreshCookie(res);
+    return res.status(401).json({ error: 'Refresh token expired — please log in again' });
+  }
+
+  const user  = { id: account.id, username: account.username };
+  const token = userService.signToken(user);
+  userService.setRefreshCookie(res, user); // rotate the cookie
+  res.json({ token });
 });
 
 router.post('/api/auth/logout', (req, res) => {
@@ -257,7 +275,7 @@ router.get('/api/users/me', async (req, res) => {
   const auth_header = req.headers.authorization;
   if (!auth_header?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
   try {
-    const payload = userService.verifyToken(auth_header.slice(7));
+    const payload = userService.verifyAccessToken(auth_header.slice(7));
     const user    = await userService.getUserById(payload.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { dbIsAdmin } = await import('../services/db.js');
