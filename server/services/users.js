@@ -68,7 +68,7 @@ export async function loginUser(username, password) {
 
 // Short-lived access token — sent in response body, stored in localStorage by frontend.
 export function signToken(user) {
-  return jwt.sign({ userId: user.id, username: user.username }, getJwtSecret(), { expiresIn: '15m' });
+  return jwt.sign({ userId: user.id, username: user.username, type: 'access' }, getJwtSecret(), { expiresIn: '15m' });
 }
 
 // Long-lived refresh token — sent as httpOnly cookie only.
@@ -78,6 +78,15 @@ export function signRefreshToken(user) {
 
 export function verifyToken(token) {
   return jwt.verify(token, getJwtSecret());
+}
+
+// For Authorization: Bearer. A refresh token must never work here: it lives 30
+// days, so accepting it would turn one leaked cookie into a month of API access.
+// Tokens with no type are access tokens issued before the type claim existed.
+export function verifyAccessToken(token) {
+  const payload = verifyToken(token);
+  if (payload.type === 'refresh') throw new Error('Refresh token cannot be used as an access token');
+  return payload;
 }
 
 // Set the httpOnly refresh cookie on a response.
