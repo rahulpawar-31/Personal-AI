@@ -6,6 +6,7 @@ import memory   from '../services/memory.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getUserCreds } from '../lib/creds.js';
 import { getEmailCache, setEmailCache, invalidateEmailCache } from '../lib/email-cache.js';
+import { isValidAddress, EmailValidationError } from '../lib/emailMessage.js';
 
 const router = Router();
 
@@ -40,14 +41,15 @@ router.post('/api/email/send', requireAuth, async (req, res) => {
   const uid = req.user.userId;
   try {
     const { to, subject, body } = req.body;
-    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ error: 'valid "to" email required' });
+    if (!isValidAddress(to)) return res.status(400).json({ error: 'valid "to" email required' });
     if (!body?.trim()) return res.status(400).json({ error: 'body required' });
     const result = await gmail.sendEmail(uid, to, subject ?? '(no subject)', body);
     memory.logActivity(uid, 'send_email', { to, title: subject }, 'success');
-    console.log(`[email] sent to=${to} subject="${subject}"`);
+    console.log(`[email] sent to=${to} subject=${JSON.stringify(subject)}`);
     res.json(result);
   } catch (e) {
-    console.error(`[email] send failed to=${req.body?.to}: ${e.message}`);
+    if (e instanceof EmailValidationError) return res.status(400).json({ error: e.message });
+    console.error(`[email] send failed to=${JSON.stringify(req.body?.to)}: ${e.message}`);
     memory.logActivity(uid, 'send_email', { to: req.body?.to, title: req.body?.subject }, 'error', e.message);
     res.status(500).json({ error: `Failed to send email: ${e.message}` });
   }
@@ -65,15 +67,16 @@ router.post('/api/email/approve-draft', requireAuth, async (req, res) => {
   const uid = req.user.userId;
   try {
     const { to, subject, original, edited } = req.body;
-    if (!to || !edited?.trim()) return res.status(400).json({ error: 'to and edited body are required' });
+    if (!isValidAddress(to) || !edited?.trim()) return res.status(400).json({ error: 'a valid "to" email and an edited body are required' });
     invalidateEmailCache(uid);
-    const sent = await gmail.sendEmail(uid, to, subject, edited);
+    const sent = await gmail.sendEmail(uid, to, subject ?? '(no subject)', edited);
     memory.recordApprovedDraft(uid, original, edited, 'email');
     memory.logActivity(uid, 'approve_draft', { to, title: subject }, 'success');
-    console.log(`[email] draft approved and sent to=${to} subject="${subject}"`);
+    console.log(`[email] draft approved and sent to=${to} subject=${JSON.stringify(subject)}`);
     res.json(sent);
   } catch (e) {
-    console.error(`[email] approve-draft failed to=${req.body?.to}: ${e.message}`);
+    if (e instanceof EmailValidationError) return res.status(400).json({ error: e.message });
+    console.error(`[email] approve-draft failed to=${JSON.stringify(req.body?.to)}: ${e.message}`);
     memory.logActivity(uid, 'approve_draft', { to: req.body?.to }, 'error', e.message);
     res.status(500).json({ error: `Failed to send email: ${e.message}` });
   }

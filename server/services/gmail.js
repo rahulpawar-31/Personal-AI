@@ -2,6 +2,7 @@
 import { google } from 'googleapis';
 import { getAuthClient } from './auth.js';
 import llm from './llm.js';
+import { buildRawMessage } from '../lib/emailMessage.js';
 
 async function gmail(userId) {
   return google.gmail({ version: 'v1', auth: await getAuthClient(userId) });
@@ -152,9 +153,10 @@ export async function triageInbox(userId, maxResults = 15) {
 // ─── Draft + Send ─────────────────────────────────────────────────────────────
 
 export async function createDraft(userId, to, subject, body) {
+  // Built before any API call so invalid input is rejected without touching Gmail.
+  const raw = buildRawMessage({ to, subject, body });
   try {
     const g   = await gmail(userId);
-    const raw = Buffer.from(`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`).toString('base64url');
     const res = await g.users.drafts.create({ userId: 'me', requestBody: { message: { raw } } });
     return { id: res.data.id, to, subject };
   } catch (err) {
@@ -164,9 +166,9 @@ export async function createDraft(userId, to, subject, body) {
 }
 
 export async function sendEmail(userId, to, subject, body) {
+  const raw = buildRawMessage({ to, subject, body });
   try {
     const g   = await gmail(userId);
-    const raw = Buffer.from(`To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`).toString('base64url');
     await g.users.messages.send({ userId: 'me', requestBody: { raw } });
     return { sent: true, to, subject };
   } catch (err) {
