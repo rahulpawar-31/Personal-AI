@@ -28,16 +28,17 @@ const PENDING_ACTION_LABELS = {
 
 function pendingActionSummary(item) {
   const p = item.params || {};
-  const issueRef = `#${p.taskId}${p.repo ? ` in ${p.repo}` : ''}`;
+  const inRepo  = p.repo ? ` in ${p.repo}` : '';
+  const issueRef = `#${p.taskId}${inRepo}`;
   switch (item.actionType) {
     case 'add_task':      return p.title;
     case 'update_task':   return [p.title, p.status].filter(Boolean).join(' — ') || p.taskId;
     case 'delete_task':   return p.title || p.taskId;
     case 'create_event':  return `${p.title} — ${p.date}`;
-    case 'update_event':  return `${p.title || p.taskId}${p.date ? ` → ${p.date}` : ''}`;
-    case 'delete_event':  return `${p.title || p.taskId}${p.date ? ` at ${p.date}` : ''}`;
+    case 'update_event':  return `${p.title || p.taskId}${p.date ? ' → ' + p.date : ''}`;
+    case 'delete_event':  return `${p.title || p.taskId}${p.date ? ' at ' + p.date : ''}`;
     case 'block_focus_time': return p.title || 'Deep work';
-    case 'create_issue':  return `${p.title}${p.repo ? ` in ${p.repo}` : ''}`;
+    case 'create_issue':  return `${p.title}${inRepo}`;
     case 'delete_issue':  return issueRef;
     case 'close_issue':   return issueRef;
     case 'reopen_issue':  return issueRef;
