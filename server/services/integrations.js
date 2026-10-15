@@ -85,6 +85,35 @@ export function countSavedKeys(keysWithMeta) {
   return Object.values(keysWithMeta ?? {}).reduce((n, svc) => n + Object.keys(svc).length, 0);
 }
 
+/**
+ * Names of the services a listKeysWithMeta() result has a usable key for, sorted.
+ * Only service names leave this function (never key names, hints or values), so
+ * the admin page can show what an account uses. A service whose keys can all
+ * no longer be decrypted is left out, matching the Settings page.
+ */
+export function connectedServices(keysWithMeta) {
+  return Object.entries(keysWithMeta ?? {})
+    .filter(([, keys]) => Object.values(keys).some(meta => !meta?.unreadable))
+    .map(([service]) => service)
+    .sort();
+}
+
+/**
+ * One row per saved key, for the admin page: { service, keyName, updatedAt,
+ * unreadable }, sorted by service then key name. The masked hint and the value
+ * are deliberately left out, so an admin can see what an account has connected
+ * without seeing any part of a secret.
+ */
+export function describeKeys(keysWithMeta) {
+  const rows = [];
+  for (const [service, keys] of Object.entries(keysWithMeta ?? {})) {
+    for (const [keyName, meta] of Object.entries(keys)) {
+      rows.push({ service, keyName, updatedAt: meta?.updatedAt ?? null, unreadable: Boolean(meta?.unreadable) });
+    }
+  }
+  return rows.sort((a, b) => a.service.localeCompare(b.service) || a.keyName.localeCompare(b.keyName));
+}
+
 /** Delete all keys for a service (disconnect). */
 export async function deleteService(userId, service) {
   await currentStore().deleteAllForService(userId, service);
