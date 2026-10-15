@@ -5,8 +5,8 @@
 // public URL via PUBLIC_URL (e.g. http://1.2.3.4 or https://example.com) —
 // RAILWAY_PUBLIC_DOMAIN keeps working unchanged for existing Railway deploys.
 
-export function isProduction() {
-  return Boolean(process.env.RAILWAY_PUBLIC_DOMAIN) || process.env.NODE_ENV === 'production';
+export function isProduction(env = process.env) {
+  return Boolean(env.RAILWAY_PUBLIC_DOMAIN) || env.NODE_ENV === 'production';
 }
 
 // The externally-reachable origin (scheme + host, no trailing slash), or null
