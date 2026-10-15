@@ -42,14 +42,23 @@ function legacyJsonPath() {
   return path.join(__dirname, '..', 'memory.json');
 }
 
-function mergeWithDefaults(stored) {
-  const result = { ...DEFAULT_MEMORY, ...stored };
+// A brand-new copy of the defaults every time. Spreading DEFAULT_MEMORY directly
+// only copies the top level, so every user would share the same vipContacts,
+// facts, activityLog and approvedDrafts arrays: one user's addVIP() would show
+// up in everyone else's memory until they saved their own.
+export function blankMemory() {
+  return structuredClone(DEFAULT_MEMORY);
+}
+
+export function mergeWithDefaults(stored) {
+  const defaults = blankMemory();
+  const result = { ...defaults, ...stored };
   // Deep-merge nested objects so new default fields aren't dropped for existing users
   if (stored.voiceProfile && typeof stored.voiceProfile === 'object') {
-    result.voiceProfile = { ...DEFAULT_MEMORY.voiceProfile, ...stored.voiceProfile };
+    result.voiceProfile = { ...defaults.voiceProfile, ...stored.voiceProfile };
   }
   if (stored.preferences && typeof stored.preferences === 'object') {
-    result.preferences = { ...DEFAULT_MEMORY.preferences, ...stored.preferences };
+    result.preferences = { ...defaults.preferences, ...stored.preferences };
   }
   return result;
 }
@@ -68,7 +77,7 @@ function readFromDisk(userId) {
       try { return mergeWithDefaults(JSON.parse(fs.readFileSync(legacy, 'utf8'))); } catch { /* fall through */ }
     }
   }
-  return { ...DEFAULT_MEMORY };
+  return blankMemory();
 }
 
 function writeToDisk(userId, data) {

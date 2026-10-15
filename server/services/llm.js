@@ -1,14 +1,16 @@
 // server/services/llm.js
 // LangChain-powered LLM router.
-//   Gemini 2.0 Flash (large context)  → @langchain/google-genai
-//   Groq Llama 3.1 8B  (fast triage)   → @langchain/groq
-// Provider selection is task-based; cross-provider failover uses LangChain's
+//   Gemini (large context)  → @langchain/google-genai
+//   Groq   (fast triage)    → @langchain/groq
+// Model names come from lib/models.js (and its environment overrides) so a
+// provider retiring a model is a one-line change. Provider selection is task-based; cross-provider failover uses LangChain's
 // native .withFallbacks(). Public function signatures are unchanged so every
 // existing caller (index.js, gmail.js, content.js, calendar.js) keeps working.
 
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatGroq } from '@langchain/groq';
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { modelId } from '../lib/models.js';
 
 // Task type → preferred provider (the other becomes the fallback)
 const TASK_ROUTING = {
@@ -27,11 +29,6 @@ const TASK_ROUTING = {
   alert:     'groq',
 };
 
-const MODELS = {
-  gemini: 'gemini-2.0-flash',
-  groq:   'llama-3.1-8b-instant',
-};
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 export function resolveKey(provider, apiKeys = {}) {
@@ -43,11 +40,11 @@ export function resolveKey(provider, apiKeys = {}) {
 function buildModel(provider, apiKey, maxTokens, streaming) {
   if (provider === 'gemini') {
     return new ChatGoogleGenerativeAI({
-      model: MODELS.gemini, apiKey, maxOutputTokens: maxTokens, streaming,
+      model: modelId('gemini'), apiKey, maxOutputTokens: maxTokens, streaming,
     });
   }
   return new ChatGroq({
-    model: MODELS.groq, apiKey, maxTokens, streaming,
+    model: modelId('groqFast'), apiKey, maxTokens, streaming,
   });
 }
 

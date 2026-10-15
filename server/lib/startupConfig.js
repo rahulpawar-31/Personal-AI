@@ -32,10 +32,21 @@ export function productionConfigProblems(env = process.env) {
   return problems;
 }
 
+// Production is declared only by NODE_ENV=production, so if that variable goes
+// missing on the live host every check above is silently skipped and the app
+// boots in development mode (open signup, JSON-file store, localhost CORS).
+// Render sets RENDER=true on every service it runs, which is never the case on
+// a developer's machine, so seeing it without NODE_ENV=production means the
+// service is misconfigured. Deliberately not folded into isProduction().
+export function hostingProblems(env = process.env) {
+  if (isProduction(env) || env.RENDER !== 'true') return [];
+  return ['NODE_ENV must be "production" on Render (RENDER=true is set but NODE_ENV is not); without it the production safety checks are skipped'];
+}
+
 export function assertProductionConfig(env = process.env, exit = process.exit) {
-  const problems = productionConfigProblems(env);
+  const problems = [...hostingProblems(env), ...productionConfigProblems(env)];
   if (problems.length === 0) return;
-  console.error('[config] Refusing to start in production with incomplete configuration:');
+  console.error('[config] Refusing to start with an unsafe or incomplete configuration:');
   for (const p of problems) console.error(`[config]  - ${p}`);
   exit(1);
 }

@@ -4,7 +4,7 @@ Copy-paste commands, in order, with a plain-English note under each one. Run VPS
 
 Replace `<IP>` with the current server IP everywhere below (currently `65.20.66.12`, Vultr Mumbai). Repo: `rahulpawar-31/Personal-AI` (public — no deploy key needed to clone).
 
-**Read this before Step 8 if you're migrating off Railway with existing users:** `ENCRYPTION_SECRET` and (ideally) `JWT_SECRET` must be copied **exactly** from Railway's current environment variables, not regenerated. `ENCRYPTION_SECRET` in particular decrypts every already-stored Google/GitHub/Slack/Notion/Trello/Todoist token in the database — generate a fresh one and all of it becomes permanently undecryptable. `JWT_SECRET` is lower-stakes (a fresh one just logs everyone out).
+**Read this before Step 8 if you're migrating off Render with existing users:** `ENCRYPTION_SECRET` and (ideally) `JWT_SECRET` must be copied **exactly** from Render's current environment variables, not regenerated. `ENCRYPTION_SECRET` in particular decrypts every already-stored Google/GitHub/Slack/Notion/Trello/Todoist token in the database — generate a fresh one and all of it becomes permanently undecryptable. `JWT_SECRET` is lower-stakes (a fresh one just logs everyone out).
 
 **Also read before deploying:** this box has no domain/HTTPS yet (IP-only). Google OAuth (Sign in with Google, Gmail, Calendar) may be rejected by Google over plain HTTP — the rest of the app works fine either way. Add a domain + Step 13 (HTTPS) when ready.
 
@@ -24,13 +24,13 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 node -v
 ```
-Node 22 — matches this repo's CI (`.github/workflows/ci.yml`) and `nixpacks.toml`.
+Node 22 — matches this repo's CI (`.github/workflows/ci.yml`).
 ```bash
 apt install -y nginx
 npm install -g pm2
 apt install -y certbot python3-certbot-nginx
 ```
-Nginx (reverse proxy), PM2 (keeps the app running forever), Certbot (free HTTPS, later — Step 13). **No local Postgres** — this deploy keeps using the existing hosted Postgres (Neon) via `DATABASE_URL`, same as Railway does today.
+Nginx (reverse proxy), PM2 (keeps the app running forever), Certbot (free HTTPS, later — Step 13). **No local Postgres** — this deploy keeps using the existing hosted Postgres (Neon) via `DATABASE_URL`, same as the Render API does today.
 
 ## Step 3 — Firewall
 ```bash
@@ -70,22 +70,22 @@ Goes at the **repo root** (`/var/www/personal-ai/.env`), matching this repo's ex
 ```bash
 cd /var/www/personal-ai
 
-JWT_SECRET=$(openssl rand -hex 32)   # or paste Railway's current value — see note above
+JWT_SECRET=$(openssl rand -hex 32)   # or paste Render's current value — see note above
 
 cat > .env << EOF
 NODE_ENV=production
 PUBLIC_URL=http://<IP>
 PORT=3001
 
-DATABASE_URL="<paste your existing Neon/Railway DATABASE_URL here>"
-ENCRYPTION_SECRET="<paste EXACTLY from Railway — do not generate fresh, see note above>"
+DATABASE_URL="<paste your existing Neon DATABASE_URL here, as set on Render>"
+ENCRYPTION_SECRET="<paste EXACTLY from Render — do not generate fresh, see note above>"
 JWT_SECRET="${JWT_SECRET}"
 
-GOOGLE_CLIENT_ID="<paste from Railway>"
-GOOGLE_CLIENT_SECRET="<paste from Railway>"
+GOOGLE_CLIENT_ID="<paste from Render>"
+GOOGLE_CLIENT_SECRET="<paste from Render>"
 
 OWNER_USERNAME="<your admin account's username — required, the server refuses to start in production without it>"
-GITHUB_WEBHOOK_SECRET="<paste from Railway, optional>"
+GITHUB_WEBHOOK_SECRET="<paste from Render, optional>"
 EOF
 
 chmod 600 .env
@@ -197,7 +197,7 @@ Reload the site in your browser — a new log line should appear instantly.
 
 ## Mistakes worth remembering
 1. `/root` blocks Nginx from reading files there later — always use `/var/www/`.
-2. `ENCRYPTION_SECRET` must be copied from Railway exactly, never regenerated, if you have existing stored user credentials — see the note at the top.
+2. `ENCRYPTION_SECRET` must be copied from Render exactly, never regenerated, if you have existing stored user credentials — see the note at the top.
 3. This app has no `dotenv` package — production env loading is Node's native `--env-file` flag, pointed at the repo-root `.env`.
 4. Fresh Ubuntu's default Nginx site can silently swallow requests — remove it (Step 9).
 5. Google OAuth needs HTTPS (except localhost) — expect it to be flaky or rejected until Step 10 is done.

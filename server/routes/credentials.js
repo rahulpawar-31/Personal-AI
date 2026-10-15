@@ -4,6 +4,7 @@ import * as integrations from '../services/integrations.js';
 import { requireAuth } from '../middleware/auth.js';
 import { credLimiter } from '../middleware/rateLimiter.js';
 import { validateWebhookUrl } from '../lib/outboundRequest.js';
+import { modelId, isModelUnavailableError } from '../lib/models.js';
 
 const router = Router();
 
@@ -81,12 +82,18 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
         if (!geminiKey.startsWith('AIza')) return res.status(400).json({ ok: false, error: 'Invalid format. Gemini keys start with AIza — get one at aistudio.google.com/apikey.' });
         const client = new OpenAI({ apiKey: geminiKey, baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/' });
         try {
-          await client.chat.completions.create({ model: 'gemini-2.0-flash', messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 10 });
+          await client.chat.completions.create({ model: modelId('gemini'), messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 10 });
         } catch (apiErr) {
           const status = apiErr?.status ?? apiErr?.response?.status;
           if (status === 429) {
             await integrations.saveKey(uid, 'gemini', 'GEMINI_API_KEY', geminiKey);
             return res.json({ ok: true, warning: 'Key saved. Gemini is rate-limited right now (free-tier quota). It will work once the limit resets.' });
+          }
+          // "Model not found" comes back after the key was accepted, so the key is
+          // fine; only the server's model name is out of date. Don't reject a valid key for that.
+          if (isModelUnavailableError(apiErr)) {
+            await integrations.saveKey(uid, 'gemini', 'GEMINI_API_KEY', geminiKey);
+            return res.json({ ok: true, warning: `Key saved, but the model "${modelId('gemini')}" is not available. Ask the app owner to set GEMINI_MODEL to a current model.` });
           }
           const msg = apiErr?.error?.message || apiErr?.error?.error?.message || apiErr?.message || 'Gemini API request failed';
           return res.status(400).json({ ok: false, error: `Gemini: ${msg}` });
@@ -101,8 +108,13 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
         if (!groqKey.startsWith('gsk_')) return res.status(400).json({ ok: false, error: 'Invalid format. Groq keys start with gsk_ — get one at console.groq.com/keys.' });
         const client = new OpenAI({ apiKey: groqKey, baseURL: 'https://api.groq.com/openai/v1' });
         try {
-          await client.chat.completions.create({ model: 'llama-3.1-8b-instant', messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 10 });
+          await client.chat.completions.create({ model: modelId('groqFast'), messages: [{ role: 'user', content: 'Reply with the single word OK' }], max_tokens: 10 });
         } catch (apiErr) {
+          // See the Gemini case: a missing model means the key itself was accepted.
+          if (isModelUnavailableError(apiErr)) {
+            await integrations.saveKey(uid, 'groq', 'GROQ_API_KEY', groqKey);
+            return res.json({ ok: true, warning: `Key saved, but the model "${modelId('groqFast')}" is not available. Ask the app owner to set GROQ_FAST_MODEL to a current model.` });
+          }
           const msg = apiErr?.error?.error?.message || apiErr?.message || 'Groq API request failed';
           return res.status(400).json({ ok: false, error: `Groq: ${msg}` });
         }

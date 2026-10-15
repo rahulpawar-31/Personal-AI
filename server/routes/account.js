@@ -55,12 +55,24 @@ router.get('/api/admin/users', requireAdmin, async (req, res) => {
     const withCounts = await Promise.all(users.map(async u => {
       try {
         const keys = await integrations.listKeysWithMeta(u.id);
-        return { ...u, integrationCount: integrations.countSavedKeys(keys) };
+        return { ...u, integrationCount: integrations.countSavedKeys(keys), connectedServices: integrations.connectedServices(keys) };
       } catch {
-        return { ...u, integrationCount: 0 };
+        return { ...u, integrationCount: 0, connectedServices: [] };
       }
     }));
     res.json(withCounts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/api/admin/users/:id/keys', requireAdmin, async (req, res) => {
+  const targetId = Number(req.params.id);
+  if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: 'Invalid user ID' });
+  try {
+    const users = await dbListUsers();
+    if (!users.some(u => u.id === targetId)) return res.status(404).json({ error: 'User not found' });
+    res.json(integrations.describeKeys(await integrations.listKeysWithMeta(targetId)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

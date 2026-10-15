@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
+import { serviceLabels } from './serviceLabels.js';
 import { LoadingState, ErrorState } from './components/ui/States.jsx';
+import UserKeysModal from './components/admin/UserKeysModal.jsx';
 
 export default function AdminPage({ user }) {
   const [users,   setUsers]   = useState([]);
@@ -10,6 +12,7 @@ export default function AdminPage({ user }) {
   const [error,   setError]   = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const armedAt = useRef(0);
 
   const load = useCallback(async () => {
@@ -107,17 +110,24 @@ export default function AdminPage({ user }) {
 
       {/* Users table */}
       <div className="scroll-x" style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)' }}>
-        <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
-              {['ID', 'Username', 'Email', 'Keys', 'Joined', 'Role', ''].map(h => (
+              {['ID', 'Username', 'Email', 'Keys', 'Connected', 'Joined', 'Role', ''].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {users.map((u, i) => (
-              <tr key={u.id} style={{ borderBottom: i < users.length - 1 ? '0.5px solid var(--border)' : 'none' }}>
+              <tr
+                key={u.id}
+                onClick={() => setViewing(u)}
+                onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setViewing(u); } }}
+                tabIndex={0}
+                title="Show saved keys"
+                style={{ cursor: 'pointer', borderBottom: i < users.length - 1 ? '0.5px solid var(--border)' : 'none' }}
+              >
                 <td style={{ padding: '9px 12px', color: 'var(--muted)' }}>{u.id}</td>
                 <td style={{ padding: '9px 12px', fontWeight: 500 }}>
                   {u.username}
@@ -129,8 +139,11 @@ export default function AdminPage({ user }) {
                     {u.integrationCount}
                   </span>
                 </td>
+                <td style={{ padding: '9px 12px', color: 'var(--muted)', maxWidth: 240 }}>
+                  {serviceLabels(u.connectedServices).join(', ') || 'None'}
+                </td>
                 <td style={{ padding: '9px 12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</td>
-                <td style={{ padding: '9px 12px' }}>
+                <td style={{ padding: '9px 12px' }} onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => u.id !== user.id && toggleAdmin(u)}
                     disabled={u.id === user.id}
@@ -145,7 +158,7 @@ export default function AdminPage({ user }) {
                     {u.isAdmin ? 'Admin' : 'User'}
                   </button>
                 </td>
-                <td style={{ padding: '9px 12px', textAlign: 'right' }}>
+                <td style={{ padding: '9px 12px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                   {u.id !== user.id && (
                     <>
                       {confirmingId === u.id && (
@@ -176,6 +189,8 @@ export default function AdminPage({ user }) {
       <p style={{ marginTop: 12, fontSize: 11, color: 'var(--muted)' }}>
         Node {stats?.nodeVersion} · server uptime {Math.floor((stats?.uptime ?? 0) / 60)}m
       </p>
+
+      <UserKeysModal user={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

@@ -3,6 +3,10 @@ name: Deploy to VPS
 on:
   workflow_dispatch:
 
+# The job only runs commands on the VPS over SSH; it never uses the GitHub API
+# or reads this repository through the workflow token, so it gets no permissions.
+permissions: {}
+
 jobs:
   deploy:
     name: Deploy
@@ -10,7 +14,10 @@ jobs:
 
     steps:
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
+        # Pinned to a commit, not a tag: this step runs with the VPS SSH key, and
+        # a moved or compromised tag would change what runs there. The commit is
+        # the v1.0.3 release.
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -19,8 +26,10 @@ jobs:
             set -e
             cd /var/www/personal-ai
             git pull
-            npm install
-            npm install --prefix server
-            npm install --include=dev --prefix client
+            # npm ci installs exactly what the lockfiles say (npm install may
+            # rewrite them and pick newer versions), so a deploy matches what CI tested.
+            npm ci
+            npm ci --prefix server
+            npm ci --include=dev --prefix client
             npm run build
             pm2 reload devos-agent
