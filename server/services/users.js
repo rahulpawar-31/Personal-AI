@@ -20,6 +20,12 @@ export function getJwtSecret() {
 
 const SALT_ROUNDS = 12;
 
+// Lowercased on both sides because dbCreateUser stores usernames lowercased.
+export function isSignupAllowed(username, ownerUsername) {
+  if (!ownerUsername) return true;
+  return username.trim().toLowerCase() === ownerUsername.trim().toLowerCase();
+}
+
 export async function createUser(username, password, email) {
   if (!username?.trim())          throw new Error('Username is required');
   if (!/^\w{3,32}$/.test(username.trim())) throw new Error('Username must be 3–32 characters (letters, numbers, underscores)');
@@ -31,9 +37,7 @@ export async function createUser(username, password, email) {
   // instance. When OWNER_USERNAME is set (production), only that account may
   // sign up. Unset in dev/CI (see server/tests/smoke-auth.sh), where open
   // signup is expected and harmless.
-  const ownerUsername = process.env.OWNER_USERNAME;
-  // Lowercased on both sides because dbCreateUser stores usernames lowercased.
-  if (ownerUsername && username.trim().toLowerCase() !== ownerUsername.trim().toLowerCase()) {
+  if (!isSignupAllowed(username, process.env.OWNER_USERNAME)) {
     throw new Error('Signups are currently invite-only.');
   }
 
