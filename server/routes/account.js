@@ -1,10 +1,22 @@
 import { Router } from 'express';
 import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
+import auth from '../services/auth.js';
 import { dbListUsers, dbDeleteUser, dbSetAdmin, getPool } from '../services/db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { accountLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
+
+// A removed account must stop feeding the background jobs: the 9 AM digest and
+// the meeting-brief cron both pick users from the token files on disk.
+async function disconnectRemovedUser(userId) {
+  try {
+    await auth.disconnectUser(userId);
+  } catch (err) {
+    console.warn(`[account] Could not clear connections for removed user ${userId}:`, err.message);
+  }
+}
 
 router.put('/api/users/me/email', requireAuth, async (req, res) => {
   try {
@@ -15,7 +27,7 @@ router.put('/api/users/me/email', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/api/users/me/password', requireAuth, async (req, res) => {
+router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
     res.json({ ok: true });
@@ -24,9 +36,11 @@ router.put('/api/users/me/password', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/api/users/me', requireAuth, async (req, res) => {
+router.delete('/api/users/me', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.deleteUser(req.user.userId, req.body.password);
+    await disconnectRemovedUser(req.user.userId);
+    userService.clearRefreshCookie(res);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -58,6 +72,7 @@ router.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   if (targetId === req.user.userId) return res.status(400).json({ error: 'Cannot delete your own account here' });
   try {
     await dbDeleteUser(targetId);
+    await disconnectRemovedUser(targetId);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { limitSendApprovals } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import { executeAction } from '../lib/actions.js';
 import { dbListPendingActions, dbGetPendingAction, dbTransitionPendingAction } from '../services/db.js';
@@ -34,7 +35,7 @@ async function notActionable(uid, id, res) {
   return true;
 }
 
-router.post('/api/actions/:id/approve', requireAuth, async (req, res) => {
+router.post('/api/actions/:id/approve', requireAuth, limitSendApprovals(dbGetPendingAction), async (req, res) => {
   const uid = req.user.userId;
   const { id } = req.params;
   try {
