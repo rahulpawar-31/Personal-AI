@@ -6,7 +6,7 @@ export default function MultiKeyRow({ service, label, description, fields: field
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState({});
   const keyMeta = saved?.[service]?.[primaryKey];
-  const connected = !!keyMeta;
+  const connected = Boolean(keyMeta);
 
   function setField(key, val) { setValues(v => ({ ...v, [key]: val })); }
 

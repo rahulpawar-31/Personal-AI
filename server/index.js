@@ -12,6 +12,7 @@ import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
 import { setupCronJobs }   from './lib/digest.js';
 import { publicOrigin, extraOrigins } from './lib/env.js';
+import { assertProductionConfig } from './lib/startupConfig.js';
 
 import authRoutes        from './routes/auth.js';
 import accountRoutes     from './routes/account.js';
@@ -211,6 +212,7 @@ async function migrateJsonIntegrations() {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
+assertProductionConfig();
 await initDB();
 await auth.restoreAllFromDB();
 await migrateEnvCredentials();

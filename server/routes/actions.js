@@ -52,7 +52,7 @@ router.post('/api/actions/:id/approve', requireAuth, async (req, res) => {
     let result, isErr;
     try {
       result = await executeAction(claimed.actionType, finalParams, claimed.sourceMessage ?? '', creds, uid);
-      isErr  = !!result?.error;
+      isErr  = Boolean(result?.error);
     } catch (execErr) {
       result = { error: execErr.message };
       isErr  = true;

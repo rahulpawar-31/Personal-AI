@@ -67,7 +67,7 @@ export default function LinkedInPanel({ health = {} }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const textareaRef = useRef(null);
 
-  const connected = !!health.linkedin;
+  const connected = Boolean(health.linkedin);
 
   useEffect(() => {
     apiFetch('/api/content/linkedin/history')
@@ -278,11 +278,11 @@ export default function LinkedInPanel({ health = {} }) {
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {connected && (
-                <button className="primary" onClick={() => approve(true)} disabled={!!loading || finalPost().length > LINKEDIN_MAX}>
+                <button className="primary" onClick={() => approve(true)} disabled={Boolean(loading) || finalPost().length > LINKEDIN_MAX}>
                   {loading === 'posting' ? 'Posting…' : 'Post to LinkedIn ↗'}
                 </button>
               )}
-              <button onClick={() => approve(false)} disabled={!!loading}>
+              <button onClick={() => approve(false)} disabled={Boolean(loading)}>
                 {loading === 'saving' ? 'Saving…' : 'Save to voice profile'}
               </button>
               <button onClick={() => copyText(finalPost(), 'final')} style={{ marginLeft: 'auto' }}>

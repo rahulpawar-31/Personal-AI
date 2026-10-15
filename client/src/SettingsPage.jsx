@@ -130,8 +130,8 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
     await loadSaved();
   }
 
-  const hasOwnAiKey = !!(saved.gemini?.GEMINI_API_KEY || saved.groq?.GROQ_API_KEY);
-  const hasSharedAiKey = !!(health.geminiShared || health.groqShared);
+  const hasOwnAiKey = Boolean(saved.gemini?.GEMINI_API_KEY || saved.groq?.GROQ_API_KEY);
+  const hasSharedAiKey = Boolean(health.geminiShared || health.groqShared);
   const aiMissing = !hasOwnAiKey && !hasSharedAiKey;
 
   if (loading) {

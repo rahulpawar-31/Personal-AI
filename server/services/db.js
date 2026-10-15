@@ -7,6 +7,7 @@
 // separate rather than one, and why a third in-memory adapter exists.
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { isProduction } from '../lib/env.js';
 import {
   createPostgresUserStore, createJsonFileUserStore,
 } from './stores/userStore.js';
@@ -117,6 +118,12 @@ export async function initDB() {
 
       console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations + user_memory)`);
     } catch (err) {
+      // In production the JSON store would be empty (ephemeral filesystem), which
+      // lets anyone register the owner username during an outage. Fail closed.
+      if (isProduction()) {
+        console.error('[db] Postgres init failed in production — refusing to fall back to the JSON store:', err.message);
+        throw err;
+      }
       console.error('[db] Postgres init failed:', err.message, '— falling back to JSON store');
       pool = null;
     }

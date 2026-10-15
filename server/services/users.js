@@ -1,4 +1,5 @@
 // server/services/users.js
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdatePasswordHash, dbDeleteUser, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
@@ -6,7 +7,9 @@ import { isHttps } from '../lib/env.js';
 
 export { dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser };
 
-const _jwtFallback = Math.random().toString(36).slice(2) + Date.now().toString(36);
+// Dev-only fallback (production refuses to start without JWT_SECRET, see
+// lib/startupConfig.js). Random bytes, so it cannot be guessed from the clock.
+const _jwtFallback = crypto.randomBytes(32).toString('hex');
 if (!process.env.JWT_SECRET) {
   console.warn('[auth] JWT_SECRET not set — using temporary secret; tokens will invalidate on restart');
 }
@@ -16,6 +19,12 @@ export function getJwtSecret() {
 }
 
 const SALT_ROUNDS = 12;
+
+// Lowercased on both sides because dbCreateUser stores usernames lowercased.
+export function isSignupAllowed(username, ownerUsername) {
+  if (!ownerUsername) return true;
+  return username.trim().toLowerCase() === ownerUsername.trim().toLowerCase();
+}
 
 export async function createUser(username, password, email) {
   if (!username?.trim())          throw new Error('Username is required');
@@ -28,8 +37,7 @@ export async function createUser(username, password, email) {
   // instance. When OWNER_USERNAME is set (production), only that account may
   // sign up. Unset in dev/CI (see server/tests/smoke-auth.sh), where open
   // signup is expected and harmless.
-  const ownerUsername = process.env.OWNER_USERNAME;
-  if (ownerUsername && username.trim() !== ownerUsername) {
+  if (!isSignupAllowed(username, process.env.OWNER_USERNAME)) {
     throw new Error('Signups are currently invite-only.');
   }
 

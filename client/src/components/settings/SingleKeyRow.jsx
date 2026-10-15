@@ -6,7 +6,7 @@ export default function SingleKeyRow({ service, label, description, linkHref, ke
   const [value, setValue] = useState('');
   const [expanded, setExpanded] = useState(false);
   const keyMeta = saved?.[service]?.[keyName];
-  const connected = !!keyMeta;
+  const connected = Boolean(keyMeta);
 
   async function handleTest() {
     const ok = await onTest(service, value);

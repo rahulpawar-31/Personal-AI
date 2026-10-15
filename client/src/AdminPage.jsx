@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
 import { LoadingState, ErrorState } from './components/ui/States.jsx';
@@ -10,6 +10,7 @@ export default function AdminPage({ user }) {
   const [error,   setError]   = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
+  const armedAt = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -36,6 +37,17 @@ export default function AdminPage({ user }) {
     const t = setTimeout(() => setConfirmingId(null), 4000);
     return () => clearTimeout(t);
   }, [confirmingId]);
+
+  // A fast double-click on Delete would otherwise hit "Confirm delete" before
+  // anyone can read it, so a confirm click right after arming is ignored.
+  function onDeleteClick(u) {
+    if (confirmingId !== u.id) {
+      armedAt.current = Date.now();
+      setConfirmingId(u.id);
+    } else if (Date.now() - armedAt.current > 500) {
+      deleteUser(u);
+    }
+  }
 
   async function deleteUser(u) {
     setConfirmingId(null);
@@ -145,7 +157,7 @@ export default function AdminPage({ user }) {
                         </button>
                       )}
                       <button
-                        onClick={() => (confirmingId === u.id ? deleteUser(u) : setConfirmingId(u.id))}
+                        onClick={() => onDeleteClick(u)}
                         disabled={deleting === u.id}
                         title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
                         style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
