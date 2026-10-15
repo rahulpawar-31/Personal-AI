@@ -4,6 +4,7 @@ import todoist  from '../services/todoist.js';
 import trello   from '../services/trello.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getUserCreds, notionReady } from '../lib/creds.js';
+import { describeSourceError } from '../lib/sourceErrors.js';
 
 const router = Router();
 
@@ -35,21 +36,23 @@ router.post('/api/trello/move', requireAuth, async (req, res) => {
 router.get('/api/tasks', requireAuth, async (req, res) => {
   try {
     const creds = await getUserCreds(req.user.userId);
-    const [nr, tr] = await Promise.allSettled([
-      notionReady(creds)          ? notion.getTasks(creds)  : Promise.resolve([]),
+    const strict = { throwOnError: true };
+    const [nr, ar, cr] = await Promise.allSettled([
+      notionReady(creds)          ? notion.getTasks(creds, strict) : Promise.resolve([]),
+      todoist.isConfigured(creds) ? todoist.getTasks('today | overdue', creds, strict) : Promise.resolve([]),
       // Merge active + recently-completed: Todoist's active-tasks endpoint
       // never returns closed tasks, so without this a task ticked Done would
       // vanish from the board entirely on the next refresh instead of staying
       // in the Done column (see getRecentlyCompleted in services/todoist.js).
-      todoist.isConfigured(creds)
-        ? Promise.all([todoist.getTasks('today | overdue', creds), todoist.getRecentlyCompleted(creds)])
-            .then(([active, completed]) => [...active, ...completed])
-        : Promise.resolve([]),
+      todoist.isConfigured(creds) ? todoist.getRecentlyCompleted(creds, 30, strict) : Promise.resolve([]),
     ]);
-    res.json({
-      notion:  nr.status === 'fulfilled' ? nr.value : [],
-      todoist: tr.status === 'fulfilled' ? tr.value : [],
-    });
+    const got = r => (r.status === 'fulfilled' ? r.value : []);
+    // A source that failed is reported, not shown as an empty column that looks like "no tasks".
+    const errors = {};
+    if (nr.status === 'rejected') errors.notion = describeSourceError('notion', nr.reason);
+    const todoistFailure = [ar, cr].find(r => r.status === 'rejected');
+    if (todoistFailure) errors.todoist = describeSourceError('todoist', todoistFailure.reason);
+    res.json({ notion: got(nr), todoist: [...got(ar), ...got(cr)], errors });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -44,17 +44,23 @@ export async function createTask(title, dueDateString = 'today', creds = {}) {
   return formatTask(await res.json());
 }
 
-export async function getTasks(filter = 'today | overdue', creds = {}) {
+// `throwOnError` is for callers that want to show the failure (the Tasks board);
+// the others (digest, chat) keep the old behaviour of an empty list.
+export async function getTasks(filter = 'today | overdue', creds = {}, { throwOnError = false } = {}) {
   if (!isConfigured(creds)) return [];
   try {
-    const res = await fetch(`${BASE}/tasks?filter=${encodeURIComponent(filter)}`, { headers: headers(creds) });
+    // API v1 has a dedicated filter endpoint. If it is not available, fall back to
+    // the older ?filter= form so this can never do worse than it did before.
+    let res = await fetch(`${BASE}/tasks/filter?query=${encodeURIComponent(filter)}`, { headers: headers(creds) });
+    if (!res.ok) res = await fetch(`${BASE}/tasks?filter=${encodeURIComponent(filter)}`, { headers: headers(creds) });
     if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text().catch(() => '')}`);
     const data = await res.json();
     const tasks = Array.isArray(data) ? data : (data.results ?? []);
     return tasks.map(formatTask);
   } catch (err) {
     console.error('[todoist] getTasks:', err.message);
-    return []
+    if (throwOnError) throw err;
+    return [];
   }
 }
 
@@ -64,22 +70,40 @@ export async function getTasks(filter = 'today | overdue', creds = {}) {
 // soon as the board refetches, since it's gone from the active list. Bounded to
 // the last `days` so the Done column doesn't accumulate someone's entire
 // multi-year completion history.
-export async function getRecentlyCompleted(creds = {}, days = 30) {
+//
+// The path is /tasks/completed/by_completion_date — with a slash. The earlier
+// "completed_by_completion_date" was read by Todoist as a task id, which is the
+// "task_id ... Non-base32 digit found" 400 seen in the production log. Both
+// `since` and `until` are required, and the window is limited to about three
+// months, so `days` is capped. Results are paged with a cursor.
+const MAX_COMPLETED_DAYS = 85;
+const MAX_COMPLETED_PAGES = 3;
+
+export async function getRecentlyCompleted(creds = {}, days = 30, { throwOnError = false } = {}) {
   if (!isConfigured(creds)) return [];
   try {
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    const res = await fetch(
-      `${BASE}/tasks/completed_by_completion_date?since=${encodeURIComponent(since)}&limit=200`,
-      { headers: headers(creds) }
-    );
-    if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text().catch(() => '')}`);
-    const data  = await res.json();
-    const tasks = Array.isArray(data) ? data : (data.items ?? data.results ?? []);
+    const now   = Date.now();
+    const since = new Date(now - Math.min(days, MAX_COMPLETED_DAYS) * 86400000).toISOString();
+    const until = new Date(now).toISOString();
+    const tasks = [];
+    let cursor = null;
+    for (let page = 0; page < MAX_COMPLETED_PAGES; page += 1) {
+      // Each page needs the previous page's cursor, so this is sequential.
+      const url = `${BASE}/tasks/completed/by_completion_date?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`
+        + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const res = await fetch(url, { headers: headers(creds) });
+      if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text().catch(() => '')}`);
+      const data = await res.json();
+      tasks.push(...(Array.isArray(data) ? data : (data.items ?? data.results ?? [])));
+      cursor = Array.isArray(data) ? null : (data.next_cursor ?? null);
+      if (!cursor) break;
+    }
     // Completed-task items carry `content`/`completed_at` but not `is_completed` —
     // formatTask() only checks is_completed/checked, so mark it explicit here.
     return tasks.map(t => formatTask({ ...t, is_completed: true }));
   } catch (err) {
     console.error('[todoist] getRecentlyCompleted:', err.message);
+    if (throwOnError) throw err;
     return [];
   }
 }

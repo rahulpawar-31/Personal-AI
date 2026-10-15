@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { LoadingState, EmptyState } from './ui/States.jsx';
+import { newTaskErrors } from '../taskErrors.js';
+
+// Task-source failures already toasted since the page loaded, so a board that reloads
+// often does not repeat the same message.
+const shownTaskErrors = new Set();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -489,7 +494,12 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
         apiFetch('/api/notes'),
       ]);
       if (tr.ok)  { const d = await tr.json();  setTrelloLists(d.lists ?? []); setTrelloCards(d.cards ?? []); }
-      if (tsk.ok) { const d = await tsk.json(); setNotionTasks(d.notion ?? []); setTodoistTasks(d.todoist ?? []); }
+      if (tsk.ok) {
+        const d = await tsk.json();
+        setNotionTasks(d.notion ?? []); setTodoistTasks(d.todoist ?? []);
+        // A source that failed says so (once), instead of an empty column that looks like "no tasks".
+        newTaskErrors(d.errors, shownTaskErrors).forEach(msg => toast(msg, 'error'));
+      }
       if (nt.ok)  { const d = await nt.json();  setNotionEnabled(true); setNotionNotes(Array.isArray(d) ? d.slice(0, 10) : []); }
     } finally { setLoading(false); }
   }
