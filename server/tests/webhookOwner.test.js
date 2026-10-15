@@ -39,6 +39,34 @@ test('when two users own the repo, the lowest user id wins', async () => {
   assert.equal((await findOwnerCreds('ada/devos', deps({ 2: b, 1: a }))).SLACK_USER_ID, 'UA');
 });
 
+test('the lowest user id wins even if the lookup returns ids out of order', async () => {
+  const a = { ...ghCreds('ada', 'devos'), ...slackCreds, SLACK_USER_ID: 'UA' };
+  const b = { ...ghCreds('ada', 'devos'), ...slackCreds, SLACK_USER_ID: 'UB' };
+  const users = { 1: a, 2: b };
+  const found = await findOwnerCreds('ada/devos', { listUserIds: async () => [2, 1], getCreds: async id => users[id] });
+  assert.equal(found.SLACK_USER_ID, 'UA');
+});
+
+test('a user whose credentials fail to load is skipped, not fatal', async () => {
+  const owner = { ...ghCreds('ada', 'devos'), ...slackCreds };
+  const warn = console.warn;
+  const warnings = [];
+  console.warn = msg => warnings.push(msg);
+  try {
+    const found = await findOwnerCreds('ada/devos', {
+      listUserIds: async () => [1, 2],
+      getCreds: async id => { if (id === 1) throw new Error('cannot decrypt'); return owner; },
+    });
+    assert.equal(found, owner);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /user 1.*cannot decrypt/);
+    const none = await findOwnerCreds('ada/devos', { listUserIds: async () => [1], getCreds: async () => { throw new Error('x'); } });
+    assert.equal(none, null);
+  } finally {
+    console.warn = warn;
+  }
+});
+
 test('a missing repo name or no candidates returns null without looking anyone up', async () => {
   let looked = false;
   const spy = { listUserIds: async () => { looked = true; return []; }, getCreds: async () => ({}) };
