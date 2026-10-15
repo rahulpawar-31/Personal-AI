@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { IntegrationRow, ToggleBtn, Modal, SetupPanel, FieldGroup, UNREADABLE_KEY_MESSAGE } from './primitives.jsx';
+import { setupLinkLabel } from './setupLabel.js';
 
 // Multi-key integration row (Notion, GitHub, Trello, Slack, LinkedIn)
 export default function MultiKeyRow({ service, label, description, fields: fieldDefs, saved, testing, onTest, onForceSave, onDisconnect, error, primaryKey }) {
@@ -35,7 +36,7 @@ export default function MultiKeyRow({ service, label, description, fields: field
         <SetupPanel
           service={service} label={label}
           description={description}
-          setupLinkLabel={`${label} ${primaryField?.label ?? 'Credentials'} Setup`}
+          setupLinkLabel={setupLinkLabel(label, primaryField?.label)}
           setupLinkHref={primaryField?.linkHref}
           connected={connected}
           testing={testing === service}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
+import { nextHourLocal, localToInstantISO } from '../dateInput.js';
 import NotConnected from './NotConnected.jsx';
 
 const DAYS = [
@@ -52,10 +53,9 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
   const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
   const [showForm,  setShowForm] = useState(false);
   const [creating,  setCreating] = useState(false);
-  const [form, setForm] = useState(() => {
-    const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0);
-    return { title: '', date: d.toISOString().slice(0, 16), duration: 60, recurring: false, days: [], time: '14:00' };
-  });
+  const [form, setForm] = useState(() => (
+    { title: '', date: nextHourLocal(), duration: 60, recurring: false, days: [], time: '14:00' }
+  ));
 
   useEffect(() => { if (connected) load(); }, [connected]);
   useEffect(() => { if (connected && refreshKey) load(); }, [refreshKey]);
@@ -83,11 +83,10 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
     try {
       const body = form.recurring
         ? { title: form.title, recurring: true, days: form.days, time: form.time, duration: Number(form.duration) }
-        : { title: form.title, date: form.date, duration: Number(form.duration) };
+        : { title: form.title, date: localToInstantISO(form.date), duration: Number(form.duration) };
       const r = await apiFetch('/api/calendar', { method: 'POST', body: JSON.stringify(body) });
       if (!r.ok) { const e = await r.json(); toast(e.error, 'error'); return; }
-      const next = new Date(); next.setHours(next.getHours() + 1, 0, 0, 0);
-      setForm({ title: '', date: next.toISOString().slice(0, 16), duration: 60, recurring: false, days: [], time: '14:00' });
+      setForm({ title: '', date: nextHourLocal(), duration: 60, recurring: false, days: [], time: '14:00' });
       setShowForm(false);
       await load();
     } finally { setCreating(false); }

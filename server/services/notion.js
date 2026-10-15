@@ -11,7 +11,9 @@ function notesDb(creds = {}) { return creds.NOTION_NOTES_DB_ID ?? creds.NOTION_T
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
-export async function getTasks(creds = {}) {
+// `throwOnError` is for callers that want to show the failure (the Tasks board);
+// the others (digest, chat) keep the old behaviour of an empty list.
+export async function getTasks(creds = {}, { throwOnError = false } = {}) {
   const notion = getClient(creds);
   const TASKS_DB = tasksDb(creds);
 
@@ -47,6 +49,7 @@ export async function getTasks(creds = {}) {
   } catch (err) {
     const hint = err.code === 'unauthorized' ? ' (check NOTION_API_KEY)' : '';
     console.error('[notion] getTasks:', err.message + hint);
+    if (throwOnError) throw err;
     return [];
   }
 }
