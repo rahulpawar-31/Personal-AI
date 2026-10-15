@@ -53,7 +53,8 @@ export function createPostgresUserStore(pool) {
     },
 
     async findByEmail(email) {
-      const r = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      // Case-insensitive: addresses differ only in case ("Ada@x.com" vs "ada@x.com") but name one mailbox.
+      const r = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) ORDER BY id LIMIT 1', [email]);
       return r.rows[0] ?? null;
     },
 
@@ -151,7 +152,9 @@ function createArrayBackedUserStore({ read, write }) {
     },
 
     async findByEmail(email) {
-      return read().find(u => u.email === email) ?? null;
+      const wanted = typeof email === 'string' ? email.trim().toLowerCase() : '';
+      if (!wanted) return null;
+      return read().find(u => typeof u.email === 'string' && u.email.trim().toLowerCase() === wanted) ?? null;
     },
 
     async linkGoogleId(userId, googleId) {

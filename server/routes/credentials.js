@@ -3,6 +3,7 @@ import OpenAI       from 'openai';
 import * as integrations from '../services/integrations.js';
 import { requireAuth } from '../middleware/auth.js';
 import { credLimiter } from '../middleware/rateLimiter.js';
+import { validateWebhookUrl } from '../lib/outboundRequest.js';
 
 const router = Router();
 
@@ -227,7 +228,11 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
       case 'linkedin': {
         const webhookUrl = sanitizeKey(body.webhookUrl);
         if (!webhookUrl) return res.status(400).json({ ok: false, error: 'Webhook URL is required' });
-        if (!webhookUrl.startsWith('https://')) return res.status(400).json({ ok: false, error: 'Webhook URL must start with https://' });
+        try {
+          validateWebhookUrl(webhookUrl);
+        } catch (err) {
+          return res.status(400).json({ ok: false, error: err.message });
+        }
         await integrations.saveKey(uid, 'linkedin', 'LINKEDIN_WEBHOOK_URL', webhookUrl);
         return res.json({ ok: true });
       }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { setToken } from './api.js';
+import { authErrorMessage } from './authErrors.js';
 
 function submitButtonLabel(loading, isSignup) {
   if (loading) return '…';
@@ -14,16 +15,7 @@ export default function AuthPage({ onAuth }) {
   const [loading,  setLoading]  = useState(false);
   const [showPwd,  setShowPwd]  = useState(false);
   const params = new URLSearchParams(window.location.search);
-  const [error, setError] = useState(() => {
-    if (params.get('auth_error') === 'google_failed') {
-      const detail = params.get('detail');
-      return detail ? `Google sign-in failed: ${detail}` : 'Google sign-in failed. Please try again.';
-    }
-    if (params.get('auth_error') === 'signup_disabled') {
-      return 'Signups are currently invite-only.';
-    }
-    return '';
-  });
+  const [error, setError] = useState(() => authErrorMessage(params));
 
   function switchMode(next) {
     setMode(next);
