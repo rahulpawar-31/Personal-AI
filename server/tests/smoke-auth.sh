@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 # server/tests/smoke-auth.sh
 #
-# P3 auth smoke test: proves every panel-data route in this app is actually
-# guarded by requireAuth, instead of trusting a code read.
+# Auth smoke test: proves the app's routes are actually guarded, and that one
+# user cannot see or act on another user's data, instead of trusting a code read.
 #
-# For each panel route (email, calendar, tasks, GitHub, Slack, Notion, Trello,
-# digest, chat) this:
-#   1. Sends a request with NO Authorization header  -> must be 401.
-#   2. Sends a request with a real JWT (minted via a real POST /api/auth/signup
-#      call, not hand-crafted)                        -> must succeed (200).
+# It boots its own throwaway server instances (JSON-file store, no DATABASE_URL,
+# fake JWT/ENCRYPTION secrets, no real third-party credentials), so it needs
+# nothing but Node + the already-installed server/node_modules — safe for CI and
+# for local use. Two phases, each against a fresh server:
 #
-# It boots its own throwaway server instance (JSON-file store, no
-# DATABASE_URL, fake JWT/ENCRYPTION secrets, no third-party integration
-# credentials) so it needs nothing but Node + the already-installed
-# server/node_modules to run — safe for CI and for local use.
+#   Phase 1 — open signup (OWNER_USERNAME unset, as in development):
+#     a. For ~60 routes (every panel, account, admin, action and content route):
+#        no Authorization header -> 401; a real JWT (minted via POST /api/auth/signup,
+#        not hand-crafted) -> the route's expected authed status. Admin routes
+#        must answer 403 to a non-admin user.
+#     b. Two-user isolation: user B cannot see user A's saved integrations,
+#        pending agent actions or memory, and cannot approve or reject A's action.
+#   Phase 2 — invite-only signup (OWNER_USERNAME set, as in production):
+#     c. A different username is refused (400); the owner username is accepted.
+#
+# server/tests/routeGuards.test.js complements this statically: it fails if any
+# route is added without requireAuth/requireAdmin and without being on its
+# explicit public list.
 #
 # Exit code is non-zero if any assertion fails.
 
@@ -26,13 +34,24 @@ PORT="${SMOKE_TEST_PORT:-4173}"
 BASE_URL="http://127.0.0.1:${PORT}"
 RUN_ID="$$_${RANDOM}"
 TEST_USER="smoketest_${RUN_ID}"
+TEST_USER_B="smoketestb_${RUN_ID}"
+OWNER_NAME="smokeowner_${RUN_ID}"
 TEST_PASS="Sm0keTest!Password1"
+# A variable, because "${body:-{}}" does not expand to a plain {} in bash.
+EMPTY_JSON='{}'
 
 FAILURES=0
 SERVER_PID=""
 LOG_FILE="$(mktemp -t devos-smoke-auth.XXXXXX)"
 
-cleanup() {
+remove_data_files() {
+  # These are gitignored, but a run may have created them fresh — leave no trace.
+  rm -f "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json" "$SERVER_DIR/pending_actions.json"
+  rm -f "$SERVER_DIR"/memory_*.json
+  rm -rf "$SERVER_DIR/tokens"
+}
+
+stop_server() {
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null
     for _ in $(seq 1 10); do
@@ -42,9 +61,12 @@ cleanup() {
     kill -9 "$SERVER_PID" 2>/dev/null
     wait "$SERVER_PID" 2>/dev/null
   fi
-  # These are gitignored, but this run may have created them fresh — leave no trace.
-  rm -f "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json"
-  rm -rf "$SERVER_DIR/tokens"
+  SERVER_PID=""
+}
+
+cleanup() {
+  stop_server
+  remove_data_files
   rm -f "$LOG_FILE"
 }
 trap cleanup EXIT
@@ -54,68 +76,197 @@ trap cleanup EXIT
 if curl -s -o /dev/null --max-time 1 "$BASE_URL/api/webhook/info" 2>/dev/null; then
   echo "FAIL: something is already listening on ${BASE_URL} — refusing to run against it."
   echo "      Set SMOKE_TEST_PORT to a free port, or stop whatever is using ${PORT}."
-  SERVER_PID=""
   exit 1
 fi
 
-echo "==> Starting a throwaway server on port ${PORT} (JSON-file store, no external integrations)"
-# `exec` replaces the subshell's own process image with node's, so the PID
-# bash captures via $! below is node's real PID (not a wrapper we can't kill).
-(
-  cd "$SERVER_DIR" && \
-  exec env \
-    PORT="$PORT" \
-    NODE_ENV=test \
-    JWT_SECRET="smoke-test-jwt-secret-do-not-use-in-prod" \
-    ENCRYPTION_SECRET="smoke-test-encryption-secret-32-chars-min" \
-    DATABASE_URL="" \
-    OWNER_USERNAME="" \
-    node index.js >"$LOG_FILE" 2>&1
-) &
-SERVER_PID=$!
+# start_server <OWNER_USERNAME or empty>
+start_server() {
+  local owner="$1"
+  remove_data_files
+  # `exec` replaces the subshell's own process image with node's, so the PID
+  # bash captures via $! below is node's real PID (not a wrapper we can't kill).
+  (
+    cd "$SERVER_DIR" && \
+    exec env \
+      PORT="$PORT" \
+      NODE_ENV=test \
+      JWT_SECRET="smoke-test-jwt-secret-do-not-use-in-prod" \
+      ENCRYPTION_SECRET="smoke-test-encryption-secret-32-chars-min" \
+      DATABASE_URL="" \
+      OWNER_USERNAME="$owner" \
+      node index.js >"$LOG_FILE" 2>&1
+  ) &
+  SERVER_PID=$!
 
-echo "==> Waiting for the server to come up..."
-READY=0
-for _ in $(seq 1 30); do
-  if curl -s -o /dev/null "$BASE_URL/api/webhook/info"; then
-    READY=1
-    break
-  fi
-  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "FAIL: server process exited during startup. Log:"
+  local ready=0
+  for _ in $(seq 1 30); do
+    if curl -s -o /dev/null "$BASE_URL/api/webhook/info"; then
+      ready=1
+      break
+    fi
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      echo "FAIL: server process exited during startup. Log:"
+      cat "$LOG_FILE"
+      exit 1
+    fi
+    sleep 0.5
+  done
+  if [[ "$ready" -ne 1 ]]; then
+    echo "FAIL: server did not start within 15s. Log:"
     cat "$LOG_FILE"
     exit 1
   fi
-  sleep 0.5
-done
-if [[ "$READY" -ne 1 ]]; then
-  echo "FAIL: server did not start within 15s. Log:"
-  cat "$LOG_FILE"
-  exit 1
-fi
-echo "    server is up (pid $SERVER_PID)"
-
-echo "==> Minting a real JWT via POST /api/auth/signup"
-SIGNUP_RESP=$(curl -s -X POST "$BASE_URL/api/auth/signup" \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"${TEST_USER}\",\"password\":\"${TEST_PASS}\",\"email\":\"${TEST_USER}@example.com\"}")
-
-TOKEN=$(node -e "
-try {
-  const r = JSON.parse(process.argv[1]);
-  process.stdout.write(r.token || '');
-} catch {
-  process.stdout.write('');
+  echo "    server is up (pid $SERVER_PID)"
 }
-" "$SIGNUP_RESP")
 
-if [[ -z "$TOKEN" ]]; then
-  echo "FAIL: could not obtain a JWT from the signup response: $SIGNUP_RESP"
+fail() { echo "  [FAIL] $1"; FAILURES=$((FAILURES + 1)); }
+pass() { echo "  [PASS] $1"; }
+
+assert_status() { # label expected actual
+  if [[ "$3" == "$2" ]]; then pass "$1 -> $3"; else fail "$1 -> expected $2, got $3"; fi
+}
+assert_contains() { # label haystack needle
+  if [[ "$2" == *"$3"* ]]; then pass "$1"; else fail "$1 (expected to find '$3')"; fi
+}
+assert_not_contains() { # label haystack needle
+  if [[ "$2" != *"$3"* ]]; then pass "$1"; else fail "$1 (must NOT contain '$3')"; fi
+}
+
+# json_field <json> <dot.path> — prints the value, or nothing if absent/unparseable.
+json_field() {
+  node -e "
+try {
+  let v = JSON.parse(process.argv[1]);
+  for (const k of process.argv[2].split('.')) v = v?.[k];
+  process.stdout.write(v === undefined || v === null ? '' : String(v));
+} catch { process.stdout.write(''); }
+" "$1" "$2"
+}
+
+# api <token> <METHOD> <path> [json-body] — prints the response body.
+api() {
+  local token="$1" method="$2" path="$3" body="${4:-}"
+  local args=(-s -X "$method" "$BASE_URL$path")
+  [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+  if [[ "$method" != "GET" ]]; then args+=(-H "Content-Type: application/json" -d "${body:-$EMPTY_JSON}"); fi
+  curl "${args[@]}"
+}
+
+# status <token> <METHOD> <path> [json-body] — prints only the HTTP status code.
+status() {
+  local token="$1" method="$2" path="$3" body="${4:-}"
+  local args=(-s -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$path")
+  [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+  if [[ "$method" != "GET" ]]; then args+=(-H "Content-Type: application/json" -d "${body:-$EMPTY_JSON}"); fi
+  curl "${args[@]}"
+}
+
+# signup <username> — prints the raw signup response.
+signup() {
+  curl -s -X POST "$BASE_URL/api/auth/signup" -H "Content-Type: application/json" \
+    -d "{\"username\":\"$1\",\"password\":\"${TEST_PASS}\",\"email\":\"$1@example.com\"}"
+}
+
+# Each row: label|METHOD|path|json-body-or-empty|expected-status-with-valid-token
+# `authed` means "got past authentication": anything except 401 or 403. It is
+# used where the route then fails for an unrelated reason (a service that is
+# deliberately not configured in this test), which is correct behaviour and
+# not an auth result. Bodies are minimal-but-valid so a 400 for bad input is
+# never mistaken for the 401 (no auth) / authed outcomes this test checks.
+check() {
+  local label="$1" method="$2" path="$3" body="$4" expect_authed="$5"
+  local status_noauth status_auth
+
+  status_noauth=$(status "" "$method" "$path" "$body")
+  if [[ "$status_noauth" == "401" ]]; then
+    pass "$label ($method $path) -> 401 with no Authorization header"
+  else
+    fail "$label ($method $path) -> expected 401 with no Authorization header, got $status_noauth"
+  fi
+
+  status_auth=$(status "$TOKEN" "$method" "$path" "$body")
+  if [[ "$expect_authed" == "authed" ]]; then
+    if [[ "$status_auth" != "401" && "$status_auth" != "403" ]]; then
+      pass "$label ($method $path) -> $status_auth with a valid token (got past auth)"
+    else
+      fail "$label ($method $path) -> expected to get past auth with a valid token, got $status_auth"
+    fi
+  elif [[ "$status_auth" == "$expect_authed" ]]; then
+    pass "$label ($method $path) -> $status_auth with a valid token"
+  else
+    fail "$label ($method $path) -> expected $expect_authed with a valid token, got $status_auth"
+  fi
+}
+
+run_routes() {
+  local entry label method path body expect
+  for entry in "$@"; do
+    IFS='|' read -r label method path body expect <<< "$entry"
+    check "$label" "$method" "$path" "$body" "$expect"
+  done
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+echo "==> PHASE 1 — open signup (OWNER_USERNAME unset). Starting a throwaway server on port ${PORT}"
+start_server ""
+
+echo "==> Minting real JWTs via POST /api/auth/signup (user A and user B)"
+SIGNUP_A=$(signup "$TEST_USER")
+TOKEN=$(json_field "$SIGNUP_A" token)
+USER_A_ID=$(json_field "$SIGNUP_A" user.id)
+SIGNUP_B=$(signup "$TEST_USER_B")
+TOKEN_B=$(json_field "$SIGNUP_B" token)
+if [[ -z "$TOKEN" || -z "$TOKEN_B" || -z "$USER_A_ID" ]]; then
+  echo "FAIL: could not obtain JWTs from signup. A: $SIGNUP_A  B: $SIGNUP_B"
   exit 1
 fi
-echo "    signup ok, got JWT for user '${TEST_USER}'"
+echo "    signup ok: '${TEST_USER}' (id ${USER_A_ID}) and '${TEST_USER_B}'"
 
-echo "==> Seeding a fake Notion integration (POST /api/integrations) so GET /api/notes"
+# Routes whose services are deliberately not configured here (no Notion, GitHub,
+# Google, Trello, Todoist keys). Run BEFORE the fake Notion key below is saved,
+# so none of them can reach out to a third-party API with it.
+echo "==> Auth checks: account, admin, action, content, GitHub, task and email routes"
+run_routes \
+  "integrations (list)|GET|/api/integrations||200" \
+  "health|GET|/api/health||200" \
+  "auth status|GET|/api/auth/status||200" \
+  "google email|GET|/api/auth/google/email||200" \
+  "google init|GET|/api/auth/google/init||200" \
+  "actions (pending list)|GET|/api/actions/pending||200" \
+  "actions (approve)|POST|/api/actions/999999/approve||404" \
+  "actions (reject)|POST|/api/actions/999999/reject||404" \
+  "memory|GET|/api/memory||200" \
+  "activity|GET|/api/activity||200" \
+  "memory (add vip)|POST|/api/memory/vip|{\"email\":\"vip@example.com\",\"name\":\"Vip\"}|200" \
+  "linkedin (history)|GET|/api/content/linkedin/history||200" \
+  "linkedin (draft)|POST|/api/content/linkedin|{\"source\":\"smoke\"}|authed" \
+  "content (approve)|POST|/api/content/approve|{\"original\":\"o\",\"edited\":\"e\"}|200" \
+  "trello (cards)|GET|/api/cards||200" \
+  "trello (move)|POST|/api/trello/move|{\"cardId\":\"x\",\"listId\":\"y\"}|authed" \
+  "github (prs)|GET|/api/prs||200" \
+  "github (issues list)|GET|/api/github/issues||200" \
+  "github (issue create)|POST|/api/github/issues|{\"title\":\"smoke\"}|authed" \
+  "github (merged)|GET|/api/github/merged||200" \
+  "github (changelog)|GET|/api/github/changelog||200" \
+  "github (contributions)|GET|/api/github/contributions||200" \
+  "github (branches)|GET|/api/github/branches||200" \
+  "github (draft body)|POST|/api/github/draft-body|{\"title\":\"smoke\"}|authed" \
+  "tasks (create)|POST|/api/tasks|{\"title\":\"smoke\"}|authed" \
+  "task (update)|POST|/api/task/update|{\"taskId\":\"1\",\"status\":\"done\"}|400" \
+  "notes (create, no Notion)|POST|/api/notes|{\"title\":\"t\",\"content\":\"c\"}|400" \
+  "notes (export, no Notion)|GET|/api/notes/export||400" \
+  "calendar (create)|POST|/api/calendar|{\"title\":\"smoke\",\"date\":\"2030-01-01\"}|authed" \
+  "email (send, invalid recipient)|POST|/api/email/send|{\"to\":\"nope\",\"body\":\"b\"}|400" \
+  "email (approve-draft, empty)|POST|/api/email/approve-draft||400" \
+  "email (archive)|POST|/api/email/archive|{\"id\":\"x\"}|authed" \
+  "email (get one, no Google)|GET|/api/email/abc||403" \
+  "account (update email)|PUT|/api/users/me/email|{\"email\":\"smoke@example.com\"}|200" \
+  "admin (users) — non-admin refused|GET|/api/admin/users||403" \
+  "admin (stats) — non-admin refused|GET|/api/admin/stats||403" \
+  "admin (delete user) — non-admin refused|DELETE|/api/admin/users/999999||403" \
+  "admin (set admin) — non-admin refused|PATCH|/api/admin/users/999999/admin|{\"isAdmin\":true}|403"
+
+echo "==> Seeding a fake Notion integration for user A (POST /api/integrations) so GET /api/notes"
 echo "    exercises its real 'fetch notes' code path instead of its 'not configured' 404 —"
 echo "    that 404 is correct app behavior, not an auth failure, and would otherwise mask"
 echo "    a real auth regression on this route."
@@ -126,65 +277,88 @@ curl -s -o /dev/null -X POST "$BASE_URL/api/integrations" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"service":"notion","keyName":"NOTION_TASKS_DB_ID","keyValue":"00000000000000000000000000000000"}'
 
-# Each row: label|METHOD|path|json-body-or-empty|expected-status-with-valid-token
-# All bodies are minimal-but-valid for their route so a 400 (bad input) can never
-# be mistaken for the 401 (no auth) / 200 (authed) outcomes this test checks.
-ROUTES=(
-  "email (list)|GET|/api/emails||200"
-  "calendar (list)|GET|/api/calendar||200"
-  "tasks (list)|GET|/api/tasks||200"
-  "github (repos)|GET|/api/github/repos||200"
-  "slack (send)|POST|/api/slack/send|{\"text\":\"smoke test\"}|200"
-  "notion (notes)|GET|/api/notes||200"
-  "trello (board)|GET|/api/trello/board||200"
-  "digest (latest)|GET|/api/digest/latest||200"
+echo "==> Auth checks: the original panel routes (200 with a valid token)"
+run_routes \
+  "email (list)|GET|/api/emails||200" \
+  "calendar (list)|GET|/api/calendar||200" \
+  "tasks (list)|GET|/api/tasks||200" \
+  "github (repos)|GET|/api/github/repos||200" \
+  "slack (send)|POST|/api/slack/send|{\"text\":\"smoke test\"}|200" \
+  "notion (notes)|GET|/api/notes||200" \
+  "trello (board)|GET|/api/trello/board||200" \
+  "digest (latest)|GET|/api/digest/latest||200" \
   "chat (agent/clear)|POST|/api/chat/agent/clear||200"
-)
 
-check() {
-  local label="$1" method="$2" path="$3" body="$4" expect_authed="$5"
-  local status_noauth status_auth payload="$body"
-  [[ -z "$payload" ]] && payload='{}'
+# ─── Two-user isolation ────────────────────────────────────────────────────────
+echo "==> Two-user isolation: user B must not see or act on user A's data"
 
-  if [[ "$method" == "GET" ]]; then
-    status_noauth=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$BASE_URL$path")
-  else
-    status_noauth=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$path" \
-      -H "Content-Type: application/json" -d "$payload")
-  fi
+# 1. Saved integrations
+A_INT=$(api "$TOKEN" GET /api/integrations)
+B_INT=$(api "$TOKEN_B" GET /api/integrations)
+assert_contains     "A sees their own saved Notion integration" "$A_INT" "NOTION_API_KEY"
+assert_not_contains "B does not see A's saved integrations"     "$B_INT" "notion"
 
-  if [[ "$status_noauth" == "401" ]]; then
-    echo "  [PASS] $label ($method $path) -> 401 with no Authorization header"
-  else
-    echo "  [FAIL] $label ($method $path) -> expected 401 with no Authorization header, got $status_noauth"
-    FAILURES=$((FAILURES + 1))
-  fi
+# 2. Memory (a VIP user A added in the table above)
+A_MEM=$(api "$TOKEN" GET /api/memory)
+B_MEM=$(api "$TOKEN_B" GET /api/memory)
+assert_contains     "A sees their own VIP in memory"      "$A_MEM" "vip@example.com"
+assert_not_contains "B does not see A's memory"           "$B_MEM" "vip@example.com"
 
-  if [[ "$method" == "GET" ]]; then
-    status_auth=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$BASE_URL$path" \
-      -H "Authorization: Bearer $TOKEN")
-  else
-    status_auth=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$path" \
-      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$payload")
-  fi
+# 3. Pending agent actions: seed one for user A directly (the real producer is the
+#    LLM agent, which this test cannot drive), then try to touch it as user B.
+ACTION_ID=$(cd "$SERVER_DIR" && DATABASE_URL="" node --input-type=module -e "
+import { initDB, dbCreatePendingAction } from './services/db.js';
+await initDB();
+const row = await dbCreatePendingAction(Number(process.argv[1]), 'save_memory', { memKey: 'isolation', memValue: 'a-private-value' }, 'isolation smoke test');
+process.stdout.write('\nACTION_ID=' + row.id);
+" "$USER_A_ID" 2>/dev/null | sed -n 's/^ACTION_ID=//p')
+if [[ -z "$ACTION_ID" ]]; then
+  fail "could not seed a pending action for user A"
+else
+  A_PEND=$(api "$TOKEN" GET /api/actions/pending)
+  B_PEND=$(api "$TOKEN_B" GET /api/actions/pending)
+  assert_contains     "A sees their own pending action"          "$A_PEND" "a-private-value"
+  assert_not_contains "B does not see A's pending actions"       "$B_PEND" "a-private-value"
+  assert_status "B cannot approve A's pending action (id $ACTION_ID)" 404 "$(status "$TOKEN_B" POST "/api/actions/$ACTION_ID/approve")"
+  assert_status "B cannot reject A's pending action (id $ACTION_ID)"  404 "$(status "$TOKEN_B" POST "/api/actions/$ACTION_ID/reject")"
+  A_PEND_AFTER=$(api "$TOKEN" GET /api/actions/pending)
+  assert_contains     "A's action is still pending after B's attempts" "$A_PEND_AFTER" "a-private-value"
+  assert_status "A can reject their own pending action" 200 "$(status "$TOKEN" POST "/api/actions/$ACTION_ID/reject")"
+fi
 
-  if [[ "$status_auth" == "$expect_authed" ]]; then
-    echo "  [PASS] $label ($method $path) -> $status_auth with a valid token"
-  else
-    echo "  [FAIL] $label ($method $path) -> expected $expect_authed with a valid token, got $status_auth"
-    FAILURES=$((FAILURES + 1))
-  fi
-}
+# 4. A deleted/foreign id on a user-scoped route must not leak the other user's data
+assert_status "B cannot delete A's integration by guessing the route" 200 "$(status "$TOKEN_B" DELETE /api/integrations/notion)"
+A_INT_AFTER=$(api "$TOKEN" GET /api/integrations)
+assert_contains "A's Notion integration survives B's delete request" "$A_INT_AFTER" "NOTION_API_KEY"
 
-echo "==> Running 401 (no token) / 200 (valid token) checks for every panel route"
-for entry in "${ROUTES[@]}"; do
-  IFS='|' read -r label method path body expect <<< "$entry"
-  check "$label" "$method" "$path" "$body" "$expect"
-done
+stop_server
+
+# ═══════════════════════════════════════════════════════════════════════════════
+echo ""
+echo "==> PHASE 2 — invite-only signup (OWNER_USERNAME=${OWNER_NAME}). Fresh server on port ${PORT}"
+start_server "$OWNER_NAME"
+
+STRANGER_STATUS=$(curl -s -o /tmp/devos-smoke-stranger.$$ -w "%{http_code}" -X POST "$BASE_URL/api/auth/signup" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"stranger_${RUN_ID}\",\"password\":\"${TEST_PASS}\"}")
+STRANGER_BODY=$(cat /tmp/devos-smoke-stranger.$$ 2>/dev/null); rm -f /tmp/devos-smoke-stranger.$$
+assert_status   "signup with a username that is not the owner is refused" 400 "$STRANGER_STATUS"
+assert_contains "the refusal says signups are invite-only" "$STRANGER_BODY" "invite-only"
+
+OWNER_RESP=$(signup "$OWNER_NAME")
+assert_contains "signup with the owner username is accepted and returns a token" "$OWNER_RESP" '"token"'
+
+# The gate ignores letter case, matching how usernames are stored (lowercased).
+CASE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/auth/signup" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$(echo "$OWNER_NAME" | tr '[:lower:]' '[:upper:]')\",\"password\":\"${TEST_PASS}\"}")
+assert_status "the owner username in different case is not a way round the gate (taken, not a new account)" 400 "$CASE_STATUS"
+
+stop_server
 
 echo ""
 if [[ "$FAILURES" -eq 0 ]]; then
-  echo "SMOKE TEST PASSED — every panel route rejects requests with no token (401) and accepts a valid token (200)."
+  echo "SMOKE TEST PASSED — routes reject requests with no token (401), admin routes refuse non-admins (403), users cannot see or act on each other's data, and signup is invite-only when OWNER_USERNAME is set."
   exit 0
 else
   echo "SMOKE TEST FAILED — $FAILURES check(s) failed. Server log:"
