@@ -48,7 +48,11 @@ remove_data_files() {
   # The throwaway server keeps its state in these gitignored files inside
   # server/ (the paths are fixed in the code). Only called once
   # set_aside_data_files has run, so it can never delete someone's real data.
+  # tokens.json and memory.json are the legacy single-file formats the server
+  # still migrates from: a real one would be adopted by the throwaway server's
+  # first user (id 1), so they are set aside and removed like the rest.
   rm -f "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json" "$SERVER_DIR/pending_actions.json"
+  rm -f "$SERVER_DIR/tokens.json" "$SERVER_DIR/memory.json"
   rm -f "$SERVER_DIR"/memory_*.json
   rm -rf "$SERVER_DIR/tokens"
 }
@@ -63,6 +67,7 @@ DATA_SET_ASIDE=0
 set_aside_data_files() {
   local f
   for f in "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json" "$SERVER_DIR/pending_actions.json" \
+           "$SERVER_DIR/tokens.json" "$SERVER_DIR/memory.json" \
            "$SERVER_DIR"/memory_*.json "$SERVER_DIR/tokens"; do
     [[ -e "$f" ]] || continue
     if [[ -z "$BACKUP_DIR" ]]; then
@@ -382,10 +387,13 @@ echo ""
 echo "==> PHASE 2 — invite-only signup (OWNER_USERNAME=${OWNER_NAME}). Fresh server on port ${PORT}"
 start_server "$OWNER_NAME"
 
-STRANGER_STATUS=$(curl -s -o /tmp/devos-smoke-stranger.$$ -w "%{http_code}" -X POST "$BASE_URL/api/auth/signup" \
+# mktemp, not a fixed /tmp name: curl -o would follow a symlink planted at a
+# predictable path and overwrite whatever it points to.
+STRANGER_FILE="$(mktemp -t devos-smoke-stranger.XXXXXX)"
+STRANGER_STATUS=$(curl -s -o "$STRANGER_FILE" -w "%{http_code}" -X POST "$BASE_URL/api/auth/signup" \
   -H "Content-Type: application/json" \
   -d "{\"username\":\"stranger_${RUN_ID}\",\"password\":\"${TEST_PASS}\"}")
-STRANGER_BODY=$(cat /tmp/devos-smoke-stranger.$$ 2>/dev/null); rm -f /tmp/devos-smoke-stranger.$$
+STRANGER_BODY=$(cat "$STRANGER_FILE" 2>/dev/null); rm -f "$STRANGER_FILE"
 assert_status   "signup with a username that is not the owner is refused" 400 "$STRANGER_STATUS"
 assert_contains "the refusal says signups are invite-only" "$STRANGER_BODY" "invite-only"
 
