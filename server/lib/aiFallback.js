@@ -44,3 +44,10 @@ export async function runWithFallback(candidates, attempt, { maxToolRetries = MA
   exhausted.status = 503;
   throw exhausted;
 }
+
+// HTTP status for an error that escaped the agent: 503 only for the "no provider
+// could answer" error above. Never err.status: other errors can carry a status of
+// their own (a 401 would make the client think its token expired).
+export function aiErrorStatus(err) {
+  return err?.code === 'AI_UNAVAILABLE' ? 503 : 500;
+}

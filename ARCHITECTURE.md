@@ -322,9 +322,13 @@ This is the core LangChain layer used by every non-agent feature.
 #### Model Classes
 
 ```js
-new ChatGoogleGenerativeAI({ model: 'gemini-2.0-flash', apiKey, maxOutputTokens, streaming })
-new ChatGroq({ model: 'llama-3.1-8b-instant', apiKey, maxTokens, streaming })
+new ChatGoogleGenerativeAI({ model: modelId('gemini'),   apiKey, maxOutputTokens, streaming })
+new ChatGroq({               model: modelId('groqFast'), apiKey, maxTokens, streaming })
 ```
+
+Model names are not hard-coded: `server/lib/models.js` holds the defaults and reads
+the `GEMINI_MODEL`, `GROQ_MODEL` and `GROQ_FAST_MODEL` environment variables, so a
+provider retiring a model is fixed by changing a setting, not code.
 
 #### Task-Based Routing
 
@@ -467,21 +471,23 @@ Older context is compressed rather than dropped. Per-user summaries survive the 
 ```
 candidates = [Gemini factory, Groq factory]  (only providers with keys included)
 
-outer loop: for each model candidate
+outer loop: for each model candidate        (lib/aiFallback.js, runWithFallback)
   inner loop: up to 3 attempts on same model
     if tool_use_failed or failed_generation → retry same model (Groq-specific flakiness)
-    if quota / 429 / rate limit → skip to next candidate
+    any other error (quota, retired model, ...) → remember why, skip to next candidate
     if success → return { reply, toolsUsed }
 
-if all exhausted → throw friendly error message
+if all exhausted → throw an error (code AI_UNAVAILABLE, HTTP 503) that names why
+each provider failed
 ```
 
 #### Models Used in the Agent
 
-- **Gemini 2.0 Flash** — `gemini-2.0-flash` — primary (reliable tool-call JSON)
-- **Groq Llama 3.3 70B** — `llama-3.3-70b-versatile` — fallback (larger than 8B for better tool use)
+- **Gemini** — `GEMINI_MODEL` (default in `server/lib/models.js`) — primary (reliable tool-call JSON)
+- **Groq** — `GROQ_MODEL` (default in `server/lib/models.js`) — fallback; a large model, because tool-calling reliability needs one
 
-Note: the agent uses 70B Llama (not 8B) because tool-calling reliability requires a stronger model.
+The defaults are the replacements the providers name for the models they retired
+(`gemini-2.0-flash`, `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` no longer exist).
 
 ---
 

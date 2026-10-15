@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runWithFallback } from '../lib/aiFallback.js';
+import { runWithFallback, aiErrorStatus } from '../lib/aiFallback.js';
 
 const quiet = { warn: () => {} };
 const candidate = (provider, model) => ({ provider, model, make: () => ({ provider, model }) });
@@ -84,4 +84,13 @@ test('a retired model is tried once per provider, not retried like a tool error'
 
 test('no candidates at all still gives a clear 503', async () => {
   await assert.rejects(() => runWithFallback([], async () => ({})), err => err.status === 503 && /unknown reason/.test(err.message));
+});
+
+test('only "no provider could answer" becomes a 503; a stray err.status never reaches the client', async () => {
+  const exhausted = await runWithFallback([], async () => ({})).catch(e => e);
+  assert.equal(aiErrorStatus(exhausted), 503);
+  assert.equal(aiErrorStatus(Object.assign(new Error('x'), { status: 401 })), 500, 'a 401 would look like an expired token');
+  assert.equal(aiErrorStatus(Object.assign(new Error('x'), { status: 404 })), 500);
+  assert.equal(aiErrorStatus(new Error('plain')), 500);
+  assert.equal(aiErrorStatus(null), 500);
 });
