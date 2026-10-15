@@ -179,10 +179,7 @@ Neither one is redundant with the other — removing either breaks the app.
 There used to be a third config, `nixpacks.toml` (a Railway builder file).
 Railway was dropped as a deploy target; the file has been removed and
 `server/lib/env.js` is host-agnostic (`NODE_ENV` / `PUBLIC_URL`) rather than
-Railway-specific. One Railway-era check remains there on purpose: it still
-treats `RAILWAY_PUBLIC_DOMAIN` as a production signal, so an old Railway deploy
-that never set `NODE_ENV=production` does not silently run in development mode.
-Remove it only once you have confirmed nothing deploys on Railway any more.
+Railway-specific.
 
 **The only two live URLs are:**
 - Frontend: `https://personal-ai-blue.vercel.app`
