@@ -9,6 +9,7 @@ import { authLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
+import { trustedGoogleEmail } from '../lib/googleProfile.js';
 
 const router = Router();
 
@@ -120,11 +121,17 @@ router.get('/api/auth/google/callback', async (req, res) => {
       const oauth2   = googleapis.oauth2({ version: 'v2', auth: client });
       const profile  = await oauth2.userinfo.get();
       const googleId = profile.data.id;
-      const email    = profile.data.email;
       const name     = profile.data.name ?? '';
 
       let user = await userService.dbFindByGoogleId(googleId);
       if (!user) {
+        // From here the email decides which account this Google identity joins
+        // (or creates), so it must be one Google has verified. See lib/googleProfile.js.
+        const email = trustedGoogleEmail(profile.data);
+        if (!email) {
+          console.warn('[auth/google/callback] rejected sign-in: Google did not return a verified email');
+          return res.redirect(`${redirectBase}/?auth_error=email_not_verified`);
+        }
         const existing = await userService.dbFindByEmail(email);
         if (existing) {
           await userService.dbLinkGoogleId(existing.id, googleId);
@@ -172,8 +179,10 @@ router.get('/api/auth/google/callback', async (req, res) => {
     res.redirect(`${redirectBase}${state.fromSettings ? '/settings?google_connected=true' : '/?connected=true'}`);
   } catch (err) {
     console.error('[auth/google/callback] FULL ERROR:', err);
-    const msg = encodeURIComponent(err.message ?? 'Unknown error');
-    res.redirect(`${redirectBase}/?auth_error=google_failed&detail=${msg}`);
+    // A fixed code, never err.message: the redirect URL is visible in the
+    // browser and is rendered as text on the sign-in page, so raw error text
+    // would leak internals and let a crafted link show arbitrary wording.
+    res.redirect(`${redirectBase}/?auth_error=google_failed&detail=server_error`);
   }
 });
 

@@ -6,6 +6,7 @@ import memory  from '../services/memory.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
+import { postJson, OutboundUrlError } from '../lib/outboundRequest.js';
 
 const router = Router();
 
@@ -64,15 +65,14 @@ router.post('/api/content/approve', requireAuth, sendLimiter, async (req, res) =
     const webhookUrl = creds.LINKEDIN_WEBHOOK_URL || process.env.LINKEDIN_WEBHOOK_URL;
     if (webhookUrl) {
       try {
-        const hook = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: edited, type }),
-        });
+        // postJson only talks to public https hosts and gives up after a timeout
+        // (see lib/outboundRequest.js): the URL is user-supplied, so it must not
+        // be able to reach this server's own network.
+        const hook = await postJson(webhookUrl, { content: edited, type });
         posted = hook.ok;
         if (!hook.ok) console.error('[linkedin webhook] status:', hook.status);
       } catch (err) {
-        console.error('[linkedin webhook]', err.message);
+        console.error('[linkedin webhook]', err instanceof OutboundUrlError ? `blocked: ${err.message}` : err.message);
       }
     }
   }
