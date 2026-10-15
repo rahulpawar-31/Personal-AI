@@ -181,6 +181,41 @@ export async function disconnectUser(userId) {
   }
 }
 
+// The Google tokens held for a user (local file first, then the database), or
+// null. Read before an account is deleted: its database rows go with it.
+export async function readGoogleTokens(userId) {
+  try {
+    const tPath = tokenPath(userId);
+    if (fs.existsSync(tPath)) return JSON.parse(fs.readFileSync(tPath, 'utf8'));
+    const raw = await integrations.getKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Tells Google to cancel the access this app was given, so a removed account
+// leaves nothing usable behind. Best effort: Google being slow, or the token
+// already cancelled, must not stop the removal, so it never throws. Returns
+// true only when Google confirmed.
+export async function revokeGoogleTokens(tokens, { client = createOAuth2Client(), timeoutMs = 5000 } = {}) {
+  const token = tokens?.refresh_token || tokens?.access_token;
+  if (!token) return false;
+  let timer;
+  try {
+    await Promise.race([
+      client.revokeToken(token),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timed out')), timeoutMs); }),
+    ]);
+    return true;
+  } catch (err) {
+    console.warn('[auth] Could not revoke the Google token:', err.message);
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function getConnectedUserIds() {
   ensureTokensDir();
   try {
@@ -198,4 +233,4 @@ export function getAuthUrl(baseURLOverride, state = '') {
   return createOAuth2Client(baseURLOverride).generateAuthUrl(opts);
 }
 
-export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB, disconnectUser };
+export default { createOAuth2Client, getAuthClient, saveTokens, isConnected, getAuthUrl, getConnectedUserIds, restoreAllFromDB, disconnectUser, readGoogleTokens, revokeGoogleTokens };

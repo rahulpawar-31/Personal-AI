@@ -65,6 +65,8 @@ export async function initDB() {
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active  BOOLEAN DEFAULT TRUE`);
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id  TEXT UNIQUE`);
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin   BOOLEAN DEFAULT FALSE`);
+      // Raised to end a user's sessions (logout, password change); see services/users.js.
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`);
 
       // ── User integrations table ───────────────────────────────────────────────
       // Stores one encrypted key/value per row, keyed by (user_id, service, key_name).
@@ -143,6 +145,7 @@ export async function dbFindById(id)                         { return userStore.
 export async function dbUpdateEmail(userId, email)           { return userStore.updateEmail(userId, email); }
 export async function dbUpdatePasswordHash(userId, hash)     { return userStore.updatePasswordHash(userId, hash); }
 export async function dbDeleteUser(userId)                   { return userStore.deleteUser(userId); }
+export async function dbBumpTokenVersion(userId)             { return userStore.bumpTokenVersion(userId); }
 export async function dbFindByGoogleId(googleId)              { return userStore.findByGoogleId(googleId); }
 export async function dbFindByEmail(email)                   { return userStore.findByEmail(email); }
 export async function dbLinkGoogleId(userId, googleId)        { return userStore.linkGoogleId(userId, googleId); }

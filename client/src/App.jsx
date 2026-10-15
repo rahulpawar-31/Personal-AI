@@ -85,6 +85,10 @@ export default function App() {
   }
 
   function handleLogout() {
+    // End the session on the server too, or the refresh cookie stays valid for
+    // 30 days. The request reads the token before clearSession removes it, and
+    // signing out never waits on the network.
+    apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     clearSession();
     setUser(null);
   }
