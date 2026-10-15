@@ -6,6 +6,7 @@ import MultiKeyRow from './components/settings/MultiKeyRow.jsx';
 import GoogleRow from './components/settings/GoogleRow.jsx';
 import AccountSection from './components/settings/AccountSection.jsx';
 import { LoadingState } from './components/ui/States.jsx';
+import { isUsableKey } from './lib/keyStatus.js';
 
 export default function SettingsPage({ user, onLogout, health = {} }) {
   const [saved,        setSaved]        = useState({});
@@ -130,7 +131,10 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
     await loadSaved();
   }
 
-  const hasOwnAiKey = Boolean(saved.gemini?.GEMINI_API_KEY || saved.groq?.GROQ_API_KEY);
+  // An unreadable saved key (server secret changed) is not a working AI key.
+  const hasOwnGemini = isUsableKey(saved.gemini?.GEMINI_API_KEY);
+  const hasOwnGroq   = isUsableKey(saved.groq?.GROQ_API_KEY);
+  const hasOwnAiKey  = hasOwnGemini || hasOwnGroq;
   const hasSharedAiKey = Boolean(health.geminiShared || health.groqShared);
   const aiMissing = !hasOwnAiKey && !hasSharedAiKey;
 
@@ -176,7 +180,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
         <SingleKeyRow
           service="gemini"
           label="Gemini"
-          description={health.geminiShared && !saved.gemini?.GEMINI_API_KEY ? "Shared workspace key active. Add your own to use a separate quota." : "Powers the agent, email triage, calendar summaries, and content generation."}
+          description={health.geminiShared && !hasOwnGemini ? "Shared workspace key active. Add your own to use a separate quota." : "Powers the agent, email triage, calendar summaries, and content generation."}
           linkHref="https://aistudio.google.com/apikey"
           keyName="GEMINI_API_KEY"
           fieldLabel="Gemini API key"
@@ -191,7 +195,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
         <SingleKeyRow
           service="groq"
           label="Groq"
-          description={health.groqShared && !saved.groq?.GROQ_API_KEY ? "Shared workspace key active. Add your own to use a separate quota." : "Fast inference fallback — used when Gemini is rate-limited."}
+          description={health.groqShared && !hasOwnGroq ? "Shared workspace key active. Add your own to use a separate quota." : "Fast inference fallback — used when Gemini is rate-limited."}
           linkHref="https://console.groq.com/keys"
           keyName="GROQ_API_KEY"
           fieldLabel="Groq API key"

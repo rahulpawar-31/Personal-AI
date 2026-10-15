@@ -113,11 +113,12 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
       case 'notion': {
         const notionKey = sanitizeKey(body.apiKey).replace(/\s+/g, '');
         const { taskDbId, notesDbId } = body;
-        console.log(`[notion/test] received key prefix="${notionKey.slice(0, 15)}" len=${notionKey.length}`);
+        // Length only: any slice of the key is a piece of a secret that would end up in the logs.
+        console.log(`[notion/test] received key len=${notionKey.length}`);
         if (!notionKey) return res.status(400).json({ ok: false, error: 'API key is required' });
         const cleanKey = notionKey.startsWith('secret_ntn_') ? notionKey.slice('secret_'.length) : notionKey;
         if (!cleanKey.startsWith('ntn_') && !cleanKey.startsWith('secret_')) {
-          return res.status(400).json({ ok: false, error: `Wrong key format — received "${notionKey.slice(0, 12)}…". Copy the Access token from app.notion.com/developers/connections — it starts with ntn_` });
+          return res.status(400).json({ ok: false, error: `Wrong key format. Copy the Access token from app.notion.com/developers/connections — it starts with ntn_` });
         }
         const meResp = await fetch('https://api.notion.com/v1/search', {
           method: 'POST',
@@ -128,7 +129,7 @@ router.post('/api/credentials/test/:service', requireAuth, credLimiter, async (r
         if (!meResp.ok) {
           const e = await meResp.json().catch(() => ({}));
           console.error('[notion/test] Notion error:', e);
-          const diag = `Server received: "${cleanKey.slice(0, 12)}…" (${cleanKey.length} chars). `;
+          const diag = `Server received a key of ${cleanKey.length} characters. `;
           const hint = e.code === 'unauthorized' || meResp.status === 401
             ? 'Notion says the token is invalid. Try: notion.so/profile/integrations (new URL) or notion.so/my-integrations → open your integration → click "Show" next to the secret → copy it fresh. If this keeps failing, use "Save anyway" below.'
             : `Notion error: ${e.message || meResp.status}`;

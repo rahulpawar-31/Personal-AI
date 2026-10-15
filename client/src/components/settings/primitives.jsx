@@ -233,6 +233,11 @@ const CREDENTIALS_TITLES = {
   google:   'Google Credentials',
 };
 
+// Shown when the server holds a saved key it can no longer decrypt (usually
+// because its encryption secret changed). Saving a fresh key replaces it.
+export const UNREADABLE_KEY_MESSAGE =
+  "This saved key can't be read any more. The server's encryption secret has probably changed. Enter the key again and save it to reconnect.";
+
 // Expanded panel layout inside the connection modal
 export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, credentialsTitle, credentialsSubtitle, children, onDisconnect, connected, testing, onSave, error, warning, extraActions }) {
   return (
