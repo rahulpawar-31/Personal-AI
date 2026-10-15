@@ -59,9 +59,15 @@ export async function listKeys(userId) {
 export async function getUserCredentials(userId) {
   const rows  = await currentStore().listForUser(userId);
   const creds = {};
+  let unreadable = 0;
   for (const { keyName, keyValue } of rows) {
     try { creds[keyName] = decrypt(keyValue); }
-    catch { /* skip corrupted entries */ }
+    catch { unreadable += 1; } // skipped — but not silently, see the warning below
+  }
+  // After ENCRYPTION_SECRET changes every key fails to decrypt and every
+  // integration looks "not connected". Say so in the log (never the values).
+  if (unreadable > 0) {
+    console.warn(`[integrations] ${unreadable} saved key(s) for user ${userId} could not be decrypted — was ENCRYPTION_SECRET changed?`);
   }
   return creds;
 }
@@ -73,21 +79,34 @@ export async function deleteService(userId, service) {
 
 /**
  * List keys with metadata (updatedAt + masked key hint) for the settings UI.
- * Returns { service: { keyName: { updatedAt, keyHint } } }.
+ * Returns { service: { keyName: { updatedAt, keyHint, unreadable? } } }.
+ * `unreadable: true` means the stored value could not be decrypted, so the UI
+ * can ask the user to re-enter it instead of showing a healthy connection.
  */
 export async function listKeysWithMeta(userId) {
   const rows   = await currentStore().listForUser(userId);
   const result = {};
   for (const row of rows) {
-    let keyHint = '••••••••';
+    let meta;
     try {
-      const plain = decrypt(row.keyValue);
-      keyHint = plain.length >= 10
-        ? `${plain.slice(0, 6)}••••${plain.slice(-4)}`
-        : `${plain.slice(0, 3)}•••${plain.slice(-2)}`;
-    } catch { /* corrupted — leave as dots */ }
+      meta = { updatedAt: row.updatedAt, keyHint: maskKey(decrypt(row.keyValue)) };
+    } catch {
+      meta = { updatedAt: row.updatedAt, keyHint: '••••••••', unreadable: true };
+    }
     if (!result[row.service]) result[row.service] = {};
-    result[row.service][row.keyName] = { updatedAt: row.updatedAt, keyHint };
+    result[row.service][row.keyName] = meta;
   }
   return result;
+}
+
+/**
+ * A hint that shows at most a sixth of the value from each end, so the
+ * revealed part stays small however short the secret is. A 10-character key
+ * shows 1 + 1 characters, a 24+ character key 4 + 4, and anything under 6
+ * characters shows none.
+ */
+export function maskKey(plain) {
+  const shown = Math.min(4, Math.floor(plain.length / 6));
+  if (shown === 0) return '••••••••';
+  return `${plain.slice(0, shown)}••••${plain.slice(-shown)}`;
 }

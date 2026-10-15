@@ -20,11 +20,25 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-// Clears the token and the onboarding flag together — the two are cleared
-// in lockstep at logout and at a 401 on the startup auth check.
+// Removes every cached copy of account data (emails, GitHub, chat history and
+// the like) — all `devos_*` keys except the token and onboarding flag, which
+// have their own clearers. Without this, the next person on a shared browser
+// finds the previous user's email bodies still in localStorage.
+export function clearCachedData() {
+  const stale = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('devos_') && key !== TOKEN_KEY && key !== ONBOARDING_KEY) stale.push(key);
+  }
+  stale.forEach(key => localStorage.removeItem(key));
+}
+
+// Clears the token, the onboarding flag and all cached account data together —
+// done in lockstep at logout and at a 401 on the startup auth check.
 export function clearSession() {
   clearToken();
   localStorage.removeItem(ONBOARDING_KEY);
+  clearCachedData();
 }
 
 // The access token is short-lived (15m) — the server keeps a long-lived

@@ -4,7 +4,7 @@ import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
 import { LoadingState } from './ui/States.jsx';
 
-export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings }) {
+export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, userId }) {
   const [repos,         setRepos]         = useState([]);
   const [activeRepo,    setActiveRepo]    = useState('');
   const [prs,           setPrs]            = useState([]);
@@ -27,6 +27,8 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
   const connected = Boolean(health.github);
   const cache     = useCache('devos_github', 10 * 60 * 1000);
+  // Scoped per user so one account never reads another's cached repo data.
+  const repoKey   = repo => `devos_github_${userId ?? 'anon'}_${(repo ?? '').replace('/', '_')}`;
 
   useEffect(() => {
     if (!connected) return;
@@ -44,7 +46,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
   useEffect(() => {
     if (!activeRepo) return;
-    const cacheKey = `devos_github_${activeRepo.replace('/', '_')}`;
+    const cacheKey = repoKey(activeRepo);
     const cached = cache.get(cacheKey);
     if (cached) { setPrs(cached.prs); setMerged(cached.merged); setIssues(cached.issues ?? []); return; }
     load(activeRepo);
@@ -52,7 +54,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
 
   useEffect(() => {
     if (!refreshKey || !activeRepo) return;
-    const cacheKey = `devos_github_${activeRepo.replace('/', '_')}`;
+    const cacheKey = repoKey(activeRepo);
     cache.clear(cacheKey);
     load(activeRepo);
   }, [refreshKey]);
@@ -79,7 +81,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       const prs    = Array.isArray(pData) ? pData : [];
       const merged = Array.isArray(mData) ? mData : [];
       const issues = Array.isArray(iData) ? iData : [];
-      const cacheKey = `devos_github_${(repo ?? '').replace('/', '_')}`;
+      const cacheKey = repoKey(repo);
       cache.set({ prs, merged, issues }, cacheKey);
       setPrs(prs); setMerged(merged); setIssues(issues);
       setChangelog('');
@@ -118,7 +120,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings })
       if (data.id) {
         setIssues(prev => [data, ...prev]);
         setNewTitle(''); setNewBody(''); setShowForm(false); setIssueError('');
-        cache.clear(`devos_github_${(activeRepo ?? '').replace('/', '_')}`);
+        cache.clear(repoKey(activeRepo));
       } else {
         setIssueError(data.error ?? 'Failed to create issue.');
       }

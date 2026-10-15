@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { apiFetch, clearToken } from '../../api.js';
+import { apiFetch, clearToken, clearCachedData } from '../../api.js';
 
 export default function AccountSection({ user, onLogout }) {
   const [email, setEmail]           = useState(user.email || '');
@@ -43,6 +43,7 @@ export default function AccountSection({ user, onLogout }) {
     const d = await r.json();
     if (d.ok) {
       clearToken();
+      clearCachedData();
       window.location.href = '/';
     } else {
       setStatus({ type: 'error', msg: d.error });

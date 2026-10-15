@@ -305,10 +305,10 @@ export default function App() {
           }}
         >
           <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
-          <div style={{ display: view === 'comms'    ? 'block' : 'none' }}><EmailPanel connected={connected} refreshKey={emailRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
+          <div style={{ display: view === 'comms'    ? 'block' : 'none' }}><EmailPanel userId={user?.id} connected={connected} refreshKey={emailRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'calendar' ? 'block' : 'none' }}><CalendarPanel connected={connected} refreshKey={calendarRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: isTasksView ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><TaskPanel refreshKey={taskRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
-          <div style={{ display: view === 'github'   ? 'block' : 'none' }}><GitHubPanel health={health} refreshKey={githubRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
+          <div style={{ display: view === 'github'   ? 'block' : 'none' }}><GitHubPanel userId={user?.id} health={health} refreshKey={githubRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'linkedin' ? 'block' : 'none' }}><LinkedInPanel health={health} /></div>
           <div style={{ display: view === 'slack'    ? 'block' : 'none' }}><SlackPanel health={health} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: isChatView ? 'flex' : 'none', flex: 1, flexDirection: 'column', minHeight: 0 }}><ChatPanel onAction={handleChatAction} health={health} connected={connected} user={user} /></div>
