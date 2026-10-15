@@ -4,11 +4,12 @@ import trello  from '../services/trello.js';
 import content from '../services/content.js';
 import memory  from '../services/memory.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sendLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 
 const router = Router();
 
-router.post('/api/slack/send', requireAuth, async (req, res) => {
+router.post('/api/slack/send', requireAuth, sendLimiter, async (req, res) => {
   try {
     const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'text required' });
@@ -53,7 +54,7 @@ router.post('/api/content/linkedin', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/api/content/approve', requireAuth, async (req, res) => {
+router.post('/api/content/approve', requireAuth, sendLimiter, async (req, res) => {
   const { original, edited, type = 'linkedin', postNow = false } = req.body;
   await memory.recordApprovedDraft(req.user.userId, original, edited, type);
 

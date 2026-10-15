@@ -4,6 +4,7 @@ import * as integrations from '../services/integrations.js';
 import auth from '../services/auth.js';
 import { dbListUsers, dbDeleteUser, dbSetAdmin, getPool } from '../services/db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { accountLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.put('/api/users/me/email', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/api/users/me/password', requireAuth, async (req, res) => {
+router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
     res.json({ ok: true });
@@ -35,7 +36,7 @@ router.put('/api/users/me/password', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/api/users/me', requireAuth, async (req, res) => {
+router.delete('/api/users/me', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.deleteUser(req.user.userId, req.body.password);
     await disconnectRemovedUser(req.user.userId);
@@ -54,7 +55,7 @@ router.get('/api/admin/users', requireAdmin, async (req, res) => {
     const withCounts = await Promise.all(users.map(async u => {
       try {
         const keys = await integrations.listKeysWithMeta(u.id);
-        return { ...u, integrationCount: keys.length };
+        return { ...u, integrationCount: integrations.countSavedKeys(keys) };
       } catch {
         return { ...u, integrationCount: 0 };
       }

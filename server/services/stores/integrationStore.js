@@ -50,6 +50,14 @@ export function createPostgresIntegrationStore(pool) {
       );
       return r.rows;
     },
+
+    async listUserIdsForService(service) {
+      const r = await pool.query(
+        `SELECT DISTINCT user_id AS "userId" FROM user_integrations WHERE service = $1 ORDER BY user_id`,
+        [service]
+      );
+      return r.rows.map(row => Number(row.userId));
+    },
   };
 }
 
@@ -90,6 +98,11 @@ function createArrayBackedIntegrationStore({ read, write }) {
       return read()
         .filter(r => String(r.userId) === String(userId))
         .map(r => ({ service: r.service, keyName: r.keyName, keyValue: r.keyValue, updatedAt: r.updatedAt ?? r.createdAt }));
+    },
+
+    async listUserIdsForService(service) {
+      const ids = new Set(read().filter(r => r.service === service).map(r => Number(r.userId)));
+      return [...ids].sort((a, b) => a - b);
     },
   };
 }
