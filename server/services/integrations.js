@@ -66,6 +66,19 @@ export async function getUserCredentials(userId) {
   return creds;
 }
 
+/** Ids of every user who has stored at least one key for `service`. */
+export async function listUserIdsWithService(service) {
+  return currentStore().listUserIdsForService(service);
+}
+
+/**
+ * Total number of saved keys in a listKeysWithMeta() result. That result is
+ * { service: { keyName: meta } }, so it has no .length — count the key names.
+ */
+export function countSavedKeys(keysWithMeta) {
+  return Object.values(keysWithMeta ?? {}).reduce((n, svc) => n + Object.keys(svc).length, 0);
+}
+
 /** Delete all keys for a service (disconnect). */
 export async function deleteService(userId, service) {
   await currentStore().deleteAllForService(userId, service);

@@ -1,27 +1,20 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import auth   from '../services/auth.js';
 import slack  from '../services/slack.js';
-import github from '../services/github.js';
+import * as integrations from '../services/integrations.js';
 import { getUserCreds } from '../lib/creds.js';
 import { publicOrigin } from '../lib/env.js';
+import { findOwnerCreds as findOwner } from '../lib/webhookOwner.js';
 
 const router = Router();
 
-// Find the connected user who actually owns `repoFullName` (via their stored
-// GITHUB_OWNER/GITHUB_REPO/GITHUB_REPOS) and has Slack configured. Returns
-// null — rather than guessing at some other connected user — if no owner matches.
-async function findOwnerCreds(repoFullName) {
-  if (!repoFullName) return null;
-  const target = repoFullName.toLowerCase();
-  for (const uid of auth.getConnectedUserIds()) {
-    const c = await getUserCreds(Number(uid));
-    if (!c.SLACK_BOT_TOKEN || !c.SLACK_USER_ID) continue;
-    const repos = github.getRepos(c).map(r => r.toLowerCase());
-    if (repos.includes(target)) return c;
-  }
-  return null;
-}
+// The user who owns `repoFullName` (via their stored GITHUB_OWNER/GITHUB_REPO/
+// GITHUB_REPOS) and has Slack configured, or null — rather than guessing at some
+// other user — if no owner matches. See lib/webhookOwner.js.
+const findOwnerCreds = repoFullName => findOwner(repoFullName, {
+  listUserIds: () => integrations.listUserIdsWithService('github'),
+  getCreds:    getUserCreds,
+});
 
 router.get('/api/webhook/info', (req, res) => {
   const base = publicOrigin() ?? `http://localhost:${process.env.PORT ?? 3001}`;

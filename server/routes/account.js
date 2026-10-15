@@ -41,7 +41,7 @@ router.get('/api/admin/users', requireAdmin, async (req, res) => {
     const withCounts = await Promise.all(users.map(async u => {
       try {
         const keys = await integrations.listKeysWithMeta(u.id);
-        return { ...u, integrationCount: keys.length };
+        return { ...u, integrationCount: integrations.countSavedKeys(keys) };
       } catch {
         return { ...u, integrationCount: 0 };
       }
