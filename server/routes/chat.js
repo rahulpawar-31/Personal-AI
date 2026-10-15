@@ -7,6 +7,8 @@ import langchainAgent  from '../services/langchain-agent.js';
 import { requireAuth } from '../middleware/auth.js';
 import { chatLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds, notionReady } from '../lib/creds.js';
+import { friendlyAiError } from '../lib/models.js';
+import { aiErrorStatus } from '../lib/aiFallback.js';
 import { dbCreatePendingAction } from '../services/db.js';
 import {
   executeAction, preClassify, buildRoutingRules, AGENT_SCHEMA,
@@ -172,7 +174,9 @@ router.post('/api/chat', requireAuth, chatLimiter, async (req, res) => {
 
   } catch (err) {
     console.error('[chat]', err);
-    send({ type: 'error', text: err.message });
+    // The stream has already answered 200 by now, so the error travels as an
+    // event; make its text say what is wrong (e.g. a retired model).
+    send({ type: 'error', text: friendlyAiError(err) });
   } finally {
     if (!res.writableEnded) res.end();
   }
@@ -209,7 +213,8 @@ router.post('/api/chat/agent', requireAuth, chatLimiter, async (req, res) => {
     res.json({ reply, intents: toolsUsed.length ? toolsUsed : ['general_chat'], affectedPanels });
   } catch (err) {
     console.error('[chat/agent]', err);
-    res.status(500).json({ error: err.message });
+    // 503 only when no AI provider could answer; everything else is a 500.
+    res.status(aiErrorStatus(err)).json({ error: err.message });
   }
 });
 
