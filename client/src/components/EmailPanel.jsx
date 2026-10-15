@@ -147,7 +147,7 @@ function ReplyDraft({ email, toAddr, onSent }) {
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
-export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onGoToSettings }) {
+export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onGoToSettings, userId }) {
   const [emails,     setEmails]     = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [openId,     setOpenId]     = useState(null);
@@ -155,7 +155,8 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
   const [fetching,   setFetching]   = useState({});
   const [cacheAge,   setCacheAge]   = useState(null);
   const [authError,  setAuthError]  = useState(false);
-  const cache = useCache('devos_emails', TTL_30MIN);
+  // Scoped per user so one account never reads another's cached emails.
+  const cache = useCache(`devos_emails_${userId ?? 'anon'}`, TTL_30MIN);
 
   useEffect(() => {
     if (!connected) return;

@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { IntegrationRow, ToggleBtn, Modal, SetupPanel, FieldGroup } from './primitives.jsx';
+import { IntegrationRow, ToggleBtn, Modal, SetupPanel, FieldGroup, UNREADABLE_KEY_MESSAGE } from './primitives.jsx';
 
 // Multi-key integration row (Notion, GitHub, Trello, Slack, LinkedIn)
 export default function MultiKeyRow({ service, label, description, fields: fieldDefs, saved, testing, onTest, onForceSave, onDisconnect, error, primaryKey }) {
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState({});
   const keyMeta = saved?.[service]?.[primaryKey];
-  const connected = Boolean(keyMeta);
+  // A saved key the server can no longer decrypt is not a working connection.
+  const unreadable = Boolean(keyMeta?.unreadable);
+  const connected = Boolean(keyMeta) && !unreadable;
 
   function setField(key, val) { setValues(v => ({ ...v, [key]: val })); }
 
@@ -40,6 +42,7 @@ export default function MultiKeyRow({ service, label, description, fields: field
           onSave={handleTest}
           onDisconnect={connected && onDisconnect ? () => { onDisconnect(service); setExpanded(false); } : null}
           error={error}
+          warning={unreadable ? UNREADABLE_KEY_MESSAGE : undefined}
           extraActions={onForceSave && error && hasValues ? (
             <button onClick={handleForceSave} disabled={testing === service}
               style={{ fontSize: 12, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>
