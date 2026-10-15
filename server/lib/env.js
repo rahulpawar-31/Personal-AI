@@ -1,12 +1,11 @@
 // server/lib/env.js
-// Deployment-target detection — was duplicated ad hoc (and Railway-only) across
-// index.js, services/auth.js, services/users.js, routes/auth.js, routes/webhooks.js.
-// Any host can now declare itself production via NODE_ENV=production, and its
-// public URL via PUBLIC_URL (e.g. http://1.2.3.4 or https://example.com) —
-// RAILWAY_PUBLIC_DOMAIN keeps working unchanged for existing Railway deploys.
+// Deployment-target detection, shared by index.js, services/auth.js,
+// services/users.js, routes/auth.js and routes/webhooks.js.
+// Any host declares itself production via NODE_ENV=production, and its public
+// URL via PUBLIC_URL (e.g. http://1.2.3.4 or https://example.com).
 
 export function isProduction(env = process.env) {
-  return Boolean(env.RAILWAY_PUBLIC_DOMAIN) || env.NODE_ENV === 'production';
+  return env.NODE_ENV === 'production';
 }
 
 // The externally-reachable origin (scheme + host, no trailing slash), or null
@@ -14,7 +13,6 @@ export function isProduction(env = process.env) {
 // Falls back to RENDER_EXTERNAL_URL, which Render injects automatically on
 // every Web Service — no manual PUBLIC_URL needed for that host specifically.
 export function publicOrigin() {
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
   const url = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL;
   if (!url) return null;
   return url.replace(/\/+$/, '');

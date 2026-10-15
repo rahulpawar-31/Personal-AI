@@ -40,10 +40,6 @@ test('production accepts a generated JWT_SECRET (hex and base64)', () => {
   assert.deepEqual(productionConfigProblems({ ...complete, JWT_SECRET: b64 }), []);
 });
 
-test('a Railway domain also counts as production', () => {
-  assert.equal(productionConfigProblems({ RAILWAY_PUBLIC_DOMAIN: 'x.up.railway.app' }).length, 3);
-});
-
 test('assertProductionConfig exits with code 1 on a bad production config', () => {
   const codes = [];
   const err = console.error;
