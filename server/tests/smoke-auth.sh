@@ -45,10 +45,47 @@ SERVER_PID=""
 LOG_FILE="$(mktemp -t devos-smoke-auth.XXXXXX)"
 
 remove_data_files() {
-  # These are gitignored, but a run may have created them fresh — leave no trace.
+  # The throwaway server keeps its state in these gitignored files inside
+  # server/ (the paths are fixed in the code). Only called once
+  # set_aside_data_files has run, so it can never delete someone's real data.
   rm -f "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json" "$SERVER_DIR/pending_actions.json"
   rm -f "$SERVER_DIR"/memory_*.json
   rm -rf "$SERVER_DIR/tokens"
+}
+
+# A developer running this locally may have real accounts, saved (encrypted)
+# keys, per-user memory and Google tokens in those same files. Move them to a
+# temp directory before the test touches anything, and put them back on exit.
+# A hard kill (SIGKILL) skips the restore, but the files are then still in the
+# directory printed below, not deleted.
+BACKUP_DIR=""
+DATA_SET_ASIDE=0
+set_aside_data_files() {
+  local f
+  for f in "$SERVER_DIR/users.json" "$SERVER_DIR/integrations.json" "$SERVER_DIR/pending_actions.json" \
+           "$SERVER_DIR"/memory_*.json "$SERVER_DIR/tokens"; do
+    [[ -e "$f" ]] || continue
+    if [[ -z "$BACKUP_DIR" ]]; then
+      BACKUP_DIR="$(mktemp -d -t devos-smoke-backup.XXXXXX)"
+      echo "==> Existing local data found in server/: setting it aside in $BACKUP_DIR (restored on exit)"
+    fi
+    mv "$f" "$BACKUP_DIR/" || { echo "FAIL: could not move $f aside; refusing to continue"; exit 1; }
+  done
+  DATA_SET_ASIDE=1
+}
+
+restore_data_files() {
+  [[ -n "$BACKUP_DIR" ]] || return 0
+  local f failed=0
+  for f in "$BACKUP_DIR"/* "$BACKUP_DIR"/.[!.]*; do
+    [[ -e "$f" ]] || continue
+    mv "$f" "$SERVER_DIR/" || failed=1
+  done
+  if [[ "$failed" -eq 0 ]]; then
+    rmdir "$BACKUP_DIR" 2>/dev/null
+  else
+    echo "WARNING: could not restore all local data files; they are still in $BACKUP_DIR"
+  fi
 }
 
 stop_server() {
@@ -66,10 +103,15 @@ stop_server() {
 
 cleanup() {
   stop_server
-  remove_data_files
+  # Test files are removed only after the real ones are safely aside; the
+  # restore runs even if setting them aside stopped part-way.
+  [[ "$DATA_SET_ASIDE" -eq 1 ]] && remove_data_files
+  restore_data_files
   rm -f "$LOG_FILE"
 }
 trap cleanup EXIT
+# Ctrl-C and a termination signal must still run the cleanup (and so the restore).
+trap 'exit 130' INT TERM HUP
 
 # Fail fast (rather than silently testing a stale, already-running server) if
 # something is already bound to the port we're about to use.
@@ -78,6 +120,8 @@ if curl -s -o /dev/null --max-time 1 "$BASE_URL/api/webhook/info" 2>/dev/null; t
   echo "      Set SMOKE_TEST_PORT to a free port, or stop whatever is using ${PORT}."
   exit 1
 fi
+
+set_aside_data_files
 
 # start_server <OWNER_USERNAME or empty>
 start_server() {
