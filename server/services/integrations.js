@@ -85,6 +85,66 @@ export function countSavedKeys(keysWithMeta) {
   return Object.values(keysWithMeta ?? {}).reduce((n, svc) => n + Object.keys(svc).length, 0);
 }
 
+// The key whose state decides whether a service counts as connected. These are
+// the same keys the Settings rows use (primaryKey / keyName in SettingsPage.jsx),
+// so the admin page and Settings never disagree. A service not listed here is
+// connected if any of its keys is readable, so a new service never disappears.
+const PRIMARY_KEY = {
+  gemini:   'GEMINI_API_KEY',
+  groq:     'GROQ_API_KEY',
+  todoist:  'TODOIST_API_KEY',
+  notion:   'NOTION_API_KEY',
+  github:   'GITHUB_TOKEN',
+  trello:   'TRELLO_API_KEY',
+  slack:    'SLACK_BOT_TOKEN',
+  linkedin: 'LINKEDIN_WEBHOOK_URL',
+  google:   'GOOGLE_OAUTH_TOKENS',
+};
+
+function isServiceConnected(service, keys) {
+  const primary = PRIMARY_KEY[service];
+  if (primary) return Boolean(keys[primary]) && !keys[primary].unreadable;
+  return Object.values(keys).some(meta => !meta?.unreadable);
+}
+
+/**
+ * Names of the services a listKeysWithMeta() result has a working connection
+ * for, sorted. Only service names leave this function (never key names, hints or
+ * values), so the admin page can show what an account uses. Matches Settings: a
+ * service is connected when its primary key is saved and still decrypts, so a
+ * readable secondary key (e.g. GITHUB_REPO) does not make it connected.
+ */
+export function connectedServices(keysWithMeta) {
+  return Object.entries(keysWithMeta ?? {})
+    .filter(([service, keys]) => isServiceConnected(service, keys))
+    .map(([service]) => service)
+    .sort();
+}
+
+/**
+ * One row per saved key, for the admin page: { service, keyName, updatedAt,
+ * unreadable, serviceConnected }, sorted by service then key name.
+ * `serviceConnected` is the same answer connectedServices() gives for that
+ * row's service, so the key dialog and the Connected column agree. The masked
+ * hint and the value are deliberately left out, so an admin can see what an
+ * account has connected without seeing any part of a secret.
+ */
+export function describeKeys(keysWithMeta) {
+  const connected = new Set(connectedServices(keysWithMeta));
+  const rows = [];
+  for (const [service, keys] of Object.entries(keysWithMeta ?? {})) {
+    for (const [keyName, meta] of Object.entries(keys)) {
+      rows.push({
+        service, keyName,
+        updatedAt: meta?.updatedAt ?? null,
+        unreadable: Boolean(meta?.unreadable),
+        serviceConnected: connected.has(service),
+      });
+    }
+  }
+  return rows.sort((a, b) => a.service.localeCompare(b.service) || a.keyName.localeCompare(b.keyName));
+}
+
 /** Delete all keys for a service (disconnect). */
 export async function deleteService(userId, service) {
   await currentStore().deleteAllForService(userId, service);
