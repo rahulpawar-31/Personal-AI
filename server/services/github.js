@@ -320,36 +320,50 @@ export async function closePR(prNumber, repoHint, creds = {}) {
   return { id: data.number, title: data.title, state: data.state, url: data.html_url, repo };
 }
 
-// ─── Contributions (last 30 days via user events) ─────────────────────────────
+// ─── Contributions (last 30 days, one repo) ───────────────────────────────────
+//
+// Counted from the repo itself, for the account the token belongs to. The earlier
+// version read the owner's public event feed, but GitHub's push events no longer
+// carry their commit list, the feed holds only the latest 100 events across every
+// repo, and any failure was swallowed into a screen of zeros with no name on it.
 
-export async function getContributions(repoHint, creds = {}) {
-  const repos = getRepos(creds);
-  if (!repos.length) return null;
-  const [firstRepo] = repos;
-  const owner   = firstRepo.split('/')[0];
-  const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
+// Like ghFetch, but a failure is reported, not turned into null.
+async function ghGet(path, creds = {}) {
+  const res = await fetch(`${BASE}${path}`, { headers: ghHeaders(creds) });
+  if (!res.ok) throw new Error(`GitHub ${res.status} for ${path.split('?')[0]}`);
+  return res.json();
+}
 
-  const events = await ghFetch(`/users/${owner}/events?per_page=100`, creds);
-  if (!events) return { totalCommits: 0, dailyActivity: [], streak: 0, prsOpened: 0, reviewsDone: 0 };
+// Follows 100-item pages of a list endpoint, up to maxPages.
+async function ghGetPages(path, creds, maxPages = 3) {
+  const items = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    // Pages depend on each other (stop at the first short page), so this is sequential.
+    const batch = await ghGet(`${path}&per_page=100&page=${page}`, creds);
+    items.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return items;
+}
 
-  const recentEvents = events.filter(e => e.created_at > since30);
+// Pure: turns the raw GitHub lists into the numbers the panel shows.
+export function summariseContributions({ commits, pulls, reviewEvents, login, repo, now = Date.now() }) {
+  const since = now - 30 * 86400000;
+  const dayOf = ms => new Date(ms).toISOString().slice(0, 10);
 
-  // Daily commit map
   const dailyMap = {};
   let totalCommits = 0;
-  for (const e of recentEvents) {
-    if (e.type !== 'PushEvent') continue;
-    const day   = e.created_at.slice(0, 10);
-    const count = e.payload?.commits?.length ?? 1;
-    dailyMap[day] = (dailyMap[day] || 0) + count;
-    totalCommits += count;
+  for (const c of commits) {
+    const when = Date.parse(c.commit?.author?.date ?? c.commit?.committer?.date ?? '');
+    if (!Number.isFinite(when) || when < since) continue;
+    dailyMap[dayOf(when)] = (dailyMap[dayOf(when)] || 0) + 1;
+    totalCommits += 1;
   }
 
-  // Build 30-day array (oldest → newest)
+  // 30-day array, oldest → newest
   const days = [];
   for (let i = 29; i >= 0; i -= 1) {
-    const d   = new Date(Date.now() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    const key = dayOf(now - i * 86400000);
     days.push({ date: key, count: dailyMap[key] || 0 });
   }
 
@@ -360,14 +374,33 @@ export async function getContributions(repoHint, creds = {}) {
     else break;
   }
 
+  const mine = u => u?.login?.toLowerCase() === login.toLowerCase();
   return {
     totalCommits,
     dailyActivity: days,
     streak,
-    prsOpened:   recentEvents.filter(e => e.type === 'PullRequestEvent' && e.payload?.action === 'opened').length,
-    reviewsDone: recentEvents.filter(e => e.type === 'PullRequestReviewEvent').length,
-    author: owner,
+    prsOpened:   pulls.filter(p => mine(p.user) && Date.parse(p.created_at) >= since).length,
+    reviewsDone: reviewEvents.filter(e => e.type === 'PullRequestReviewEvent' && e.repo?.name === repo && Date.parse(e.created_at) >= since).length,
+    author: login,
+    repo,
   };
+}
+
+export async function getContributions(repoHint, creds = {}) {
+  if (!getRepos(creds).length) return null;
+  const repo  = resolveRepo(repoHint, creds);
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+
+  // The token's own account, not the repo owner (which can be an organisation).
+  const { login } = await ghGet('/user', creds);
+
+  const [commits, pulls, reviewEvents] = await Promise.all([
+    ghGetPages(`/repos/${repo}/commits?author=${encodeURIComponent(login)}&since=${encodeURIComponent(since)}`, creds),
+    ghGetPages(`/repos/${repo}/pulls?state=all&sort=created&direction=desc`, creds, 1),
+    // Reviews only appear in the event feed. Best effort: a failure here must not hide the commit numbers.
+    ghGet(`/users/${encodeURIComponent(login)}/events?per_page=100`, creds).catch(() => []),
+  ]);
+  return summariseContributions({ commits, pulls, reviewEvents, login, repo });
 }
 
 // ─── Branches with stale detection ───────────────────────────────────────────
