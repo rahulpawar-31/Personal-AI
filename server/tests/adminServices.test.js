@@ -10,12 +10,20 @@ test('connectedServices returns sorted service names only', () => {
   assert.deepEqual(connectedServices(meta), ['github', 'slack']);
 });
 
-test('a service whose keys are all unreadable is not listed, a mixed one is', () => {
+test('a service is connected only when its primary key is saved and readable, as in Settings', () => {
   const meta = {
     notion: { NOTION_API_KEY: { unreadable: true } },
     github: { GITHUB_TOKEN: { unreadable: true }, GITHUB_REPO: { keyHint: '••••••••' } },
+    slack:  { SLACK_BOT_TOKEN: { keyHint: 'xo••••ab' }, SLACK_USER_ID: { unreadable: true } },
+    trello: { TRELLO_BOARD_ID: { keyHint: '••••••••' } },
   };
-  assert.deepEqual(connectedServices(meta), ['github']);
+  // github: token unreadable (a readable repo does not help); trello: no primary key saved at all.
+  assert.deepEqual(connectedServices(meta), ['slack']);
+});
+
+test('a service the list does not know is connected if any of its keys is readable', () => {
+  assert.deepEqual(connectedServices({ newthing: { A: { unreadable: true }, B: { keyHint: 'x' } } }), ['newthing']);
+  assert.deepEqual(connectedServices({ newthing: { A: { unreadable: true } } }), []);
 });
 
 test('no keys, or odd input, gives an empty list', () => {
@@ -45,4 +53,17 @@ test('describeKeys lists service and key name but never a hint or value', () => 
   const out = JSON.stringify(rows);
   assert.ok(!out.includes('••••') && !out.includes('keyHint'));
   assert.deepEqual(describeKeys(undefined), []);
+});
+
+test('describeKeys marks each row with whether its service counts as connected', () => {
+  const meta = {
+    github: { GITHUB_TOKEN: { unreadable: true }, GITHUB_REPO: { keyHint: '••••••••' } },
+    slack:  { SLACK_BOT_TOKEN: { keyHint: 'xo••••ab' } },
+  };
+  const rows = describeKeys(meta);
+  assert.deepEqual(rows.map(r => `${r.service}/${r.keyName}:${r.serviceConnected}`),
+    ['github/GITHUB_REPO:false', 'github/GITHUB_TOKEN:false', 'slack/SLACK_BOT_TOKEN:true']);
+  // The dialog heading and the Connected column are driven by the same rule.
+  const connected = new Set(connectedServices(meta));
+  for (const r of rows) assert.equal(r.serviceConnected, connected.has(r.service));
 });
