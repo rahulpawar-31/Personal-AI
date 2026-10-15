@@ -37,6 +37,14 @@ export function extraOrigins() {
     .filter(Boolean);
 }
 
+// Browser origins allowed to call the API with credentials. The localhost
+// entries exist for local development only: in production they would let any
+// program a visitor runs on their own machine act as an allowed origin.
+export function corsOrigins() {
+  const dev = isProduction() ? [] : ['http://localhost:5173', 'http://localhost:3001'];
+  return [...dev, publicOrigin(), ...extraOrigins()].filter(Boolean);
+}
+
 // True if `origin` (scheme + host) is this server's own public origin or one
 // of the explicitly-trusted extras above. Used to validate any client-supplied
 // origin before treating it as a redirect target (OAuth callback, etc.) —

@@ -11,7 +11,8 @@ import * as integrations   from './services/integrations.js';
 import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
 import { setupCronJobs }   from './lib/digest.js';
-import { publicOrigin, extraOrigins } from './lib/env.js';
+import { corsOrigins } from './lib/env.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
 import { assertProductionConfig } from './lib/startupConfig.js';
 
 import authRoutes        from './routes/auth.js';
@@ -35,14 +36,8 @@ const PORT = process.env.PORT ?? 3001;
 // (see server/middleware/rateLimiter.js).
 app.set('trust proxy', 1);
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3001',
-  publicOrigin(),
-  ...extraOrigins(),
-].filter(Boolean);
-
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(securityHeaders);
+app.use(cors({ origin: corsOrigins(), credentials: true }));
 // Capture the raw request body alongside the parsed one — needed to verify the
 // GitHub webhook HMAC signature, which is computed over the exact bytes GitHub
 // sent (re-serializing the parsed JSON can produce different bytes and always

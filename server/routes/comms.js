@@ -4,6 +4,7 @@ import gmail    from '../services/gmail.js';
 import calendar from '../services/calendar.js';
 import memory   from '../services/memory.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sendLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import { getEmailCache, setEmailCache, invalidateEmailCache } from '../lib/email-cache.js';
 import { isValidAddress, EmailValidationError } from '../lib/emailMessage.js';
@@ -37,7 +38,7 @@ router.get('/api/email/:id', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/api/email/send', requireAuth, async (req, res) => {
+router.post('/api/email/send', requireAuth, sendLimiter, async (req, res) => {
   const uid = req.user.userId;
   try {
     const { to, subject, body } = req.body;
@@ -63,7 +64,7 @@ router.post('/api/email/archive', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/api/email/approve-draft', requireAuth, async (req, res) => {
+router.post('/api/email/approve-draft', requireAuth, sendLimiter, async (req, res) => {
   const uid = req.user.userId;
   try {
     const { to, subject, original, edited } = req.body;
