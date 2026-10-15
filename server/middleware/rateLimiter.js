@@ -71,6 +71,27 @@ export const sendLimiter = rateLimit({
   skip:            (req) => !req.user,
 });
 
+// Approving a queued send_email sends an email just like /api/email/send, so it
+// draws from the same sendLimiter bucket — otherwise the agent's approve route
+// would be a way round the cap. Other action types (tasks, calendar, ...) are
+// not sends and are left alone. `getAction(userId, id)` loads the pending row;
+// only a row still waiting for approval counts, so a repeated click on an
+// already-resolved action does not use up quota.
+export function limitSendApprovals(getAction) {
+  return async (req, res, next) => {
+    let action = null;
+    try {
+      action = await getAction(req.user?.userId, req.params.id);
+    } catch {
+      // Fall through: the route itself reports the real lookup error.
+    }
+    if (action?.actionType === 'send_email' && action.status === 'pending') {
+      return sendLimiter(req, res, next);
+    }
+    next();
+  };
+}
+
 // Auth endpoints (login/signup) — 20 per 15 minutes per IP to slow brute-force.
 export const authLimiter = rateLimit({
   windowMs:        15 * 60 * 1000,
