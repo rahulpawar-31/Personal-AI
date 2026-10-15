@@ -3,6 +3,7 @@ import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
 import { dbListUsers, dbDeleteUser, dbSetAdmin, getPool } from '../services/db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { accountLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.put('/api/users/me/email', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/api/users/me/password', requireAuth, async (req, res) => {
+router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
     res.json({ ok: true });
@@ -24,7 +25,7 @@ router.put('/api/users/me/password', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/api/users/me', requireAuth, async (req, res) => {
+router.delete('/api/users/me', requireAuth, accountLimiter, async (req, res) => {
   try {
     await userService.deleteUser(req.user.userId, req.body.password);
     res.json({ ok: true });

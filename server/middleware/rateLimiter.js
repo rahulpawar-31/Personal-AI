@@ -42,6 +42,35 @@ export const credLimiter = rateLimit({
   skip:            (req) => !req.user,
 });
 
+// Password change and account deletion both check the current password, so a
+// stolen 15-minute access token could otherwise guess it as fast as the server
+// answers. Only failed attempts count (skipSuccessfulRequests), so a legitimate
+// change is never blocked. Keyed by user, not IP, so it holds whatever the
+// proxy setup does to req.ip.
+export const accountLimiter = rateLimit({
+  windowMs:               15 * 60 * 1000,
+  max:                    5,
+  keyGenerator:           userKey,
+  skipSuccessfulRequests: true,
+  standardHeaders:        'draft-7',
+  legacyHeaders:          false,
+  message:                { error: 'Too many failed attempts — try again in 15 minutes.' },
+  skip:                   (req) => !req.user,
+});
+
+// Anything that sends a message to someone else on the user's behalf (email,
+// Slack, LinkedIn webhook). One shared bucket so the routes cannot be used to
+// get around each other: 30 per hour per user.
+export const sendLimiter = rateLimit({
+  windowMs:        60 * 60 * 1000,
+  max:             30,
+  keyGenerator:    userKey,
+  standardHeaders: 'draft-7',
+  legacyHeaders:   false,
+  message:         { error: 'Sending too many messages — try again later.' },
+  skip:            (req) => !req.user,
+});
+
 // Auth endpoints (login/signup) — 20 per 15 minutes per IP to slow brute-force.
 export const authLimiter = rateLimit({
   windowMs:        15 * 60 * 1000,
