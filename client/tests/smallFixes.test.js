@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toDateTimeLocal, nextHourLocal } from '../src/dateInput.js';
+import { toDateTimeLocal, nextHourLocal, localToInstantISO } from '../src/dateInput.js';
 import { setupLinkLabel } from '../src/components/settings/setupLabel.js';
 import { newTaskErrors } from '../src/taskErrors.js';
 
@@ -46,4 +46,22 @@ test('a failing task source is reported once, then not again', () => {
 test('no errors, or odd values, produce nothing', () => {
   const seen = new Set();
   for (const e of [undefined, null, {}, { a: '' }, { a: 42 }, { a: null }]) assert.deepEqual(newTaskErrors(e, seen), []);
+});
+
+test('an event time is sent as an absolute instant, so a UTC server cannot shift it', () => {
+  // 14:00 on the user's clock is 08:30 UTC in India but 21:00 UTC in Los Angeles.
+  assert.equal(inZone('Asia/Kolkata', () => localToInstantISO('2026-10-15T14:00')), '2026-10-15T08:30:00.000Z');
+  assert.equal(inZone('America/Los_Angeles', () => localToInstantISO('2026-10-15T14:00')), '2026-10-15T21:00:00.000Z');
+  assert.equal(inZone('UTC', () => localToInstantISO('2026-10-15T14:00')), '2026-10-15T14:00:00.000Z');
+});
+
+test('the default shown in the form round-trips to the right instant', () => {
+  const now = new Date('2026-10-15T07:30:00Z'); // 13:00 in India
+  const shown = inZone('Asia/Kolkata', () => nextHourLocal(now));
+  assert.equal(shown, '2026-10-15T14:00');
+  assert.equal(inZone('Asia/Kolkata', () => localToInstantISO(shown)), '2026-10-15T08:30:00.000Z');
+});
+
+test('an unparseable value is passed through unchanged', () => {
+  assert.equal(localToInstantISO('not a date'), 'not a date');
 });

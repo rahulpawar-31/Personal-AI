@@ -89,7 +89,7 @@ export async function getRecentlyCompleted(creds = {}, days = 30, { throwOnError
     let cursor = null;
     for (let page = 0; page < MAX_COMPLETED_PAGES; page += 1) {
       // Each page needs the previous page's cursor, so this is sequential.
-      const url = `${BASE}/tasks/completed/by_completion_date?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`
+      const url = `${BASE}/tasks/completed/by_completion_date?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}&limit=200`
         + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
       const res = await fetch(url, { headers: headers(creds) });
       if (!res.ok) throw new Error(`Todoist ${res.status}: ${await res.text().catch(() => '')}`);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
-import { nextHourLocal } from '../dateInput.js';
+import { nextHourLocal, localToInstantISO } from '../dateInput.js';
 import NotConnected from './NotConnected.jsx';
 
 const DAYS = [
@@ -83,7 +83,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
     try {
       const body = form.recurring
         ? { title: form.title, recurring: true, days: form.days, time: form.time, duration: Number(form.duration) }
-        : { title: form.title, date: form.date, duration: Number(form.duration) };
+        : { title: form.title, date: localToInstantISO(form.date), duration: Number(form.duration) };
       const r = await apiFetch('/api/calendar', { method: 'POST', body: JSON.stringify(body) });
       if (!r.ok) { const e = await r.json(); toast(e.error, 'error'); return; }
       setForm({ title: '', date: nextHourLocal(), duration: 60, recurring: false, days: [], time: '14:00' });

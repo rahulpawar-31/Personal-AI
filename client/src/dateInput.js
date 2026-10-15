@@ -16,3 +16,12 @@ export function nextHourLocal(now = new Date()) {
   d.setHours(d.getHours() + 1, 0, 0, 0);
   return toDateTimeLocal(d);
 }
+
+// The absolute moment a datetime-local value means in the user's own timezone, as
+// an ISO string with a Z. The server runs in UTC and would read a bare
+// "2026-10-15T14:00" as 14:00 UTC, i.e. 19:30 in India, so the browser (which
+// knows the user's zone) converts before sending.
+export function localToInstantISO(value) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toISOString();
+}

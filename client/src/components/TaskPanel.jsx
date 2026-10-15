@@ -496,7 +496,10 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
       if (tr.ok)  { const d = await tr.json();  setTrelloLists(d.lists ?? []); setTrelloCards(d.cards ?? []); }
       if (tsk.ok) {
         const d = await tsk.json();
-        setNotionTasks(d.notion ?? []); setTodoistTasks(d.todoist ?? []);
+        // A source that failed keeps what it showed before: the API sends an empty list for it,
+        // and replacing the column with that would wipe real tasks during a brief outage.
+        if (!d.errors?.notion)  setNotionTasks(d.notion ?? []);
+        if (!d.errors?.todoist) setTodoistTasks(d.todoist ?? []);
         // A source that failed says so (once), instead of an empty column that looks like "no tasks".
         newTaskErrors(d.errors, shownTaskErrors).forEach(msg => toast(msg, 'error'));
       }

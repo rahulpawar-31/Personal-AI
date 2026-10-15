@@ -26,6 +26,7 @@ test('completed tasks use the v1 path with both since and until (the old path wa
     assert.ok(url.searchParams.get('since'), 'since is sent');
     assert.ok(url.searchParams.get('until'), 'until is sent');
     assert.ok(Date.parse(url.searchParams.get('until')) > Date.parse(url.searchParams.get('since')));
+    assert.equal(url.searchParams.get('limit'), '200', 'asks for the largest page, as the old call did');
     assert.ok(!calls[0].includes('completed_by_completion_date'), 'the broken path is gone');
   });
 });
