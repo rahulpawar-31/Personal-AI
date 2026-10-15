@@ -46,7 +46,7 @@ test('vercel.json serves the same CSP as the server', () => {
 
 test('localhost origins are allowed in development but not in production', () => {
   const run = env => {
-    const keys = ['NODE_ENV', 'RAILWAY_PUBLIC_DOMAIN', 'PUBLIC_URL', 'EXTRA_ALLOWED_ORIGINS'];
+    const keys = ['NODE_ENV', 'PUBLIC_URL', 'EXTRA_ALLOWED_ORIGINS'];
     const saved = Object.fromEntries(keys.map(k => [k, process.env[k]]));
     for (const k of keys) delete process.env[k];
     Object.assign(process.env, env);

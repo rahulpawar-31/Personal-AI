@@ -54,7 +54,7 @@ jobs:
       - name: Client unit tests
         run: npm test --prefix client
 
-      - name: Auth smoke test (every panel route requires a valid token)
+      - name: Auth smoke test (route guards, two-user isolation, invite-only signup)
         run: bash server/tests/smoke-auth.sh
 
       - name: Server unit tests

@@ -176,10 +176,11 @@ Why both Vercel and Render: Vercel serves the static frontend and rewrites
 `vercel.json`). Render runs the actual Node/Express API and database access.
 Neither one is redundant with the other — removing either breaks the app.
 
-There used to be a third config, `nixpacks.toml` (a Railway builder file).
-Railway was dropped as a deploy target; the file has been removed and
-`server/lib/env.js` is host-agnostic (`NODE_ENV` / `PUBLIC_URL`) rather than
-Railway-specific.
+`server/lib/env.js` is host-agnostic: a deploy counts as production when
+`NODE_ENV=production` (set in `render.yaml`), and its public URL comes from
+`PUBLIC_URL` or, on Render, `RENDER_EXTERNAL_URL`. Because that one variable
+switches the production safety checks on, the server also refuses to start if it
+sees it is running on Render (`RENDER=true`) without `NODE_ENV=production`.
 
 **The only two live URLs are:**
 - Frontend: `https://personal-ai-blue.vercel.app`

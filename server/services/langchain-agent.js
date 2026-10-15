@@ -16,16 +16,25 @@ import { z } from 'zod';
 import { resolveKey } from './llm.js';
 import { dbCreatePendingAction } from './db.js';
 import { CONFIRM_REQUIRED_INTENTS } from '../lib/actions.js';
+import { modelId } from '../lib/models.js';
+import { runWithFallback } from '../lib/aiFallback.js';
 
-// Returns an ordered list of model factories to try for tool calling.
+// Returns an ordered list of { provider, model, make } to try for tool calling.
 // Gemini first (reliable tool-call JSON); Groq as fallback (useful when Gemini
-// quota is exhausted). runAgent tries each in sequence until one succeeds.
+// quota is exhausted). runAgent tries each in sequence until one succeeds, and
+// remembers why each one failed. Model names come from lib/models.js.
 function modelCandidates(apiKeys = {}) {
   const candidates = [];
   const geminiKey = resolveKey('gemini', apiKeys);
   const groqKey   = resolveKey('groq',   apiKeys);
-  if (geminiKey) candidates.push(() => new ChatGoogleGenerativeAI({ model: 'gemini-2.0-flash', apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0 }));
-  if (groqKey)   candidates.push(() => new ChatGroq({ model: 'llama-3.3-70b-versatile', apiKey: groqKey, maxTokens: 800, temperature: 0 }));
+  if (geminiKey) {
+    const model = modelId('gemini');
+    candidates.push({ provider: 'gemini', model, make: () => new ChatGoogleGenerativeAI({ model, apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0 }) });
+  }
+  if (groqKey) {
+    const model = modelId('groq');
+    candidates.push({ provider: 'groq', model, make: () => new ChatGroq({ model, apiKey: groqKey, maxTokens: 800, temperature: 0 }) });
+  }
   if (!candidates.length) {
     const err = new Error('No LLM API key configured — add a Groq or Gemini key in Settings.');
     err.code = 'MISSING_API_KEY';
@@ -236,61 +245,25 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
   const tools      = buildTools({ executeAction, message, creds, userId });
   const systemPrompt = SYSTEM_PROMPT(connectedTools, memContext);
 
-  // tool_use_failed is intermittent on Groq — retry same model up to 2× before moving on
-  const MAX_TOOL_RETRIES = 2;
+  // Try Gemini, then Groq (see lib/aiFallback.js); if both fail the error says why each did.
+  return runWithFallback(candidates, async (model) => {
+    const agent       = createAgent({ model, tools, systemPrompt });
+    const contextMsgs = await buildContext(history, userId, model);
+    const messages    = [...contextMsgs, new HumanMessage(message)];
 
-  let lastErr;
-  // Intentionally sequential — this is a model fallback chain (try model A,
-  // only fall back to B on failure), not independent work. Running
-  // candidates in parallel would fire (and pay for) multiple LLM providers
-  // simultaneously even when the first one succeeds.
-  for (const makeModel of candidates) {
-    for (let attempt = 0; attempt <= MAX_TOOL_RETRIES; attempt += 1) {
-      const model = makeModel();
-      try {
-        const agent       = createAgent({ model, tools, systemPrompt });
-        const contextMsgs = await buildContext(history, userId, model);
-        const messages    = [...contextMsgs, new HumanMessage(message)];
-
-        const result    = await agent.invoke(
-          { messages },
-          { runName: 'devos-agent', tags: ['devos', 'agent'], metadata: { userId: String(userId ?? 'anon') } }
-        );
-        const msgs = result.messages ?? [];
-        const last = msgs[msgs.length - 1];
-        let reply = '';
-        if (last) {
-          reply = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
-        }
-        const toolsUsed = msgs.flatMap(m => (m.tool_calls ?? []).map(tc => tc.name));
-        return { reply, toolsUsed };
-      } catch (err) {
-        lastErr = err;
-        const isToolFmt = err.message?.includes('tool_use_failed') || err.message?.includes('failed_generation');
-        const isQuota   = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('rate');
-
-        if (isToolFmt && attempt < MAX_TOOL_RETRIES) {
-          console.warn(`[agent] tool_use_failed (attempt ${attempt + 1}/${MAX_TOOL_RETRIES + 1}) — retrying same model`);
-          continue; // retry inner loop with same model
-        }
-        // quota, tool format exhausted, or any other provider error → try next model
-        console.warn(`[agent] ${model.constructor?.name ?? 'model'} failed — trying next (${err.message.slice(0, 60)})`);
-        break; // stop retrying this candidate — inner loop ends, outer loop advances
-      }
+    const result    = await agent.invoke(
+      { messages },
+      { runName: 'devos-agent', tags: ['devos', 'agent'], metadata: { userId: String(userId ?? 'anon') } }
+    );
+    const msgs = result.messages ?? [];
+    const last = msgs[msgs.length - 1];
+    let reply = '';
+    if (last) {
+      reply = typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
     }
-  }
-
-  // All candidates exhausted — surface a readable message
-  const raw = lastErr?.message ?? 'Unknown error';
-  let friendly;
-  if (raw.includes('tool_use_failed') || raw.includes('failed_generation')) {
-    friendly = 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.';
-  } else if (raw.includes('quota') || raw.includes('429') || raw.includes('rate')) {
-    friendly = 'All AI keys are currently rate-limited. Wait a minute then try again.';
-  } else {
-    friendly = raw;
-  }
-  throw new Error(friendly);
+    const toolsUsed = msgs.flatMap(m => (m.tool_calls ?? []).map(tc => tc.name));
+    return { reply, toolsUsed };
+  });
 }
 
 /** Clear the rolling summary for a user (called when they hit "Clear" in the chat). */

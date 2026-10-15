@@ -57,10 +57,6 @@ replacement for it.
    ```
    Both must return 401/403/redirect — not panel data — before this is done.
 
-**Note:** `nixpacks.toml` (Railway) is being removed as stale in the P5
-pass. If a Railway deployment is *actually* still live independent of the
-repo config, gate that too — check the Railway dashboard directly.
-
 ---
 
 ## P1 — Rotate and revoke every credential (this week)
@@ -112,8 +108,6 @@ git log --all --oneline --all -- '*.pem' '*credential*' '*secret*' | cat
 **Update rotated values in every place they're stored:**
 - Render env vars (the live API) — required.
 - Vercel env vars, if any server-side values are duplicated there.
-- Railway, if it's still an active target independent of `nixpacks.toml`
-  (confirm in the Railway dashboard, not just the repo).
 - Local `.env` for dev.
 
 **Acceptance check:** after rotating, try the *old* value against each
