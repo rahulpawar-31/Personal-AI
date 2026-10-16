@@ -5,7 +5,7 @@ import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
 import tracing     from '../services/tracing.js';
 import { requireAuth } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, loginAccountLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
@@ -227,7 +227,7 @@ router.post('/api/auth/signup', authLimiter, async (req, res) => {
   }
 });
 
-router.post('/api/auth/login', authLimiter, async (req, res) => {
+router.post('/api/auth/login', authLimiter, loginAccountLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     const user  = await userService.loginUser(username, password);
