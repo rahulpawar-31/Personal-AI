@@ -2,7 +2,7 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdatePasswordHash, dbDeleteUser, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
+import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdatePasswordHash, dbDeleteUser, dbBumpTokenVersion, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
 import { isHttps } from '../lib/env.js';
 
 export { dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser };
@@ -63,7 +63,13 @@ export async function loginUser(username, password) {
   const ok   = await bcrypt.compare(password, hash);
   if (!ok) throw new Error('Invalid username or password');
 
-  return { id: user.id, username: user.username, email: user.email ?? null };
+  return { id: user.id, username: user.username, email: user.email ?? null, tokenVersion: tokenVersionOf(user) };
+}
+
+// A user row is snake_case from Postgres and camelCase from the JSON file.
+// Accounts that predate the column have no number, which counts as 0.
+export function tokenVersionOf(row) {
+  return Number(row?.token_version ?? row?.tokenVersion ?? 0) || 0;
 }
 
 // Short-lived access token — sent in response body, stored in localStorage by frontend.
@@ -73,7 +79,35 @@ export function signToken(user) {
 
 // Long-lived refresh token — sent as httpOnly cookie only.
 export function signRefreshToken(user) {
-  return jwt.sign({ userId: user.id, username: user.username, type: 'refresh' }, getJwtSecret(), { expiresIn: '30d' });
+  return jwt.sign({ userId: user.id, username: user.username, type: 'refresh', tv: user.tokenVersion ?? 0 }, getJwtSecret(), { expiresIn: '30d' });
+}
+
+// A refresh token only works while its number matches the account's. Raising
+// the account's number (endSessions) therefore ends every session at once.
+// Tokens issued before this existed have no number, which counts as 0.
+export function refreshTokenIsCurrent(payload, account) {
+  return (payload?.tv ?? 0) === (account?.tokenVersion ?? 0);
+}
+
+// Ends every session of a user: their refresh tokens stop working at once.
+// Access tokens already handed out last until they expire (15 minutes).
+// Returns the new number, or null if the user does not exist.
+export async function endSessions(userId) {
+  return dbBumpTokenVersion(userId);
+}
+
+// Who is logging out. The access token may already have expired (that is a
+// common reason to log out), so expiry is ignored, but the signature is not,
+// and a refresh token is refused. Worst case a stolen old token signs its
+// owner out, which gives an attacker nothing.
+export function identifyForLogout(token) {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true });
+    if (payload.type === 'refresh' || !payload.userId) return null;
+    return payload.userId;
+  } catch {
+    return null;
+  }
 }
 
 export function verifyToken(token) {
@@ -116,6 +150,16 @@ export async function updateEmail(userId, email) {
   await dbUpdateEmail(userId, email?.trim() || null);
 }
 
+// Ends the other sessions BEFORE saving the new password. If the second step
+// fails the account is left with its old password and its sessions ended, which
+// is safe; the other order could save the password, fail to end the sessions,
+// and report an error while old sessions keep working. Returns the new number.
+export async function applyPasswordChange(userId, newHash, deps = { endSessions, saveHash: dbUpdatePasswordHash }) {
+  const tokenVersion = await deps.endSessions(userId);
+  await deps.saveHash(userId, newHash);
+  return tokenVersion ?? 0;
+}
+
 export async function updatePassword(userId, currentPassword, newPassword) {
   if (!currentPassword || !newPassword) throw new Error('Both current and new password are required');
   if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
@@ -126,7 +170,9 @@ export async function updatePassword(userId, currentPassword, newPassword) {
   const ok = await bcrypt.compare(currentPassword, hash);
   if (!ok) throw new Error('Current password is incorrect');
   const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await dbUpdatePasswordHash(userId, newHash);
+  // The caller gets the new number so it can keep the current session signed in.
+  const tokenVersion = await applyPasswordChange(userId, newHash);
+  return { id: user.id, username: user.username, tokenVersion };
 }
 
 export async function deleteUser(userId, password) {

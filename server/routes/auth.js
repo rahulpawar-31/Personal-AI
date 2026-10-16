@@ -5,7 +5,7 @@ import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
 import tracing     from '../services/tracing.js';
 import { requireAuth } from '../middleware/auth.js';
-import { authLimiter, loginAccountLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, loginAccountLimiter, logoutLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
@@ -164,7 +164,7 @@ router.get('/api/auth/google/callback', async (req, res) => {
       }
 
       await auth.saveTokens(tokens, user.id);
-      const jwtUser = { id: user.id, username: user.username };
+      const jwtUser = { id: user.id, username: user.username, tokenVersion: userService.tokenVersionOf(user) };
       const token   = userService.signToken(jwtUser);
       userService.setRefreshCookie(res, jwtUser);
       return res.redirect(`${redirectBase}/#google_token=${token}`);
@@ -269,15 +269,35 @@ router.post('/api/auth/refresh', authLimiter, async (req, res) => {
     return res.status(401).json({ error: 'Refresh token expired — please log in again' });
   }
 
-  const user  = { id: account.id, username: account.username };
+  // Logout and a password change raise the account's number, which ends the
+  // sessions that were signed in before.
+  if (!userService.refreshTokenIsCurrent(payload, account)) {
+    userService.clearRefreshCookie(res);
+    return res.status(401).json({ error: 'Session ended — please log in again' });
+  }
+
+  const user  = { id: account.id, username: account.username, tokenVersion: account.tokenVersion };
   const token = userService.signToken(user);
   userService.setRefreshCookie(res, user); // rotate the cookie
   res.json({ token });
 });
 
-router.post('/api/auth/logout', (req, res) => {
+// Ends the session on the server as well as in the browser. The refresh cookie
+// is only sent to /api/auth/refresh, so this finds the user from the access
+// token instead. Logging out ends every session of the account.
+router.post('/api/auth/logout', logoutLimiter, async (req, res) => {
   userService.clearRefreshCookie(res);
-  res.json({ ok: true });
+  const header = req.headers.authorization;
+  const userId = header?.startsWith('Bearer ') ? userService.identifyForLogout(header.slice(7)) : null;
+  let revoked = false;
+  if (userId) {
+    try {
+      revoked = (await userService.endSessions(userId)) !== null;
+    } catch (err) {
+      console.error('[auth/logout] could not end sessions:', err.message);
+    }
+  }
+  res.json({ ok: true, revoked });
 });
 
 router.get('/api/users/me', async (req, res) => {
