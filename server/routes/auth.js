@@ -5,7 +5,7 @@ import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
 import tracing     from '../services/tracing.js';
 import { requireAuth } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, logoutLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
@@ -285,7 +285,7 @@ router.post('/api/auth/refresh', authLimiter, async (req, res) => {
 // Ends the session on the server as well as in the browser. The refresh cookie
 // is only sent to /api/auth/refresh, so this finds the user from the access
 // token instead. Logging out ends every session of the account.
-router.post('/api/auth/logout', async (req, res) => {
+router.post('/api/auth/logout', logoutLimiter, async (req, res) => {
   userService.clearRefreshCookie(res);
   const header = req.headers.authorization;
   const userId = header?.startsWith('Bearer ') ? userService.identifyForLogout(header.slice(7)) : null;

@@ -183,12 +183,25 @@ export async function disconnectUser(userId) {
 
 // The Google tokens held for a user (local file first, then the database), or
 // null. Read before an account is deleted: its database rows go with it.
-export async function readGoogleTokens(userId) {
-  try {
+// The local file and the database copy are read separately: a corrupt or
+// unreadable file must not hide the database copy, or deleting the account would
+// leave Google's grant active. `readLocal` / `readStored` exist for tests.
+export async function readGoogleTokens(userId, {
+  readLocal = () => {
     const tPath = tokenPath(userId);
-    if (fs.existsSync(tPath)) return JSON.parse(fs.readFileSync(tPath, 'utf8'));
+    return fs.existsSync(tPath) ? JSON.parse(fs.readFileSync(tPath, 'utf8')) : null;
+  },
+  readStored = async () => {
     const raw = await integrations.getKey(String(userId), 'google', 'GOOGLE_OAUTH_TOKENS');
     return raw ? JSON.parse(raw) : null;
+  },
+} = {}) {
+  try {
+    const local = readLocal();
+    if (local) return local;
+  } catch { /* fall through to the database copy */ }
+  try {
+    return await readStored();
   } catch {
     return null;
   }

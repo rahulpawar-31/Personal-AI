@@ -5,7 +5,7 @@ process.env.JWT_SECRET = 'session-revocation-test-secret-32-chars-long';
 
 const users = await import('../services/users.js');
 const { createInMemoryUserStore } = await import('../services/stores/userStore.js');
-const { revokeGoogleTokens } = await import('../services/auth.js');
+const { revokeGoogleTokens, readGoogleTokens } = await import('../services/auth.js');
 const { default: jwt } = await import('jsonwebtoken');
 
 test('the user store counts up per account and reports it on lookup', async () => {
@@ -74,3 +74,46 @@ test('revoking at Google sends the refresh token, falls back to the access token
   assert.equal(await revokeGoogleTokens({ refresh_token: 'r' }, { client: hangs, timeoutMs: 50 }), false);
   assert.ok(Date.now() - started < 1000, 'gives up after the timeout');
 });
+
+test('a password change ends the other sessions before the new password is saved', async () => {
+  const order = [];
+  const deps = {
+    endSessions: async () => { order.push('sessions'); return 5; },
+    saveHash:    async () => { order.push('hash'); },
+  };
+  assert.equal(await users.applyPasswordChange(7, 'hash', deps), 5);
+  assert.deepEqual(order, ['sessions', 'hash']);
+});
+
+test('if ending the sessions fails, the password is not saved and the error reaches the caller', async () => {
+  let saved = false;
+  const deps = {
+    endSessions: async () => { throw new Error('db down'); },
+    saveHash:    async () => { saved = true; },
+  };
+  await assert.rejects(() => users.applyPasswordChange(7, 'hash', deps), /db down/);
+  assert.equal(saved, false);
+});
+
+test('an account row without a number still yields 0 from a password change', async () => {
+  const deps = { endSessions: async () => null, saveHash: async () => {} };
+  assert.equal(await users.applyPasswordChange(7, 'hash', deps), 0);
+});
+
+test('a corrupt local token file falls back to the stored copy, so the Google grant is still revoked', async () => {
+  const stored = { refresh_token: 'r-from-db' };
+  const corrupt = () => { throw new SyntaxError('Unexpected token } in JSON'); };
+  assert.deepEqual(await readGoogleTokens(7, { readLocal: corrupt, readStored: async () => stored }), stored);
+});
+
+test('the local token file is preferred when it is readable, and nothing held gives null', async () => {
+  const local = { refresh_token: 'r-local' };
+  let askedStore = false;
+  const out = await readGoogleTokens(7, { readLocal: () => local, readStored: async () => { askedStore = true; return null; } });
+  assert.deepEqual(out, local);
+  assert.equal(askedStore, false);
+  assert.equal(await readGoogleTokens(7, { readLocal: () => null, readStored: async () => null }), null);
+  assert.equal(await readGoogleTokens(7, { readLocal: corruptFile, readStored: async () => { throw new Error('db down'); } }), null);
+});
+
+function corruptFile() { throw new Error('unreadable'); }

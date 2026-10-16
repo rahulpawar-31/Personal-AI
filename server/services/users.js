@@ -150,6 +150,16 @@ export async function updateEmail(userId, email) {
   await dbUpdateEmail(userId, email?.trim() || null);
 }
 
+// Ends the other sessions BEFORE saving the new password. If the second step
+// fails the account is left with its old password and its sessions ended, which
+// is safe; the other order could save the password, fail to end the sessions,
+// and report an error while old sessions keep working. Returns the new number.
+export async function applyPasswordChange(userId, newHash, deps = { endSessions, saveHash: dbUpdatePasswordHash }) {
+  const tokenVersion = await deps.endSessions(userId);
+  await deps.saveHash(userId, newHash);
+  return tokenVersion ?? 0;
+}
+
 export async function updatePassword(userId, currentPassword, newPassword) {
   if (!currentPassword || !newPassword) throw new Error('Both current and new password are required');
   if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
@@ -160,11 +170,9 @@ export async function updatePassword(userId, currentPassword, newPassword) {
   const ok = await bcrypt.compare(currentPassword, hash);
   if (!ok) throw new Error('Current password is incorrect');
   const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await dbUpdatePasswordHash(userId, newHash);
-  // Every other session signed in with the old password must end. The caller
-  // gets the new number so it can keep the current session signed in.
-  const tokenVersion = await endSessions(userId);
-  return { id: user.id, username: user.username, tokenVersion: tokenVersion ?? 0 };
+  // The caller gets the new number so it can keep the current session signed in.
+  const tokenVersion = await applyPasswordChange(userId, newHash);
+  return { id: user.id, username: user.username, tokenVersion };
 }
 
 export async function deleteUser(userId, password) {
