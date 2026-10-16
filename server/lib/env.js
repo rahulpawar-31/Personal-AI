@@ -18,6 +18,24 @@ export function publicOrigin() {
   return url.replace(/\/+$/, '');
 }
 
+// How many reverse proxies sit in front of this server, for Express's
+// `trust proxy`. It decides which address counts as the client in req.ip, which
+// the per-address rate limits key on: too low and every visitor shares the
+// proxy's address, too high and a client can put a made-up address at the
+// front of X-Forwarded-For. The default, 1, is the long-standing behaviour.
+// TRUST_PROXY_HOPS overrides it (a whole number from 0 to 5); anything else is
+// ignored and reported in `valid`. The Admin page's request check shows what
+// each value would pick for the real deployment.
+export const DEFAULT_TRUST_PROXY_HOPS = 1;
+
+export function parseTrustProxyHops(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return { hops: DEFAULT_TRUST_PROXY_HOPS, valid: true };
+  const text = String(raw).trim();
+  const n = Number(text);
+  if (/^\d+$/.test(text) && Number.isInteger(n) && n >= 0 && n <= 5) return { hops: n, valid: true };
+  return { hops: DEFAULT_TRUST_PROXY_HOPS, valid: false };
+}
+
 // Cookies must only be marked Secure when actually served over HTTPS — an
 // HTTP-only deploy (e.g. a bare-IP VPS with no TLS yet) would silently drop
 // them otherwise. Deliberately separate from isProduction().

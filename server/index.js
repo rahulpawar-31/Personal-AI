@@ -11,7 +11,7 @@ import * as integrations   from './services/integrations.js';
 import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
 import { setupCronJobs }   from './lib/digest.js';
-import { corsOrigins } from './lib/env.js';
+import { corsOrigins, parseTrustProxyHops } from './lib/env.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import { assertProductionConfig } from './lib/startupConfig.js';
 
@@ -34,7 +34,11 @@ const PORT = process.env.PORT ?? 3001;
 // reverse-proxy hop — without this, req.ip resolves to the proxy's internal
 // address for every request, which breaks per-client rate limiting
 // (see server/middleware/rateLimiter.js).
-app.set('trust proxy', 1);
+const proxyHops = parseTrustProxyHops(process.env.TRUST_PROXY_HOPS);
+if (!proxyHops.valid) {
+  console.warn(`[net] TRUST_PROXY_HOPS must be a whole number from 0 to 5; using ${proxyHops.hops}`);
+}
+app.set('trust proxy', proxyHops.hops);
 
 app.use(securityHeaders);
 app.use(cors({ origin: corsOrigins(), credentials: true }));

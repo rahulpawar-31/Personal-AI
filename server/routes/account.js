@@ -5,6 +5,7 @@ import auth from '../services/auth.js';
 import { dbListUsers, dbDeleteUser, dbSetAdmin, getPool } from '../services/db.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { accountLimiter } from '../middleware/rateLimiter.js';
+import { describeRequestPath } from '../lib/requestPath.js';
 
 const router = Router();
 
@@ -82,6 +83,13 @@ router.get('/api/admin/users/:id/keys', requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// What the server sees of the caller's network path, and what each proxy-hop
+// setting would pick as the client address (see the runbook, "Checking the
+// client address"). Admin only; it reports the caller's own request.
+router.get('/api/admin/network', requireAdmin, (req, res) => {
+  res.json(describeRequestPath(req, Number(req.app.get('trust proxy'))));
 });
 
 // Secret rotation (see SECURITY-P0-P2-RUNBOOK.md). Counts only, never values.
