@@ -92,6 +92,18 @@ export function limitSendApprovals(getAction) {
   };
 }
 
+// Logout writes to the database for any validly signed token, so it gets its own
+// limit. Generous (60 per 15 minutes per IP) because it must never get in the way
+// of someone signing out, and kept apart from authLimiter so signing out does not
+// use up the login budget.
+export const logoutLimiter = rateLimit({
+  windowMs:        15 * 60 * 1000,
+  max:             60,
+  standardHeaders: 'draft-7',
+  legacyHeaders:   false,
+  message:         { error: 'Too many sign-out requests — try again later.' },
+});
+
 // Auth endpoints (login/signup) — 20 per 15 minutes per IP to slow brute-force.
 export const authLimiter = rateLimit({
   windowMs:        15 * 60 * 1000,

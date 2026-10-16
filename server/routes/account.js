@@ -8,10 +8,13 @@ import { accountLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-// A removed account must stop feeding the background jobs: the 9 AM digest and
-// the meeting-brief cron both pick users from the token files on disk.
-async function disconnectRemovedUser(userId) {
+// A removed account must stop feeding the background jobs (the 9 AM digest and
+// the meeting-brief cron both pick users from the token files on disk), and
+// must not leave Google access behind. `heldTokens` were read before the
+// account was deleted, because its database rows go with it.
+async function disconnectRemovedUser(userId, heldTokens = null) {
   try {
+    await auth.revokeGoogleTokens(heldTokens);
     await auth.disconnectUser(userId);
   } catch (err) {
     console.warn(`[account] Could not clear connections for removed user ${userId}:`, err.message);
@@ -29,7 +32,9 @@ router.put('/api/users/me/email', requireAuth, async (req, res) => {
 
 router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, res) => {
   try {
-    await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
+    const updated = await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
+    // Other sessions just ended; give this one a fresh cookie so it stays signed in.
+    userService.setRefreshCookie(res, updated);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -38,8 +43,9 @@ router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, re
 
 router.delete('/api/users/me', requireAuth, accountLimiter, async (req, res) => {
   try {
+    const held = await auth.readGoogleTokens(req.user.userId);
     await userService.deleteUser(req.user.userId, req.body.password);
-    await disconnectRemovedUser(req.user.userId);
+    await disconnectRemovedUser(req.user.userId, held);
     userService.clearRefreshCookie(res);
     res.json({ ok: true });
   } catch (err) {
@@ -83,8 +89,9 @@ router.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: 'Invalid user ID' });
   if (targetId === req.user.userId) return res.status(400).json({ error: 'Cannot delete your own account here' });
   try {
+    const held = await auth.readGoogleTokens(targetId);
     await dbDeleteUser(targetId);
-    await disconnectRemovedUser(targetId);
+    await disconnectRemovedUser(targetId, held);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
