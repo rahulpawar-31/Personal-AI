@@ -52,16 +52,31 @@ export async function createUser(username, password, email) {
   }
 }
 
+// A sign-in that failed because of what the caller sent (wrong or missing
+// credentials). Anything else thrown while signing in (a database error, say) is
+// the server's fault and must not be reported or counted as a failed attempt.
+export class LoginError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'LoginError';
+  }
+}
+
+// 401 for a credential failure, 503 for everything else.
+export function loginFailureStatus(err) {
+  return err instanceof LoginError ? 401 : 503;
+}
+
 export async function loginUser(username, password) {
-  if (!username || !password) throw new Error('Username and password are required');
+  if (!username || !password) throw new LoginError('Username and password are required');
   const user = await dbFindByUsername(username);
-  if (!user) throw new Error('Invalid username or password');
+  if (!user) throw new LoginError('Invalid username or password');
 
   // Handle both Postgres (snake_case) and JSON file (camelCase) schemas
   const hash = user.password_hash ?? user.passwordHash;
-  if (hash === 'GOOGLE_AUTH_ONLY') throw new Error('This account uses Google sign-in. Click "Continue with Google" below.');
+  if (hash === 'GOOGLE_AUTH_ONLY') throw new LoginError('This account uses Google sign-in. Click "Continue with Google" below.');
   const ok   = await bcrypt.compare(password, hash);
-  if (!ok) throw new Error('Invalid username or password');
+  if (!ok) throw new LoginError('Invalid username or password');
 
   return { id: user.id, username: user.username, email: user.email ?? null, tokenVersion: tokenVersionOf(user) };
 }
