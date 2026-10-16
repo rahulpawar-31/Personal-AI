@@ -96,7 +96,7 @@ router.get('/api/admin/encryption', requireAdmin, async (req, res) => {
 router.post('/api/admin/encryption/reencrypt', requireAdmin, async (req, res) => {
   try {
     const result = await integrations.reencryptAll();
-    console.log(`[encryption] re-encrypted ${result.reencrypted} of ${result.total} stored value(s); ${result.unreadable} unreadable, ${result.skippedChanged} changed meanwhile`);
+    console.log(`[encryption] admin ${req.user.userId} re-encrypted ${result.reencrypted} of ${result.total} stored value(s); ${result.unreadable} unreadable, ${result.skippedChanged} changed meanwhile`);
     res.json({ ...result, status: await integrations.encryptionStatus() });
   } catch (err) {
     res.status(500).json({ error: err.message });

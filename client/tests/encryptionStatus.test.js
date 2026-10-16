@@ -29,6 +29,20 @@ test('unreadable values are called out and are not offered for re-encryption', (
   assert.equal(s.canReencrypt, false);
 });
 
+test('unreadable values with no previous secret say how to get them back', () => {
+  const s = encryptionSummary({ total: 5, onCurrent: 0, toMove: 0, unreadable: 5, previousSecretSet: false });
+  assert.match(s.hint, /set ENCRYPTION_SECRET_PREVIOUS to the old value and redeploy/);
+  assert.doesNotMatch(s.hint, /Nothing to move/);
+  assert.equal(s.canReencrypt, false);
+});
+
+test('unreadable values with a previous secret already set point to an older secret or a re-save', () => {
+  const s = encryptionSummary({ total: 5, onCurrent: 4, toMove: 0, unreadable: 1, previousSecretSet: true });
+  assert.match(s.hint, /neither the current nor the previous secret/);
+  assert.match(s.hint, /even older secret/);
+  assert.doesNotMatch(s.hint, /You can remove ENCRYPTION_SECRET_PREVIOUS/, 'not offered while some values are still unexplained');
+});
+
 test('wording is right for a single value', () => {
   assert.match(encryptionSummary({ total: 1, onCurrent: 0, toMove: 1, unreadable: 0, previousSecretSet: true }).headline, /1 of 1 saved value still/);
   assert.match(encryptionSummary({ total: 1, onCurrent: 1, toMove: 0, unreadable: 0, previousSecretSet: true }).headline, /All 1 saved value is on/);
