@@ -98,13 +98,35 @@ export function isPrivateAddress(ip) {
   return true; // not an IP at all: never treat it as safe
 }
 
+// ─── Allowed hosts (optional) ─────────────────────────────────────────────────
+
+// WEBHOOK_ALLOWED_HOSTS is a comma-separated list such as "hook.make.com,*.zapier.com".
+// An exact name matches only itself; "*.example.com" matches any name under
+// example.com but not example.com itself. Unset or blank means no restriction
+// (any public https host). If it is set but holds no valid entry (a typo, or a
+// bare "*"), nothing is allowed rather than everything, because a mistyped
+// safety setting should stop the webhook, not silently open it.
+const ALLOWED_ENTRY = /^(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
+export function parseAllowedHosts(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return raw.split(',')
+    .map(e => e.trim().toLowerCase().replace(/\.$/, ''))
+    .filter(e => ALLOWED_ENTRY.test(e));
+}
+
+export function hostIsAllowed(host, allowed) {
+  const h = String(host).toLowerCase().replace(/\.$/, '');
+  return allowed.some(e => (e.startsWith('*.') ? h.endsWith(e.slice(1)) : h === e));
+}
+
 // ─── URL validation ───────────────────────────────────────────────────────────
 
 const LOCAL_SUFFIXES = ['.localhost', '.local', '.internal', '.localdomain', '.lan', '.home.arpa'];
 
 // Throws OutboundUrlError, or returns the parsed URL. Checks the URL's shape
 // only; the address a name resolves to is checked at connect time (guardedLookup).
-export function validateWebhookUrl(raw) {
+export function validateWebhookUrl(raw, { allowedHosts = parseAllowedHosts(process.env.WEBHOOK_ALLOWED_HOSTS) } = {}) {
   let url;
   try { url = new URL(String(raw ?? '').trim()); }
   catch { throw new OutboundUrlError('Webhook URL is not a valid URL'); }
@@ -120,7 +142,25 @@ export function validateWebhookUrl(raw) {
   } else if (!host.includes('.') || LOCAL_SUFFIXES.some(s => host.endsWith(s))) {
     throw new OutboundUrlError('Webhook URL points at a private or internal host name');
   }
+  if (allowedHosts && !hostIsAllowed(host, allowedHosts)) {
+    throw new OutboundUrlError('Webhook URL host is not on this server\'s allowed list');
+  }
   return url;
+}
+
+// The generic "save a key" route accepts any service and key name, so a webhook
+// URL could be stored there without going through the LinkedIn test route. This
+// applies the same URL rules to that key wherever it is saved. Returns a message
+// for the user, or null when the key needs no check or passes.
+export function integrationKeyProblem(service, keyName, value, options) {
+  if (service !== 'linkedin' || keyName !== 'LINKEDIN_WEBHOOK_URL') return null;
+  try {
+    validateWebhookUrl(value, options);
+    return null;
+  } catch (err) {
+    if (err instanceof OutboundUrlError) return err.message;
+    throw err;
+  }
 }
 
 // ─── Connect-time guard ───────────────────────────────────────────────────────

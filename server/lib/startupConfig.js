@@ -3,6 +3,7 @@
 // the process, because each development fallback (a throwaway JWT secret, the
 // JSON-file user store, open signup) silently weakens authentication.
 import { isProduction } from './env.js';
+import { parseAllowedHosts } from './outboundRequest.js';
 
 export const MIN_JWT_SECRET_LENGTH = 32;
 // Entropy can't be measured from the value alone, but a 32-character secret
@@ -43,7 +44,21 @@ export function hostingProblems(env = process.env) {
   return ['NODE_ENV must be "production" on Render (RENDER=true is set but NODE_ENV is not); without it the production safety checks are skipped'];
 }
 
-export function assertProductionConfig(env = process.env, exit = process.exit) {
+// Things worth saying at boot that are not reason to stop. A webhook allow-list
+// that is set but holds no valid entry allows no host at all (it fails closed on
+// purpose), which is easy to cause with a typo and otherwise looks like a broken
+// webhook with no explanation.
+export function configWarnings(env = process.env) {
+  const warnings = [];
+  const hosts = parseAllowedHosts(env.WEBHOOK_ALLOWED_HOSTS);
+  if (hosts && hosts.length === 0) {
+    warnings.push('WEBHOOK_ALLOWED_HOSTS is set but has no valid entry, so the outgoing webhook is blocked for every host. Use host names like hook.make.com or *.make.com.');
+  }
+  return warnings;
+}
+
+export function assertProductionConfig(env = process.env, exit = process.exit, warn = console.warn) {
+  for (const w of configWarnings(env)) warn(`[config] Warning: ${w}`);
   const problems = [...hostingProblems(env), ...productionConfigProblems(env)];
   if (problems.length === 0) return;
   console.error('[config] Refusing to start with an unsafe or incomplete configuration:');
