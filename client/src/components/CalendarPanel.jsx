@@ -5,7 +5,7 @@ import { nextHourLocal, localToInstantISO } from '../dateInput.js';
 import NotConnected from './NotConnected.jsx';
 import { Modal } from './settings/primitives.jsx';
 import { useMediaQuery } from '../useMediaQuery.js';
-import { sameDay, eventsOnDay, eventTimeLabel, eventDurationLabel, dayLabel, dayCellLabel } from '../calendarEvents.js';
+import { sameDay, eventsOnDay, eventTimeLabel, eventDurationLabel, dayLabel, dayCellLabel, dayCoverage, dayCoverageNote } from '../calendarEvents.js';
 
 const DAYS = [
   { label: 'Mon', num: 1 }, { label: 'Tue', num: 2 }, { label: 'Wed', num: 3 },
@@ -132,6 +132,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
   }
 
   const selectedEvents = selectedDay ? eventsOnDay(events, selectedDay) : [];
+  const coverageNote = selectedDay ? dayCoverageNote(dayCoverage(selectedDay, events), selectedEvents.length) : null;
 
   const monthLabel = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -309,7 +310,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
         <section aria-label={`Events on ${dayLabel(selectedDay)}`} style={{ marginTop: 18 }}>
           <h3 style={{ fontSize: 13, fontWeight: 500, margin: '0 0 8px' }}>{dayLabel(selectedDay)}</h3>
           {selectedEvents.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>No events.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>{coverageNote}</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {selectedEvents.map(ev => (
@@ -332,6 +333,9 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                 </li>
               ))}
             </ul>
+          )}
+          {selectedEvents.length > 0 && coverageNote && (
+            <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>{coverageNote}</p>
           )}
         </section>
       )}

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isAllDay, parseEventDate, eventsOnDay, eventTimeLabel, eventDurationLabel, dayCellLabel, sameDay } from '../src/calendarEvents.js';
+import { isAllDay, parseEventDate, eventsOnDay, eventTimeLabel, eventDurationLabel, dayCellLabel, sameDay, dayCoverage, dayCoverageNote, EVENT_LIMIT } from '../src/calendarEvents.js';
+import { subscribeToMedia } from '../src/useMediaQuery.js';
 
 function inZone(tz, fn) {
   const saved = process.env.TZ;
@@ -78,4 +79,50 @@ test('day cell label counts events for screen readers', () => {
   assert.match(dayCellLabel(d, 1), /1 event$/);
   assert.match(dayCellLabel(d, 4), /4 events$/);
   assert.equal(sameDay(d, new Date(2026, 9, 16, 23, 59)), true);
+});
+
+// ── what the grid knows: the server sends only the next 10 upcoming events ──────
+const NOW = new Date(2026, 9, 16, 12, 0);
+const eventAt = (n, day) => ({ id: `e${n}`, title: `E${n}`, start: new Date(2026, 9, day, 10, n).toISOString(), end: new Date(2026, 9, day, 11, n).toISOString() });
+const tenEvents = Array.from({ length: EVENT_LIMIT }, (_, i) => eventAt(i, 16 + Math.floor(i / 3)));  // 16th..19th
+
+test('a day before now is past: its events are never loaded', () => {
+  assert.equal(dayCoverage(new Date(2026, 9, 15), [], { now: NOW }), 'past');
+  assert.equal(dayCoverage(new Date(2026, 9, 16), [], { now: NOW }), 'loaded', 'today is not past');
+});
+
+test('with fewer events than the limit, everything upcoming is known', () => {
+  assert.equal(dayCoverage(new Date(2026, 9, 30), tenEvents.slice(0, 9), { now: NOW }), 'loaded');
+  assert.equal(dayCoverage(new Date(2026, 9, 30), undefined, { now: NOW }), 'loaded');
+});
+
+test('once the limit is hit, days on or after the last loaded event may be incomplete', () => {
+  assert.equal(dayCoverage(new Date(2026, 9, 17), tenEvents, { now: NOW }), 'loaded', 'before the last event day');
+  assert.equal(dayCoverage(new Date(2026, 9, 19), tenEvents, { now: NOW }), 'partial', 'the last event day itself');
+  assert.equal(dayCoverage(new Date(2026, 9, 28), tenEvents, { now: NOW }), 'partial', 'well after it');
+});
+
+test('the note under a day says why a list may look empty, and says nothing when it is complete', () => {
+  assert.match(dayCoverageNote('past', 0), /Past events are not loaded/);
+  assert.equal(dayCoverageNote('past', 2), null);
+  assert.match(dayCoverageNote('partial', 0), /No events loaded.*next 10/);
+  assert.match(dayCoverageNote('partial', 3), /More events.*may not be shown/);
+  assert.equal(dayCoverageNote('loaded', 0), 'No events.');
+  assert.equal(dayCoverageNote('loaded', 2), null);
+});
+
+// ── media query subscription, including the older addListener-only API ──────────
+test('subscribeToMedia uses addEventListener when it exists, and addListener on older browsers', () => {
+  const calls = [];
+  const modern = { addEventListener: (t, h) => calls.push(['add', t, h]), removeEventListener: (t, h) => calls.push(['remove', t, h]) };
+  const handler = () => {};
+  subscribeToMedia(modern, handler)();
+  assert.deepEqual(calls, [['add', 'change', handler], ['remove', 'change', handler]]);
+
+  const old = [];
+  const legacy = { addListener: h => old.push(['add', h]), removeListener: h => old.push(['remove', h]) };
+  subscribeToMedia(legacy, handler)();
+  assert.deepEqual(old, [['add', handler], ['remove', handler]], 'no throw on a list that only has addListener');
+
+  assert.doesNotThrow(() => subscribeToMedia({}, handler)());
 });

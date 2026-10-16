@@ -85,3 +85,34 @@ export function dayCellLabel(date, count) {
   const events = count === 0 ? 'no events' : `${count} event${count === 1 ? '' : 's'}`;
   return `${dayLabel(date)}, ${events}`;
 }
+
+// The server sends only the next EVENT_LIMIT upcoming events (GET /api/calendar),
+// so "no events listed" does not always mean "nothing on that day".
+//   'past'    the whole day is before now: past events are never loaded.
+//   'partial' the list hit the limit and this day is on or after the last loaded
+//             event, so later events may be missing.
+//   'loaded'  everything for this day is known.
+export const EVENT_LIMIT = 10;
+
+export function dayCoverage(day, events, { now = new Date(), limit = EVENT_LIMIT } = {}) {
+  const dayStart = startOfDay(day);
+  const nextDay = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 1);
+  if (nextDay <= now) return 'past';
+  const list = Array.isArray(events) ? events : [];
+  if (list.length < limit) return 'loaded';
+  const starts = list.map(ev => parseEventDate(ev?.start)).filter(Boolean);
+  if (starts.length === 0) return 'loaded';
+  const lastStart = startOfDay(new Date(Math.max(...starts.map(d => d.getTime()))));
+  return dayStart >= lastStart ? 'partial' : 'loaded';
+}
+
+// What to say under a day's list. `count` is how many events are shown for it.
+export function dayCoverageNote(coverage, count) {
+  if (coverage === 'past') return count === 0 ? 'Past events are not loaded here, only upcoming ones.' : null;
+  if (coverage === 'partial') {
+    return count === 0
+      ? `No events loaded for this day. Only your next ${EVENT_LIMIT} upcoming events are shown.`
+      : `More events on or after this day may not be shown. Only your next ${EVENT_LIMIT} upcoming events are loaded.`;
+  }
+  return count === 0 ? 'No events.' : null;
+}
