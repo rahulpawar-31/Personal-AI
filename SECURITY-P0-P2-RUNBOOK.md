@@ -143,6 +143,18 @@ wherever you track the PRD's completion, even if the answer is inconclusive.
 
 ---
 
+## Rotating ENCRYPTION_SECRET
+
+Saved keys (GitHub, Gemini, Slack and so on) are encrypted with `ENCRYPTION_SECRET`. If that secret simply changes, every saved key becomes unreadable and each user has to enter them again. To rotate it without that, hold the old and the new secret side by side, move the saved keys across, then drop the old one. The app stays up the whole time.
+
+1. **Back up first.** Take a copy of the database (a Neon branch or export) and keep the old secret somewhere safe.
+2. **Set both secrets and redeploy.** On the host, set `ENCRYPTION_SECRET` to the **new** value (`openssl rand -hex 32`) and `ENCRYPTION_SECRET_PREVIOUS` to the **old** value. Paste both exactly: the secret is used byte for byte, so a trailing space or newline from the paste makes the old values unreadable. After the deploy, everything saved under the old secret is still readable, and anything saved from now on uses the new one. The log shows a line saying the previous secret is set.
+3. **Re-encrypt.** Sign in as an admin, open **Admin**, and in the **Encryption** card press **Re-encrypt**. It shows counts only, never the keys. It is safe to press again. Repeat until it says nothing is left to move.
+4. **Check the counts.** "To move" must be 0. "Unreadable" counts values that open with neither secret (for example a key that was already broken before the rotation); those users need to save that key again, and rotating does not change that.
+5. **Remove the old secret.** Delete `ENCRYPTION_SECRET_PREVIOUS` and redeploy. If anything looks wrong, put it back: nothing was deleted.
+
+Do not skip step 3 before step 5: a value still on the old secret becomes unreadable the moment the old secret is removed. Cached email data is not moved; it is a five-minute cache and is simply fetched again.
+
 ## Status
 
 - [x] P0 (partial) — app-layer auth verified live; open-signup gap found and fixed (needs `OWNER_USERNAME` confirmed set in Render + a redeploy to take effect)

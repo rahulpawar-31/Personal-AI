@@ -84,6 +84,25 @@ router.get('/api/admin/users/:id/keys', requireAdmin, async (req, res) => {
   }
 });
 
+// Secret rotation (see SECURITY-P0-P2-RUNBOOK.md). Counts only, never values.
+router.get('/api/admin/encryption', requireAdmin, async (req, res) => {
+  try {
+    res.json(await integrations.encryptionStatus());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/api/admin/encryption/reencrypt', requireAdmin, async (req, res) => {
+  try {
+    const result = await integrations.reencryptAll();
+    console.log(`[encryption] admin ${req.user.userId} re-encrypted ${result.reencrypted} of ${result.total} stored value(s); ${result.unreadable} unreadable, ${result.skippedChanged} changed meanwhile`);
+    res.json({ ...result, status: await integrations.encryptionStatus() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   const targetId = Number(req.params.id);
   if (!Number.isInteger(targetId) || targetId <= 0) return res.status(400).json({ error: 'Invalid user ID' });
