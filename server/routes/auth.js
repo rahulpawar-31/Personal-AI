@@ -235,7 +235,12 @@ router.post('/api/auth/login', authLimiter, loginAccountLimiter, async (req, res
     userService.setRefreshCookie(res, user);
     res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
   } catch (err) {
-    res.status(401).json({ error: err.message });
+    // Only a real credential failure is a 401 (and counts against the account's
+    // limit). A server-side failure, such as a database outage, is a 503 with a
+    // fixed message, so it neither locks anyone out nor leaks internals.
+    const status = userService.loginFailureStatus(err);
+    if (status !== 401) console.error('[auth/login] sign-in failed on the server:', err.message);
+    res.status(status).json({ error: status === 401 ? err.message : 'Sign-in is temporarily unavailable. Please try again in a moment.' });
   }
 });
 

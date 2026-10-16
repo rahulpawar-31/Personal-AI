@@ -132,6 +132,9 @@ export const loginAccountLimiter = rateLimit({
   max:                    10,
   keyGenerator:           loginAccountKey,
   skipSuccessfulRequests: true,
+  // Only a 401 (wrong credentials) is a failed sign-in. A 5xx from a database
+  // outage is not the user's failure and must not use up the allowance.
+  requestWasSuccessful:   (req, res) => res.statusCode !== 401,
   standardHeaders:        'draft-7',
   legacyHeaders:          false,
   message:                { error: 'Too many failed sign-ins for this account — try again in 15 minutes.' },

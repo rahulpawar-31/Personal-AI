@@ -135,3 +135,22 @@ test('authLimiter allows 100 requests from one address in 15 minutes, then 429',
     assert.equal(await call('late', 'good'), 429);
   });
 });
+
+test('server-side failures do not use up the account allowance, only wrong credentials do', async () => {
+  const app = express();
+  app.use(express.json());
+  // "boom" stands in for a database outage (the real route answers 503), "good" signs in, anything else is a 401.
+  app.post('/login', loginAccountLimiter, (req, res) => {
+    if (req.body.password === 'boom') return res.status(503).json({ error: 'down' });
+    return req.body.password === 'good' ? res.json({ ok: true }) : res.status(401).json({ error: 'bad' });
+  });
+  const server = await new Promise(r => { const s2 = app.listen(0, () => r(s2)); });
+  const call = (username, password) => fetch(`http://127.0.0.1:${server.address().port}/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }),
+  }).then(r => r.status);
+  try {
+    for (let i = 0; i < 25; i++) assert.equal(await call('frank', 'boom'), 503, 'an outage never locks the account');
+    for (let i = 0; i < 10; i++) assert.equal(await call('frank', 'bad'), 401, 'all ten wrong-password attempts are still available');
+    assert.equal(await call('frank', 'bad'), 429);
+  } finally { server.close(); }
+});
