@@ -1,6 +1,6 @@
 // server/services/stores/integrationStore.js
 // IntegrationStore: one interface (get, set, delete, deleteAllForService,
-// listForUser), three adapters — see userStore.js for the same pattern and
+// listForUser, listAll, replaceIfUnchanged), three adapters — see userStore.js for the same pattern and
 // rationale. Deals in plain strings; encryption/decryption is a separate
 // concern that stays in services/integrations.js's wrapper functions, same
 // as it already was before this file existed.
@@ -58,6 +58,27 @@ export function createPostgresIntegrationStore(pool) {
       );
       return r.rows.map(row => Number(row.userId));
     },
+
+    // Every stored value, for re-encryption after a secret rotation.
+    async listAll() {
+      const r = await pool.query(
+        `SELECT user_id AS "userId", service, key_name AS "keyName", key_value AS "keyValue"
+         FROM user_integrations ORDER BY user_id, service, key_name`
+      );
+      return r.rows;
+    },
+
+    // Swaps a value only if it is still `expected`, so a key the user saved a
+    // moment ago is never overwritten with an older value. updated_at is left
+    // alone: re-encrypting is not a change the user made.
+    async replaceIfUnchanged(userId, service, keyName, expected, keyValue) {
+      const r = await pool.query(
+        `UPDATE user_integrations SET key_value = $5
+         WHERE user_id = $1 AND service = $2 AND key_name = $3 AND key_value = $4`,
+        [userId, service, keyName, expected, keyValue]
+      );
+      return r.rowCount === 1;
+    },
   };
 }
 
@@ -103,6 +124,19 @@ function createArrayBackedIntegrationStore({ read, write }) {
     async listUserIdsForService(service) {
       const ids = new Set(read().filter(r => r.service === service).map(r => Number(r.userId)));
       return [...ids].sort((a, b) => a - b);
+    },
+
+    async listAll() {
+      return read().map(r => ({ userId: r.userId, service: r.service, keyName: r.keyName, keyValue: r.keyValue }));
+    },
+
+    async replaceIfUnchanged(userId, service, keyName, expected, keyValue) {
+      const rows = read();
+      const idx  = rows.findIndex(r => match(r, userId, service, keyName));
+      if (idx < 0 || rows[idx].keyValue !== expected) return false;
+      rows[idx] = { ...rows[idx], keyValue };
+      write(rows);
+      return true;
     },
   };
 }

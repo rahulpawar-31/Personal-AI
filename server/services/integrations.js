@@ -12,7 +12,8 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getPool } from './db.js';
-import { encrypt, decrypt } from './encryption.js';
+import { encrypt, decrypt, needsReencrypt, inspectCiphertext, hasPreviousSecret } from './encryption.js';
+import { encryptionStatus as statusOf, reencryptAll as reencryptWith } from './reencrypt.js';
 import {
   createPostgresIntegrationStore, createJsonFileIntegrationStore,
 } from './stores/integrationStore.js';
@@ -23,6 +24,20 @@ const FILE      = path.join(__dirname, '..', 'integrations.json');
 function currentStore() {
   const pool = getPool();
   return pool ? createPostgresIntegrationStore(pool) : createJsonFileIntegrationStore(FILE);
+}
+
+// The cipher that services/reencrypt.js works with: the same functions the rest
+// of this file uses, so a rotation is measured against the real secret.
+const cipher = { encrypt, needsReencrypt, inspect: inspectCiphertext, hasPreviousSecret };
+
+/** How many stored values are on the current secret, still to move, or unreadable. */
+export async function encryptionStatus() {
+  return statusOf({ store: currentStore(), cipher });
+}
+
+/** Rewrites stored values under the current secret (see services/reencrypt.js). */
+export async function reencryptAll(options = {}) {
+  return reencryptWith({ store: currentStore(), cipher, ...options });
 }
 
 // ─── Core operations ──────────────────────────────────────────────────────────
