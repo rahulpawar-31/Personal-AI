@@ -5,7 +5,7 @@ import * as userService from '../services/users.js';
 import * as integrations from '../services/integrations.js';
 import tracing     from '../services/tracing.js';
 import { requireAuth } from '../middleware/auth.js';
-import { authLimiter, logoutLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, loginAccountLimiter, logoutLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
@@ -227,7 +227,7 @@ router.post('/api/auth/signup', authLimiter, async (req, res) => {
   }
 });
 
-router.post('/api/auth/login', authLimiter, async (req, res) => {
+router.post('/api/auth/login', authLimiter, loginAccountLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     const user  = await userService.loginUser(username, password);
@@ -235,7 +235,12 @@ router.post('/api/auth/login', authLimiter, async (req, res) => {
     userService.setRefreshCookie(res, user);
     res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
   } catch (err) {
-    res.status(401).json({ error: err.message });
+    // Only a real credential failure is a 401 (and counts against the account's
+    // limit). A server-side failure, such as a database outage, is a 503 with a
+    // fixed message, so it neither locks anyone out nor leaks internals.
+    const status = userService.loginFailureStatus(err);
+    if (status !== 401) console.error('[auth/login] sign-in failed on the server:', err.message);
+    res.status(status).json({ error: status === 401 ? err.message : 'Sign-in is temporarily unavailable. Please try again in a moment.' });
   }
 });
 

@@ -104,11 +104,38 @@ export const logoutLimiter = rateLimit({
   message:         { error: 'Too many sign-out requests — try again later.' },
 });
 
-// Auth endpoints (login/signup) — 20 per 15 minutes per IP to slow brute-force.
+// Sign-in/signup/refresh, per address: 100 per 15 minutes. This only catches a
+// single client hammering the API. It is deliberately loose because behind a
+// shared proxy many people can share one address, and the limit that protects
+// a password is the per-account one below, which does not depend on the address.
 export const authLimiter = rateLimit({
   windowMs:        15 * 60 * 1000,
-  max:             20,
+  max:             100,
   standardHeaders: 'draft-7',
   legacyHeaders:   false,
   message:         { error: 'Too many login attempts — try again later.' },
+});
+
+// Failed sign-ins against one account: 10 per 15 minutes, whichever address they
+// come from, so guessing a password is slowed even when the attempts are spread
+// over many addresses (or the address is not the real client's). Only failures
+// count, so signing in correctly never uses it up. Trade-off: someone who knows
+// the username can lock that account's sign-in for 15 minutes; refresh tokens
+// and sessions already signed in are not affected.
+export function loginAccountKey(req) {
+  const name = typeof req.body?.username === 'string' ? req.body.username.trim().toLowerCase().slice(0, 64) : '';
+  return name ? `login:${name}` : ipKeyGenerator(req.ip);
+}
+
+export const loginAccountLimiter = rateLimit({
+  windowMs:               15 * 60 * 1000,
+  max:                    10,
+  keyGenerator:           loginAccountKey,
+  skipSuccessfulRequests: true,
+  // Only a 401 (wrong credentials) is a failed sign-in. A 5xx from a database
+  // outage is not the user's failure and must not use up the allowance.
+  requestWasSuccessful:   (req, res) => res.statusCode !== 401,
+  standardHeaders:        'draft-7',
+  legacyHeaders:          false,
+  message:                { error: 'Too many failed sign-ins for this account — try again in 15 minutes.' },
 });
