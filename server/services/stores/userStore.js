@@ -1,6 +1,6 @@
 // server/services/stores/userStore.js
 // UserStore: one interface (createUser, findByUsername, findById, updateEmail,
-// updatePasswordHash, deleteUser, findByGoogleId, findByEmail, linkGoogleId,
+// updatePasswordHash, deleteUser, bumpTokenVersion, findByGoogleId, findByEmail, linkGoogleId,
 // createGoogleUser, listUsers, setAdmin, isAdmin), three adapters. Callers
 // (server/services/db.js) select one adapter once, at initDB() time — no
 // per-call backend branching.
@@ -28,7 +28,8 @@ export function createPostgresUserStore(pool) {
 
     async findById(id) {
       const r = await pool.query(
-        `SELECT id, username, email, is_active AS "isActive", created_at AS "createdAt"
+        `SELECT id, username, email, is_active AS "isActive", created_at AS "createdAt",
+                token_version AS "tokenVersion"
          FROM users WHERE id = $1`,
         [id]
       );
@@ -45,6 +46,15 @@ export function createPostgresUserStore(pool) {
 
     async deleteUser(userId) {
       await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    },
+
+    // Ends every refresh token issued so far: they carry the old number.
+    async bumpTokenVersion(userId) {
+      const r = await pool.query(
+        'UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1 RETURNING token_version',
+        [userId]
+      );
+      return r.rows[0] ? Number(r.rows[0].token_version) : null;
     },
 
     async findByGoogleId(googleId) {
@@ -101,7 +111,7 @@ function createArrayBackedUserStore({ read, write }) {
   }
 
   function toPublicShape(u) {
-    return { id: u.id, username: u.username, email: u.email ?? null, isActive: u.isActive ?? true, createdAt: u.createdAt };
+    return { id: u.id, username: u.username, email: u.email ?? null, isActive: u.isActive ?? true, createdAt: u.createdAt, tokenVersion: u.tokenVersion ?? 0 };
   }
 
   return {
@@ -145,6 +155,15 @@ function createArrayBackedUserStore({ read, write }) {
 
     async deleteUser(userId) {
       write(read().filter(u => String(u.id) !== String(userId)));
+    },
+
+    async bumpTokenVersion(userId) {
+      const users = read();
+      const idx = users.findIndex(u => String(u.id) === String(userId));
+      if (idx < 0) return null;
+      users[idx].tokenVersion = (users[idx].tokenVersion ?? 0) + 1;
+      write(users);
+      return users[idx].tokenVersion;
     },
 
     async findByGoogleId(googleId) {

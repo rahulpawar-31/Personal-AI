@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch, getToken, setToken, clearSession } from './api.js';
 import { ToastContainer, toast } from './toast.jsx';
+import { endServerSession } from './endServerSession.js';
 import ChatPanel       from './components/ChatPanel.jsx';
 import EmailPanel      from './components/EmailPanel.jsx';
 import CalendarPanel   from './components/CalendarPanel.jsx';
@@ -85,6 +86,13 @@ export default function App() {
   }
 
   function handleLogout() {
+    // End the session on the server too, or the refresh cookie stays valid for
+    // 30 days. The request reads the token before clearSession removes it, and
+    // signing out never waits on the network.
+    endServerSession(() => apiFetch('/api/auth/logout', { method: 'POST' }), {
+      hadToken: Boolean(getToken()),
+      warn: () => toast('Signed out here, but your other sessions may still be active. Sign in and sign out again when you are online.', 'error', 9000),
+    });
     clearSession();
     setUser(null);
   }
@@ -262,7 +270,8 @@ export default function App() {
       </div>
     );
   }
-  if (!user) return <AuthPage onAuth={handleAuth} />;
+  // The toast container is needed here too: the sign-out warning appears after the sign-in page is showing.
+  if (!user) return <><AuthPage onAuth={handleAuth} /><ToastContainer /></>;
   if (showOnboarding) return <OnboardingWizard user={user} onComplete={handleOnboardingComplete} />;
 
   const isTasksView = view === 'tasks';
