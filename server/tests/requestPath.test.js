@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { parseTrustProxyHops, DEFAULT_TRUST_PROXY_HOPS } from '../lib/env.js';
+import { parseTrustProxyHops, proxyHopsNotices, DEFAULT_TRUST_PROXY_HOPS } from '../lib/env.js';
 import { forwardedForEntries, addressForHops, describeRequestPath } from '../lib/requestPath.js';
 
 test('the proxy hop count defaults to 1 and accepts whole numbers from 0 to 5', () => {
@@ -75,4 +75,27 @@ test('with no forwarding header the connection address is all there is', async (
   } finally {
     server.close();
   }
+});
+
+test('the start-up log says which hop count is in force and where it came from', () => {
+  const dflt = proxyHopsNotices(parseTrustProxyHops(undefined), undefined, true);
+  assert.deepEqual(dflt, [{ level: 'info', text: 'trusting 1 proxy hop for client addresses (default)' }]);
+  const set = proxyHopsNotices(parseTrustProxyHops('2'), '2', true);
+  assert.deepEqual(set, [{ level: 'info', text: 'trusting 2 proxy hops for client addresses (TRUST_PROXY_HOPS)' }]);
+});
+
+test('an invalid value is warned about and the fallback is named', () => {
+  const out = proxyHopsNotices(parseTrustProxyHops('9'), '9', false);
+  assert.equal(out[0].level, 'warn');
+  assert.match(out[0].text, /whole number from 0 to 5; using 1/);
+  assert.match(out[1].text, /trusting 1 proxy hop for client addresses \(default\)/, 'a rejected value counts as the default');
+});
+
+test('zero hops warns in production only, because every visitor would share the proxy address', () => {
+  const zero = parseTrustProxyHops('0');
+  const prod = proxyHopsNotices(zero, '0', true);
+  assert.equal(prod.length, 2);
+  assert.equal(prod[1].level, 'warn');
+  assert.match(prod[1].text, /every visitor shares the proxy's address/);
+  assert.equal(proxyHopsNotices(zero, '0', false).length, 1, 'a developer machine has no proxy, so 0 is fine there');
 });

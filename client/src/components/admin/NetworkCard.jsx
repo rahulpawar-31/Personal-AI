@@ -69,7 +69,8 @@ export default function NetworkCard() {
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>
             Look up your own public address (search "what is my IP"). If the row marked "now" is not it, set
             TRUST_PROXY_HOPS to the hop count whose row is. Only raise it if every request really passes through
-            those proxies.
+            those proxies. If your address is IPv6 and no row matches, look up your IPv4 address too (or the other way
+            round): the chain may carry the other kind.
           </div>
         </div>
       )}
