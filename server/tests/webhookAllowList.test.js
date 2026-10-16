@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAllowedHosts, hostIsAllowed, validateWebhookUrl, postJson, OutboundUrlError } from '../lib/outboundRequest.js';
+import { parseAllowedHosts, hostIsAllowed, validateWebhookUrl, postJson, integrationKeyProblem, OutboundUrlError } from '../lib/outboundRequest.js';
+import { configWarnings, assertProductionConfig } from '../lib/startupConfig.js';
 
 test('an unset or blank list means no restriction', () => {
   for (const raw of [undefined, null, '', '   ', 5]) assert.equal(parseAllowedHosts(raw), null);
@@ -61,4 +62,34 @@ test('sending is refused for a host that is not allowed, before any connection i
   } finally {
     if (saved === undefined) delete process.env.WEBHOOK_ALLOWED_HOSTS; else process.env.WEBHOOK_ALLOWED_HOSTS = saved;
   }
+});
+
+test('the generic save route applies the webhook rules to the webhook key and nothing else', () => {
+  const allowedHosts = parseAllowedHosts('*.make.com');
+  const check = (url, service = 'linkedin', key = 'LINKEDIN_WEBHOOK_URL') => integrationKeyProblem(service, key, url, { allowedHosts });
+  assert.equal(check('https://hook.eu1.make.com/abc'), null);
+  assert.match(check('https://example.com/abc'), /allowed list/);
+  assert.match(check('http://hook.make.com/abc'), /https/);
+  assert.match(check('https://169.254.169.254/x'), /private/);
+  assert.match(check('not a url'), /not a valid URL/);
+  // Other keys, including other LinkedIn keys, are not URLs and are never checked here.
+  assert.equal(check('anything at all', 'gemini', 'GEMINI_API_KEY'), null);
+  assert.equal(check('anything at all', 'linkedin', 'LINKEDIN_OTHER'), null);
+});
+
+test('a set but invalid allow-list is reported at boot, a valid or unset one is not', () => {
+  assert.equal(configWarnings({ WEBHOOK_ALLOWED_HOSTS: '*' }).length, 1);
+  assert.match(configWarnings({ WEBHOOK_ALLOWED_HOSTS: 'localhost, a b.com' })[0], /no valid entry/);
+  assert.deepEqual(configWarnings({ WEBHOOK_ALLOWED_HOSTS: '*.make.com' }), []);
+  assert.deepEqual(configWarnings({ WEBHOOK_ALLOWED_HOSTS: '   ' }), []);
+  assert.deepEqual(configWarnings({}), []);
+});
+
+test('the boot warning is printed but does not stop the server', () => {
+  const lines = [];
+  const codes = [];
+  assertProductionConfig({ NODE_ENV: 'test', WEBHOOK_ALLOWED_HOSTS: '*' }, c => codes.push(c), m => lines.push(m));
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /WEBHOOK_ALLOWED_HOSTS/);
+  assert.deepEqual(codes, [], 'a warning is not a reason to exit');
 });

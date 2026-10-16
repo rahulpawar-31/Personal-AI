@@ -3,7 +3,7 @@ import OpenAI       from 'openai';
 import * as integrations from '../services/integrations.js';
 import { requireAuth } from '../middleware/auth.js';
 import { credLimiter } from '../middleware/rateLimiter.js';
-import { validateWebhookUrl } from '../lib/outboundRequest.js';
+import { validateWebhookUrl, integrationKeyProblem } from '../lib/outboundRequest.js';
 import { modelId, isModelUnavailableError } from '../lib/models.js';
 
 const router = Router();
@@ -41,6 +41,9 @@ router.post('/api/integrations', requireAuth, async (req, res) => {
     if (!service?.trim())  return res.status(400).json({ error: 'service is required' });
     if (!keyName?.trim())  return res.status(400).json({ error: 'keyName is required' });
     if (!keyValue?.trim()) return res.status(400).json({ error: 'keyValue is required' });
+    // The webhook URL must pass the same rules here as in the LinkedIn test route.
+    const problem = integrationKeyProblem(service.trim(), keyName.trim(), keyValue.trim());
+    if (problem) return res.status(400).json({ error: problem });
     await integrations.saveKey(req.user.userId, service.trim(), keyName.trim(), keyValue.trim());
     res.json({ ok: true });
   } catch (err) {

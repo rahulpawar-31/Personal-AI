@@ -148,6 +148,21 @@ export function validateWebhookUrl(raw, { allowedHosts = parseAllowedHosts(proce
   return url;
 }
 
+// The generic "save a key" route accepts any service and key name, so a webhook
+// URL could be stored there without going through the LinkedIn test route. This
+// applies the same URL rules to that key wherever it is saved. Returns a message
+// for the user, or null when the key needs no check or passes.
+export function integrationKeyProblem(service, keyName, value, options) {
+  if (service !== 'linkedin' || keyName !== 'LINKEDIN_WEBHOOK_URL') return null;
+  try {
+    validateWebhookUrl(value, options);
+    return null;
+  } catch (err) {
+    if (err instanceof OutboundUrlError) return err.message;
+    throw err;
+  }
+}
+
 // ─── Connect-time guard ───────────────────────────────────────────────────────
 
 // Drop-in for the `lookup` option of http(s).request. `resolve` exists so tests
