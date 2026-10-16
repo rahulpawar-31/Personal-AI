@@ -11,7 +11,7 @@ import * as integrations   from './services/integrations.js';
 import { decrypt }         from './services/encryption.js';
 import auth                from './services/auth.js';
 import { setupCronJobs }   from './lib/digest.js';
-import { corsOrigins } from './lib/env.js';
+import { corsOrigins, parseTrustProxyHops, proxyHopsNotices, isProduction } from './lib/env.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import { assertProductionConfig } from './lib/startupConfig.js';
 
@@ -30,11 +30,16 @@ import actionsRoutes     from './routes/actions.js';
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
 
-// Render (API) and Vercel (frontend proxy) both sit behind a single
-// reverse-proxy hop — without this, req.ip resolves to the proxy's internal
-// address for every request, which breaks per-client rate limiting
-// (see server/middleware/rateLimiter.js).
-app.set('trust proxy', 1);
+// How many reverse proxies sit in front of this server decides which address
+// req.ip reports, which the per-address rate limits use (see
+// server/middleware/rateLimiter.js). Too low and every visitor shares a proxy's
+// address. The default is 1; TRUST_PROXY_HOPS overrides it, and the Admin page's
+// "Request path" card shows the right value for the real deployment.
+const proxyHops = parseTrustProxyHops(process.env.TRUST_PROXY_HOPS);
+for (const n of proxyHopsNotices(proxyHops, process.env.TRUST_PROXY_HOPS, isProduction())) {
+  (n.level === 'warn' ? console.warn : console.log)(`[net] ${n.text}`);
+}
+app.set('trust proxy', proxyHops.hops);
 
 app.use(securityHeaders);
 app.use(cors({ origin: corsOrigins(), credentials: true }));

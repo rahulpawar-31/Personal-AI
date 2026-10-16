@@ -155,6 +155,15 @@ Saved keys (GitHub, Gemini, Slack and so on) are encrypted with `ENCRYPTION_SECR
 
 Do not skip step 3 before step 5: a value still on the old secret becomes unreadable the moment the old secret is removed. Cached email data is not moved; it is a five-minute cache and is simply fetched again.
 
+## Checking the client address (rate limits)
+
+The per-address rate limits use the address Express calls `req.ip`. Behind Vercel (which forwards `/api` to Render) and Render's own front door, that is only the visitor's real address if the server trusts the right number of proxies. Too few and every visitor shares one address (a proxy's); too many and a client can put a made-up address first in `X-Forwarded-For`. The default is 1; `TRUST_PROXY_HOPS` (0 to 5) changes it.
+
+1. Sign in as an admin on the **Vercel address** you normally use, open **Admin**, and press **Check request path** in the **Request path** card.
+2. Look up your own public address ("what is my IP"). The card lists the address each hop count would use. The right count is the one whose row shows **your** address. If your connection has both an IPv4 and an IPv6 address and no row matches, check the other one: the chain may carry the other kind. The server logs the count in force at every start (`[net] trusting N proxy hops …`).
+3. If that is the row marked "now", nothing to do. Otherwise set `TRUST_PROXY_HOPS` to that count on Render and redeploy, then press the button again to confirm.
+4. Be careful with higher counts: they are only safe if every request really passes through those proxies. A request sent straight to the Render address skips Vercel, so with a higher count it can carry a made-up first address. The per-account sign-in limit does not depend on the address, so password guessing stays limited either way.
+
 ## Status
 
 - [x] P0 (partial) — app-layer auth verified live; open-signup gap found and fixed (needs `OWNER_USERNAME` confirmed set in Render + a redeploy to take effect)

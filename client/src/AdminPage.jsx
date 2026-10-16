@@ -5,6 +5,7 @@ import { serviceLabels } from './serviceLabels.js';
 import { LoadingState, ErrorState } from './components/ui/States.jsx';
 import UserKeysModal from './components/admin/UserKeysModal.jsx';
 import EncryptionCard from './components/admin/EncryptionCard.jsx';
+import NetworkCard from './components/admin/NetworkCard.jsx';
 
 export default function AdminPage({ user }) {
   const [users,   setUsers]   = useState([]);
@@ -110,6 +111,7 @@ export default function AdminPage({ user }) {
       )}
 
       <EncryptionCard />
+      <NetworkCard />
 
       {/* Users table */}
       <div className="scroll-x" style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)' }}>
