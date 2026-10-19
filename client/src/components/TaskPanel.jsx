@@ -181,7 +181,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
         minWidth: 300, maxWidth: 300,
         display: 'flex', flexDirection: 'column',
         // Column background — distinct from page bg
-        background: isDragOver ? `${col.accent}08` : 'var(--surface)',
+        background: isDragOver ? `color-mix(in srgb, ${col.accent} 3%, transparent)` : 'var(--surface)',
         border: `1px solid ${isDragOver ? col.accent : 'var(--border)'}`,
         borderRadius: 16,
         transition: 'border-color var(--t-fast), background var(--t-fast)',

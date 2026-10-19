@@ -332,13 +332,16 @@ export default function LinkedInPanel({ health = {} }) {
 
 function VoiceProfile() {
   const [profile, setProfile] = useState(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/memory')
       .then(r => r.json())
       .then(d => setProfile(d.voiceProfile))
-      .catch(() => {});
+      .catch(() => setFailed(true));
   }, []);
+
+  if (failed && !profile) return <div role="status" style={{ fontSize: 13, color: 'var(--muted)' }}>Couldn't load your voice profile.</div>;
 
   if (!profile) return <div role="status" aria-live="polite" style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 

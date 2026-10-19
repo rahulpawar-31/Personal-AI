@@ -39,13 +39,15 @@ function forEachLine(file, fn) {
 
 const errors = [];
 
-// --- Rule 1: no fontWeight 650/700 ---
-const FONT_WEIGHT_RE = /fontWeight:\s*['"]?(650|700)['"]?/g;
+// --- Rule 1: fontWeight is 400, 500 or 600 only ---
+const ALLOWED_WEIGHTS = new Set(['400', '500', '600']);
+const FONT_WEIGHT_RE = /fontWeight:\s*['"]?(\d+|bold|bolder|lighter)['"]?/g;
 for (const file of walk(CLIENT_SRC, ['.js', '.jsx'])) {
   forEachLine(file, (line, lineNo) => {
     FONT_WEIGHT_RE.lastIndex = 0;
     let m;
     while ((m = FONT_WEIGHT_RE.exec(line))) {
+      if (ALLOWED_WEIGHTS.has(m[1])) continue;
       errors.push(`${relative(ROOT, file)}:${lineNo}  fontWeight: ${m[1]} — design-system/README.md allows only 400/500/600 ("No 700 anywhere")`);
     }
   });

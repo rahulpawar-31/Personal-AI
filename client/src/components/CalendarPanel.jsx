@@ -259,7 +259,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                   <button
                     type="button" onClick={() => setSelectedDay(day)}
                     aria-label={dayCellLabel(day, dayEvs.length)} aria-pressed={isSelected}
-                    style={{ ...numberStyle, display: 'block', marginBottom: 5, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', font: 'inherit', fontSize: 14 }}
+                    style={{ ...numberStyle, display: 'block', marginBottom: 5, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     {day.getDate()}
                   </button>
@@ -528,7 +528,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
 
           <button className="primary" onClick={onCreate}
             disabled={creating || !form.title.trim() || (form.recurring ? !form.days.length : !form.date)}
-            style={{ alignSelf: 'flex-end', marginTop: 4, padding: '0 22px', minHeight: 44, opacity: (creating || !form.title.trim()) ? 0.4 : 1 }}>
+            style={{ alignSelf: 'flex-end', marginTop: 4, padding: '0 22px', minHeight: 44 }}>
             {createButtonLabel(creating, form.recurring)}
           </button>
         </div>
