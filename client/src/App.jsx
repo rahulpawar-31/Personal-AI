@@ -280,7 +280,7 @@ export default function App() {
   const isChatView  = view === 'chat';
 
   return (
-    <div className="app-shell" style={{ display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', background: 'var(--bg)' }}>
       <ToastContainer />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
 
@@ -297,19 +297,20 @@ export default function App() {
         onCloseMobile={() => setSidebarOpen(false)}
       />
 
-      <main style={{
+      <main className="app-main" style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
         background: 'var(--bg)',
         minWidth: 0,
+        minHeight: 0,
       }}>
         <MobileTopBar onOpenMenu={() => setSidebarOpen(true)} />
         <div
           className={isTasksView || isChatView ? 'main-content--tight' : 'main-content'}
           style={{
             flex: 1,
+            minHeight: 0,
             overflow: 'auto',
             display: 'flex',
             flexDirection: 'column',

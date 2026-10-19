@@ -468,7 +468,13 @@ input::placeholder, textarea::placeholder { color: var(--hint); }
 .cmdk-list .nav-section-label { color: var(--muted); padding: 10px 10px 4px; }
 
 /* 100vh is the tallest viewport on phones, which hides the tab bar behind the browser toolbar; dvh tracks the visible one. */
-.app-shell { height: 100vh; height: 100dvh; }
+.app-shell { position: relative; height: 100vh; height: 100dvh; overflow: hidden; overflow: clip; }
+/* position: relative makes the shell the containing block for visually-hidden labels (position: absolute), which would otherwise escape the clip and let the document scroll. overflow: clip (unlike hidden) can't be scrolled by focus or scrollIntoView, so a focused input never drags the tab bar up the screen. */
+.app-main { overflow: hidden; overflow: clip; }
+@media (max-width: 768px) {
+  .page-header__actions { width: 100%; }
+  .page-header__actions > * { flex: 1 1 auto; }
+}
 
 /* ============================================================
    Bottom tab bar — phone only (see components/MobileTabBar.jsx)
