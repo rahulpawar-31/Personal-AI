@@ -329,7 +329,7 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
                     type="button"
                     aria-pressed={on}
                     onClick={() => openEmail(email.id)}
-                    style={{ textAlign: 'left', border: 0, borderRadius: 10, padding: 14, minHeight: 44, background: on ? 'var(--surface-sunken)' : 'transparent', display: 'flex', flexDirection: 'column', gap: 4 }}
+                    style={{ textAlign: 'left', border: 0, borderRadius: 10, padding: 14, minHeight: 44, flexShrink: 0, width: '100%', background: on ? 'var(--surface-sunken)' : 'transparent', display: 'flex', flexDirection: 'column', gap: 4 }}
                   >
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
