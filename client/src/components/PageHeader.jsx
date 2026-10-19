@@ -8,7 +8,7 @@ export default function PageHeader({ eyebrow, title, subtitle, children }) {
         <h1 style={{ fontSize: 'clamp(26px, 4vw, 34px)', lineHeight: 1.1, fontWeight: 600, letterSpacing: '-0.02em' }}>{title}</h1>
         {subtitle && <p style={{ fontSize: 15.5, color: 'var(--text-2)' }}>{subtitle}</p>}
       </div>
-      {children && <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</div>}
+      {children && <div className="page-header__actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</div>}
     </header>
   );
 }

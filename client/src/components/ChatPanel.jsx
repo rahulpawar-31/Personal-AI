@@ -4,6 +4,7 @@ import { LogoMark } from './Logo.jsx';
 import { apiFetch } from '../api.js';
 import { streamChat } from '../lib/chatStream.js';
 import { toast } from '../toast.jsx';
+import { useMediaQuery } from '../useMediaQuery.js';
 
 const STORAGE_KEY = 'devos_chat_history';
 const storageKeyFor = userId => userId ? `devos_chat_history_${userId}` : STORAGE_KEY;
@@ -313,23 +314,27 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
   }
 
   const isEmpty = messages.length === 0;
+  // Phones: the page heading, engine pill, hint line and wrapped chips crowd the thread out, so they collapse.
+  const compact = useMediaQuery('(max-width: 768px)');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 400 }}>
 
-      <PageHeader
-        eyebrow="Overview"
-        title="Chat"
-        subtitle="Ask across mail, calendar, tasks and code. Every answer says which service it came from."
-      />
+      {!compact && (
+        <PageHeader
+          eyebrow="Overview"
+          title="Chat"
+          subtitle="Ask across mail, calendar, tasks and code. Every answer says which service it came from."
+        />
+      )}
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>{isEmpty ? 'New conversation' : 'Conversation'}</h2>
+      <div style={{ padding: compact ? '10px 14px' : '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600 }}>{compact ? 'Chat' : isEmpty ? 'New conversation' : 'Conversation'}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', padding: '4px 10px', borderRadius: 999, background: 'var(--surface-sunken)' }}>
+          {!compact && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', padding: '4px 10px', borderRadius: 999, background: 'var(--surface-sunken)' }}>
             {useAgent ? 'agent · Gemini with Groq fallback' : 'classic engine'}
-          </span>
+          </span>}
           <button
             onClick={toggleAgent}
             aria-pressed={useAgent}
@@ -351,7 +356,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '20px 24px 16px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: compact ? '12px 14px 12px' : '20px 24px 16px' }}>
 
       {/* Messages */}
       <div role="log" aria-live="polite" aria-label="Conversation" style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
@@ -367,7 +372,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
           ).slice(0, 6);
 
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 36, paddingBottom: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: compact ? 8 : 36, paddingBottom: 24 }}>
               <div style={{ marginBottom: 14 }}><LogoMark size={56} /></div>
               <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 6 }}>How can I help?</div>
               <div style={{ fontSize: 14.5, color: 'var(--muted)', marginBottom: 18, textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
@@ -449,7 +454,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               )}
 
               {/* Bubble */}
-              <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
+              <div style={{ maxWidth: compact ? '88%' : '72%', display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
                 <div style={{
                   background: isUser ? 'var(--text)' : 'var(--bg)',
                   color: isUser ? 'var(--bg)' : 'var(--text)',
@@ -530,9 +535,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
       )}
 
       {!isEmpty && (
-        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: compact ? 'nowrap' : 'wrap', overflowX: compact ? 'auto' : 'visible', gap: 8, marginTop: 8 }}>
           {ALL_SUGGESTIONS.filter(sg => sg.key === null || (sg.key === 'google' ? connected : Boolean(health[sg.key]))).slice(0, 3).map(sg => (
-            <button key={sg.text} onClick={() => { setInput(sg.text); textareaRef.current?.focus(); }} style={{ fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 36, borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border-strong)' }}>{sg.text}</button>
+            <button key={sg.text} onClick={() => { setInput(sg.text); textareaRef.current?.focus(); }} style={{ fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 36, borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border-strong)', whiteSpace: 'nowrap', flexShrink: 0 }}>{sg.text}</button>
           ))}
         </div>
       )}
@@ -599,7 +604,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             {listening ? (
               <span style={{ fontSize: 14 }}>■</span>
             ) : (
-              <span style={{ fontSize: 14 }}>●</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="11" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+              </svg>
             )}
           </button>
 
@@ -628,9 +636,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
           </button>
         </div>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
-        {listening ? '● Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
-      </div>
+      {(listening || !compact) && (
+        <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
+          {listening ? '● Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
+        </div>
+      )}
 
       </div>
       </div>
