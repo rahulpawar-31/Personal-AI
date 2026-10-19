@@ -1,23 +1,18 @@
-// Hamburger + brand mark, visible only below the 768px breakpoint
+import Logo from './Logo.jsx';
+
+// Brand mark + menu button, visible only below the 768px breakpoint
 // (see .mobile-topbar in index.css) — opens the Sidebar drawer.
 export default function MobileTopBar({ onOpenMenu }) {
   return (
     <div className="mobile-topbar">
+      <Logo size={26} textSize={18} color="var(--text)" tone="ink" />
       <button
         onClick={onOpenMenu}
         aria-label="Open menu"
-        style={{ padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 17 }}
+        style={{ marginLeft: 'auto', width: 44, height: 44, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--text)' }}
       >
-        ☰
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
-      <div style={{
-        width: 22, height: 22, borderRadius: 6,
-        background: 'var(--accent)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 500, fontSize: 11, flexShrink: 0,
-        letterSpacing: '-0.02em',
-      }}>D</div>
-      <span style={{ fontWeight: 500, fontSize: 13.5, color: 'var(--text)', letterSpacing: '-0.01em' }}>DevOS</span>
     </div>
   );
 }

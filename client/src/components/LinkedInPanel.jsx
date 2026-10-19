@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 
 const LINKEDIN_MAX = 3000;
@@ -23,7 +24,7 @@ function CharBar({ text }) {
       <div style={{ flex: 1, height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct * 100}%`, background: color, borderRadius: 2, transition: 'width .15s, background .15s' }} />
       </div>
-      <span style={{ fontSize: 11, color: over ? 'var(--danger)' : 'var(--muted)', minWidth: 60, textAlign: 'right' }}>
+      <span style={{ fontSize: 12.5, color: over ? 'var(--danger)' : 'var(--muted)', minWidth: 60, textAlign: 'right' }}>
         {len} / {LINKEDIN_MAX}
       </span>
     </div>
@@ -34,22 +35,22 @@ function PostCard({ post, onCopy }) {
   const date = new Date(post.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return (
     <div style={{
-      background: 'var(--surface)', border: '0.5px solid var(--border)',
-      borderRadius: 'var(--radius)', padding: '10px 12px', marginBottom: 8,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-lg)', padding: '10px 12px', marginBottom: 8,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, flex: 1, margin: 0,
+        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, flex: 1, margin: 0,
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {post.edited}
         </p>
         <button
           onClick={() => onCopy(post.edited)}
-          style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ fontSize: 12.5, padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Copy
         </button>
       </div>
-      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>{date}</div>
+      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{date}</div>
     </div>
   );
 }
@@ -155,25 +156,16 @@ export default function LinkedInPanel({ health = {} }) {
   }
 
   return (
+    <div>
+    <PageHeader eyebrow="Social" title="LinkedIn" subtitle="Turn raw thoughts into polished posts.">
+      <span className={`tag ${connected ? 'tag-success' : 'tag-gray'}`} style={{ fontSize: 12.5, padding: '5px 12px', borderRadius: 999 }}>
+        {connected ? '● Auto-post on' : '○ Auto-post off'}
+      </span>
+    </PageHeader>
     <div className="split-editor">
 
       {/* ── Left: Studio ─────────────────────────────────────────────────── */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 500 }}>LinkedIn Studio</h2>
-            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Turn raw thoughts into polished posts</p>
-          </div>
-          <span style={{
-            fontSize: 11, padding: '3px 10px', borderRadius: 99,
-            background: connected ? 'rgba(29,158,117,.1)' : 'var(--surface)',
-            color: connected ? 'var(--accent)' : 'var(--muted)',
-            border: `0.5px solid ${connected ? 'var(--accent)' : 'var(--border)'}`,
-          }}>
-            {connected ? '● Auto-post on' : '○ Auto-post off'}
-          </span>
-        </div>
-
         {/* Templates */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {TEMPLATES.map(t => (
@@ -182,8 +174,8 @@ export default function LinkedInPanel({ health = {} }) {
               onClick={() => applyTemplate(t)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
-                fontSize: 12, padding: '5px 12px', borderRadius: 20,
-                border: '0.5px solid var(--border)', background: 'var(--surface)',
+                fontSize: 14, fontWeight: 500, padding: '0 16px', minHeight: 40, borderRadius: 999,
+                border: '1px solid var(--border-strong)', background: 'var(--surface)',
                 cursor: 'pointer', color: 'var(--text)',
               }}
             >
@@ -193,8 +185,8 @@ export default function LinkedInPanel({ health = {} }) {
         </div>
 
         {/* Input */}
-        <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: 14, marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Raw input — paste a note, PR, idea, or Slack message</div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', marginBottom: 18 }}>
+          <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 10 }}>Raw input — paste a note, PR, idea, or Slack message</div>
           <textarea
             ref={textareaRef}
             rows={4}
@@ -213,7 +205,7 @@ export default function LinkedInPanel({ health = {} }) {
         {/* Variants */}
         {draft && (
           <>
-            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
               Pick a variant
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -227,23 +219,23 @@ export default function LinkedInPanel({ health = {} }) {
                     background: i === selected ? 'rgba(10,102,194,.06)' : 'var(--surface)',
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 500, color: i === selected ? '#0A66C2' : 'var(--muted)', marginBottom: 3 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: i === selected ? '#0A66C2' : 'var(--muted)', marginBottom: 3 }}>
                     {v.label}
-                    {i === (draft.recommendedVariant ?? 0) && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)' }}>★ rec</span>}
+                    {i === (draft.recommendedVariant ?? 0) && <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--accent)' }}>★ rec</span>}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>~{v.wordCount}w</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>~{v.wordCount}w</div>
                 </button>
               ))}
             </div>
 
             {/* Editable post body */}
             <div style={{ background: 'var(--surface)', border: '1px solid #0A66C2', borderRadius: 'var(--radius)', padding: 14, marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#0A66C2', fontWeight: 500, marginBottom: 8 }}>Edit before posting</div>
+              <div style={{ fontSize: 12.5, color: '#0A66C2', fontWeight: 500, marginBottom: 8 }}>Edit before posting</div>
               <textarea
                 rows={9}
                 value={editedBody}
                 onChange={e => setEditedBody(e.target.value)}
-                style={{ fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7 }}
+                style={{ fontFamily: 'inherit', fontSize: 14, lineHeight: 1.7 }}
               />
               <CharBar text={finalPost()} />
             </div>
@@ -251,7 +243,7 @@ export default function LinkedInPanel({ health = {} }) {
             {/* Hashtag picker */}
             {hashtags.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Hashtags — click to toggle</div>
+                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 6 }}>Hashtags — click to toggle</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {hashtags.map(tag => {
                     const on = activeHashtags.has(tag);
@@ -260,8 +252,8 @@ export default function LinkedInPanel({ health = {} }) {
                         key={tag}
                         onClick={() => toggleHashtag(tag)}
                         style={{
-                          fontSize: 12, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
-                          border: `0.5px solid ${on ? '#0A66C2' : 'var(--border)'}`,
+                          fontSize: 13, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
+                          border: `1px solid ${on ? '#0A66C2' : 'var(--border)'}`,
                           background: on ? 'rgba(10,102,194,.08)' : 'var(--surface)',
                           color: on ? '#0A66C2' : 'var(--muted)',
                           fontWeight: on ? 500 : 400,
@@ -292,7 +284,7 @@ export default function LinkedInPanel({ health = {} }) {
             </div>
 
             {!connected && (
-              <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
+              <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 10 }}>
                 To enable direct posting, add a <code>LINKEDIN_WEBHOOK_URL</code> (Make.com) in Settings.
               </p>
             )}
@@ -300,7 +292,7 @@ export default function LinkedInPanel({ health = {} }) {
         )}
 
         {status && (
-          <p style={{ fontSize: 13, color: status.startsWith('✓') ? 'var(--accent)' : 'var(--danger)', marginTop: 12, fontWeight: 500 }}>
+          <p style={{ fontSize: 14, color: status.startsWith('✓') ? 'var(--accent)' : 'var(--danger)', marginTop: 12, fontWeight: 500 }}>
             {status}
           </p>
         )}
@@ -309,20 +301,20 @@ export default function LinkedInPanel({ health = {} }) {
       {/* ── Right: History + voice ────────────────────────────────────────── */}
       <div>
         {/* Voice profile card */}
-        <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: 14, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Your voice profile</div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 14, marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 10 }}>Your voice profile</div>
           <VoiceProfile />
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
             Every post you save teaches the AI your writing style.
           </div>
         </div>
 
         {/* Post history */}
-        <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
           Post history ({history.length})
         </div>
         {history.length === 0 && (
-          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
             No posts saved yet. Generate a variant and hit "Save to voice profile."
           </p>
         )}
@@ -330,9 +322,10 @@ export default function LinkedInPanel({ health = {} }) {
           <PostCard key={p.at ?? i} post={p} onCopy={text => copyText(text, i)} />
         ))}
         {copiedIdx !== null && copiedIdx !== 'final' && (
-          <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>Copied</p>
+          <p style={{ fontSize: 12.5, color: 'var(--accent)', marginTop: 4 }}>Copied</p>
         )}
       </div>
+    </div>
     </div>
   );
 }
@@ -347,7 +340,7 @@ function VoiceProfile() {
       .catch(() => {});
   }, []);
 
-  if (!profile) return <div role="status" aria-live="polite" style={{ fontSize: 12, color: 'var(--muted)' }}>Loading…</div>;
+  if (!profile) return <div role="status" aria-live="polite" style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
   const postCount = profile.approvedDrafts?.filter(d => d.type === 'linkedin').length ?? 0;
 
@@ -359,7 +352,7 @@ function VoiceProfile() {
         { label: 'Opening style', val: profile.openingStyle },
         { label: 'Posts saved',   val: String(postCount) },
       ].map(r => (
-        <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+        <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
           <span style={{ color: 'var(--muted)' }}>{r.label}</span>
           <span style={{ color: 'var(--text)', fontWeight: 500, textAlign: 'right', maxWidth: 140, textTransform: 'capitalize' }}>{r.val}</span>
         </div>

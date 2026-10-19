@@ -149,7 +149,7 @@ A **calm, paper-warm dashboard** that looks like it was designed by a backend en
 - **Font stack:** `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "Helvetica Neue", Arial, sans-serif`. System font everywhere — *no web fonts are loaded*. (See "Fonts" note below.)
 - **No serif. No display face. No mono outside `<pre>`/`<code>`.**
 - **Sizes are tiny:** body is `13px`, panel titles `16px`, eyebrow labels `11px`, hints `11px`, the big digest numerals `24px`, expanded email subject `20px`.
-- **Weights:** 400 (regular), 500 (medium). **No 600 or 700** anywhere. Even h2 panel titles are 500.
+- **Weights:** 400 (regular), 500 (medium), 600 (headings, primary buttons, stat numbers). **No 700** anywhere. (Dayhand redesign; the type is now Instrument Sans + JetBrains Mono, see client/src/index.css.)
 - **Line height:** 1.5 for body, 1.6–1.7 for long-form email content, 1.3 for headings.
 - **Letter-spacing:** default 0; uppercase eyebrows use 0.05em.
 

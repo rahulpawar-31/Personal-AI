@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { apiFetch, clearToken } from './api.js';
+import Logo from './components/Logo.jsx';
 
 const STEPS = [
-  { id: 'welcome',      title: 'Welcome to DevOS' },
+  { id: 'welcome',      title: 'Welcome to Dayhand' },
   { id: 'google',       title: 'Connect Google' },
   { id: 'dev-tools',    title: 'Dev tools' },
   { id: 'productivity', title: 'Productivity tools' },
@@ -31,32 +32,43 @@ export default function OnboardingWizard({ user, onComplete }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', background: 'var(--bg)', padding: '24px 16px',
+      minHeight: '100vh', background: 'var(--bg)', padding: '40px 16px',
     }}>
-      <div style={{
-        width: 520, maxWidth: '92vw', padding: '36px 40px',
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: 'var(--border-hairline)',
-        boxShadow: 'var(--shadow-2)',
-      }}>
-        {/* Progress dots */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
-          {STEPS.map((s, i) => (
-            <div key={s.id} style={{
-              flex: 1, height: 3, borderRadius: 2,
-              background: i <= step ? 'var(--accent)' : 'var(--border)',
-              transition: 'background 0.25s',
-            }} />
-          ))}
+      <div style={{ width: 640, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Logo size={30} tone="ink" color="var(--text)" />
+              <span style={{ fontSize: 14, color: 'var(--muted)' }}>setup</span>
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)' }}>
+              Step {step + 1} of {STEPS.length}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }} aria-hidden="true">
+            {STEPS.map((s, i) => (
+              <div key={s.id} style={{
+                flex: 1, height: 5, borderRadius: 999,
+                background: i <= step ? 'var(--accent)' : 'var(--border)',
+                transition: 'background 0.25s',
+              }} />
+            ))}
+          </div>
         </div>
 
+        <div style={{
+          padding: '36px 36px 30px',
+          background: 'var(--surface)',
+          borderRadius: 20,
+          border: 'var(--border-hairline)',
+        }}>
         {current.id === 'welcome'      && <WelcomeStep      username={user.username} onNext={next} />}
         {current.id === 'google'       && <GoogleStep        onNext={next} />}
         {current.id === 'dev-tools'    && <DevToolsStep      onNext={next} />}
         {current.id === 'productivity' && <ProductivityStep  onNext={next} />}
         {current.id === 'ai-keys'      && <AIKeysStep        onNext={next} />}
         {current.id === 'done'         && <DoneStep          onComplete={onComplete} />}
+        </div>
       </div>
     </div>
   );
@@ -66,7 +78,7 @@ export default function OnboardingWizard({ user, onComplete }) {
 
 function StepLabel({ n, of: total }) {
   return (
-    <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)',
+    <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)',
       textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
       Step {n} of {total}
     </span>
@@ -77,10 +89,10 @@ function Field({ label, hint, value, onChange, placeholder, type = 'password', l
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{label}</label>
+        <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{label}</label>
         {linkText && (
           <a href={linkHref} target="_blank" rel="noreferrer"
-            style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>
+            style={{ fontSize: 12.5, color: 'var(--accent)', textDecoration: 'none' }}>
             {linkText} ↗
           </a>
         )}
@@ -92,12 +104,12 @@ function Field({ label, hint, value, onChange, placeholder, type = 'password', l
         placeholder={placeholder}
         style={{
           width: '100%', boxSizing: 'border-box',
-          padding: '8px 10px', fontSize: 13,
+          padding: '8px 10px', fontSize: 14,
           border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
           background: 'var(--bg)', color: 'var(--text)', outline: 'none',
         }}
       />
-      {hint && <p style={{ fontSize: 11, color: 'var(--muted)', margin: '4px 0 0' }}>{hint}</p>}
+      {hint && <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '4px 0 0' }}>{hint}</p>}
     </div>
   );
 }
@@ -111,7 +123,7 @@ function StatusBadge({ status }) {
       borderRadius: 'var(--radius-sm)', marginBottom: 14,
       background: ok ? 'var(--tag-success-bg)' : 'var(--tag-danger-bg)',
       border: `1px solid ${ok ? 'var(--success)' : 'var(--danger)'}`,
-      fontSize: 12, color: ok ? 'var(--tag-success-fg)' : 'var(--tag-danger-fg)',
+      fontSize: 13, color: ok ? 'var(--tag-success-fg)' : 'var(--tag-danger-fg)',
     }}>
       {ok ? '✓ Connected' : `✗ ${status}`}
     </div>
@@ -123,12 +135,12 @@ function ServiceCard({ title, connected, children }) {
     <div style={{
       border: `1px solid ${connected ? 'var(--accent)' : 'var(--border)'}`,
       borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 12,
-      background: connected ? 'rgba(29,158,117,0.04)' : 'var(--bg)',
+      background: connected ? 'rgba(15,123,92,0.04)' : 'var(--bg)',
       transition: 'border-color 0.2s',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: connected ? 0 : 12 }}>
-        <span style={{ fontWeight: 500, fontSize: 13 }}>{title}</span>
-        {connected && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--accent)', fontWeight: 500 }}>✓ Connected</span>}
+        <span style={{ fontWeight: 500, fontSize: 14 }}>{title}</span>
+        {connected && <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--accent)', fontWeight: 500 }}>✓ Connected</span>}
       </div>
       {!connected && children}
     </div>
@@ -146,15 +158,15 @@ function WelcomeStep({ username, onNext }) {
   ];
   return (
     <>
-      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>
-        Set up DevOS, {username}
+      <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>
+        Set up Dayhand, {username}
       </h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 20px' }}>
-        DevOS is your personal AI command centre. Let's connect your tools — takes about 3 minutes.
+        Dayhand is your personal AI command centre. Let's connect your tools — takes about 3 minutes.
       </p>
       <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: 28 }}>
         {features.map(f => (
-          <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13,
+          <div key={f} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14,
             color: 'var(--muted)', padding: '4px 0' }}>
             <span style={{ color: 'var(--accent)', fontWeight: 500 }}>✓</span> {f}
           </div>
@@ -173,15 +185,15 @@ function GoogleStep({ onNext }) {
   return (
     <>
       <StepLabel n={1} of={4} />
-      <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 500 }}>Connect Google</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.7, margin: '0 0 16px' }}>
+      <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Connect Google</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 16px' }}>
         Unlocks Gmail triage, calendar management, and conflict detection.
       </p>
       <div style={{ background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: 24 }}>
         {['Read and triage your inbox by priority', 'Draft and send emails via the agent',
           'Schedule and reschedule calendar events', 'Detect scheduling conflicts automatically'].map(item => (
           <div key={item} style={{ display: 'flex', gap: 8, alignItems: 'center',
-            fontSize: 13, color: 'var(--muted)', padding: '3px 0' }}>
+            fontSize: 14, color: 'var(--muted)', padding: '3px 0' }}>
             <span style={{ color: 'var(--accent)', fontWeight: 500 }}>✓</span> {item}
           </div>
         ))}
@@ -199,7 +211,7 @@ function GoogleStep({ onNext }) {
           Connect Gmail &amp; Calendar
         </button>
         <button onClick={onNext} style={{ width: '100%', padding: '9px 16px', color: 'var(--muted)',
-          background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13 }}>
+          background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>
           Skip for now
         </button>
       </div>
@@ -243,8 +255,8 @@ function DevToolsStep({ onNext }) {
   return (
     <>
       <StepLabel n={2} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>Dev tools</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
+      <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Dev tools</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
         Connect GitHub and Slack — or skip and add them later in Settings.
       </p>
 
@@ -264,7 +276,7 @@ function DevToolsStep({ onNext }) {
         </div>
         {ghSt && ghSt !== 'ok' && <StatusBadge status={ghSt} />}
         <button onClick={testGitHub} disabled={!gh.token || !gh.owner || saving === 'github'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: gh.token && gh.owner ? 'pointer' : 'default', opacity: gh.token && gh.owner ? 1 : 0.5 }}>
           {saving === 'github' ? 'Connecting…' : 'Connect GitHub'}
@@ -281,7 +293,7 @@ function DevToolsStep({ onNext }) {
           hint="Slack → your profile → ⋯ → Copy member ID" />
         {slackSt && slackSt !== 'ok' && <StatusBadge status={slackSt} />}
         <button onClick={testSlack} disabled={!slack.botToken || saving === 'slack'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: slack.botToken ? 'pointer' : 'default', opacity: slack.botToken ? 1 : 0.5 }}>
           {saving === 'slack' ? 'Connecting…' : 'Connect Slack'}
@@ -290,11 +302,11 @@ function DevToolsStep({ onNext }) {
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="primary" onClick={onNext}
-          style={{ flex: 1, padding: '10px 16px', fontSize: 13 }}>
+          style={{ flex: 1, padding: '10px 16px', fontSize: 14 }}>
           Continue →
         </button>
       </div>
-      <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 12,
+      <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 13,
         color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
         Skip all dev tools
       </button>
@@ -338,8 +350,8 @@ function ProductivityStep({ onNext }) {
   return (
     <>
       <StepLabel n={3} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>Productivity tools</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
+      <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Productivity tools</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
         Connect Notion and Todoist for task and note management.
       </p>
 
@@ -353,7 +365,7 @@ function ProductivityStep({ onNext }) {
           hint="Open database in Notion → share → copy link" />
         {notionSt && notionSt !== 'ok' && <StatusBadge status={notionSt} />}
         <button onClick={testNotion} disabled={!notion.apiKey || saving === 'notion'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: notion.apiKey ? 'pointer' : 'default', opacity: notion.apiKey ? 1 : 0.5 }}>
           {saving === 'notion' ? 'Connecting…' : 'Connect Notion'}
@@ -366,7 +378,7 @@ function ProductivityStep({ onNext }) {
           linkText="Get token" linkHref="https://app.todoist.com/app/settings/integrations/developer" />
         {todoistSt && todoistSt !== 'ok' && <StatusBadge status={todoistSt} />}
         <button onClick={testTodoist} disabled={!todoist || saving === 'todoist'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: todoist ? 'pointer' : 'default', opacity: todoist ? 1 : 0.5 }}>
           {saving === 'todoist' ? 'Connecting…' : 'Connect Todoist'}
@@ -374,10 +386,10 @@ function ProductivityStep({ onNext }) {
       </ServiceCard>
 
       <button className="primary" onClick={onNext}
-        style={{ width: '100%', padding: '10px 16px', fontSize: 13, marginTop: 4 }}>
+        style={{ width: '100%', padding: '10px 16px', fontSize: 14, marginTop: 4 }}>
         Continue →
       </button>
-      <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 12,
+      <button onClick={onNext} style={{ width: '100%', marginTop: 8, padding: '7px', fontSize: 13,
         color: 'var(--muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
         Skip productivity tools
       </button>
@@ -423,12 +435,12 @@ function AIKeysStep({ onNext }) {
   return (
     <>
       <StepLabel n={4} of={4} />
-      <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 500 }}>AI engine</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6, margin: '0 0 6px' }}>
-        DevOS needs at least one AI key for chat and digest to work.
+      <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>AI engine</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6, margin: '0 0 6px' }}>
+        Dayhand needs at least one AI key for chat and digest to work.
         Both are free to start — add either one.
       </p>
-      <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 20px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 20px' }}>
         Don't have one yet? The app will use a shared key with limited capacity until you add your own.
       </p>
 
@@ -439,7 +451,7 @@ function AIKeysStep({ onNext }) {
           hint="Google AI Studio → Create API key — free tier is generous" />
         {geminiSt && geminiSt !== 'ok' && <StatusBadge status={geminiSt} />}
         <button onClick={testGemini} disabled={!gemini || saving === 'gemini'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: gemini ? 'pointer' : 'default', opacity: gemini ? 1 : 0.5 }}>
           {saving === 'gemini' ? 'Verifying…' : 'Save Gemini key'}
@@ -453,7 +465,7 @@ function AIKeysStep({ onNext }) {
           hint="Groq Console → API Keys → Create — very fast inference" />
         {groqSt && groqSt !== 'ok' && <StatusBadge status={groqSt} />}
         <button onClick={testGroq} disabled={!groq || saving === 'groq'}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+          style={{ fontSize: 13, padding: '6px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)',
             cursor: groq ? 'pointer' : 'default', opacity: groq ? 1 : 0.5 }}>
           {saving === 'groq' ? 'Verifying…' : 'Save Groq key'}
@@ -461,7 +473,7 @@ function AIKeysStep({ onNext }) {
       </ServiceCard>
 
       <button className="primary" onClick={onNext}
-        style={{ width: '100%', padding: '10px 16px', fontSize: 13, marginTop: 4 }}>
+        style={{ width: '100%', padding: '10px 16px', fontSize: 14, marginTop: 4 }}>
         {anyConnected ? 'Continue →' : 'Skip — use shared key'}
       </button>
     </>
@@ -481,11 +493,11 @@ function DoneStep({ onComplete }) {
       }}>
         ✓
       </div>
-      <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500 }}>You're all set</h2>
+      <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>You're all set</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' }}>
         Your workspace is ready. You can add or change any integration any time from Settings.
       </p>
-      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 28px' }}>
+      <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 28px' }}>
         The agent is standing by — try asking it <em>"What's on my plate today?"</em>
       </p>
       <button className="primary" onClick={onComplete}

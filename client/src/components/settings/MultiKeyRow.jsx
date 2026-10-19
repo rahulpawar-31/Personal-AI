@@ -46,7 +46,7 @@ export default function MultiKeyRow({ service, label, description, fields: field
           warning={unreadable ? UNREADABLE_KEY_MESSAGE : undefined}
           extraActions={onForceSave && error && hasValues ? (
             <button onClick={handleForceSave} disabled={testing === service}
-              style={{ fontSize: 12, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>
+              style={{ fontSize: 13, color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer' }}>
               Save anyway
             </button>
           ) : null}

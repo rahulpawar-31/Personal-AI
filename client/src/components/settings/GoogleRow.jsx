@@ -7,7 +7,7 @@ export default function GoogleRow({ connected, email, onConnect, onDisconnect, e
       connected={connected}
       actionSlot={
         connected
-          ? <button onClick={onDisconnect} style={{ fontSize: 12, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Disconnect</button>
+          ? <button onClick={onDisconnect} style={{ fontSize: 13, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>Disconnect</button>
           : <ToggleBtn expanded={false} connected={connected} onClick={onConnect} />
       }
     >

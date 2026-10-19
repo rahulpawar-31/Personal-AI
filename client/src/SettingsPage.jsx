@@ -1,3 +1,4 @@
+import PageHeader from './components/PageHeader.jsx';
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api.js';
 import { SectionLabel, IntegrationGroup, RowDivider } from './components/settings/primitives.jsx';
@@ -143,21 +144,15 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
   }
 
   return (
-    <div style={{ maxWidth: 640, width: '100%', margin: '0 auto', paddingBottom: 60 }}>
-      {/* Page header */}
-      <div style={{ marginBottom: 8 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, margin: '0 0 4px', letterSpacing: '-0.02em' }}>Settings</h1>
-        <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
-          API keys are encrypted at rest and never logged.
-        </p>
-      </div>
+    <div style={{ maxWidth: 820, width: '100%', paddingBottom: 60 }}>
+      <PageHeader eyebrow="Account" title="Settings" subtitle="API keys are encrypted at rest and never logged." />
 
       {aiMissing && (
         <div style={{
-          marginTop: 16, padding: '10px 14px',
-          borderRadius: 8, background: 'var(--tag-warn-bg)',
+          marginTop: 4, padding: '14px 18px',
+          borderRadius: 12, background: 'var(--tag-warn-bg)',
           border: '1px solid var(--warning)',
-          fontSize: 12, color: 'var(--tag-warn-fg)', lineHeight: 1.6,
+          fontSize: 13, color: 'var(--tag-warn-fg)', lineHeight: 1.6,
         }}>
           <strong>No AI engine configured.</strong> Add a Gemini or Groq API key to enable the agent.
         </div>
@@ -165,10 +160,10 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
 
       {hasSharedAiKey && !hasOwnAiKey && (
         <div style={{
-          marginTop: 16, padding: '10px 14px',
-          borderRadius: 8, background: 'var(--tag-success-bg)',
+          marginTop: 4, padding: '14px 18px',
+          borderRadius: 12, background: 'var(--tag-success-bg)',
           border: '1px solid var(--success)',
-          fontSize: 12, color: 'var(--success)', lineHeight: 1.6,
+          fontSize: 13, color: 'var(--success)', lineHeight: 1.6,
         }}>
           <strong>AI is ready.</strong> Shared workspace keys are active — you don't need to add your own unless you want a separate quota.
         </div>
@@ -269,12 +264,12 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
             margin: '0 0 0 0', padding: '12px 20px 14px',
             background: 'var(--surface)', borderTop: '1px solid var(--border)',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
               GitHub Webhook URL
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <code style={{
-                flex: 1, fontSize: 11, padding: '5px 10px', minWidth: 160,
+                flex: 1, fontSize: 12.5, padding: '8px 12px', minWidth: 160,
                 background: 'var(--bg)', border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)', color: 'var(--text)',
                 overflowX: 'auto', whiteSpace: 'nowrap', display: 'block',
@@ -288,7 +283,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                   setTimeout(() => setWebhookCopied(false), 2000);
                 }}
                 style={{
-                  padding: '5px 12px', fontSize: 11, fontWeight: 500,
+                  padding: '5px 12px', fontSize: 12.5, fontWeight: 500,
                   border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
                   background: webhookCopied ? 'var(--tag-success-bg)' : 'var(--bg)',
                   color: webhookCopied ? 'var(--success)' : 'var(--muted)',
@@ -298,7 +293,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
                 {webhookCopied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>
               Paste this URL in your GitHub repo → Settings → Webhooks.
               {webhookInfo.secret ? ' Webhook secret is configured.' : ' Set GITHUB_WEBHOOK_SECRET in .env for HMAC verification.'}
             </div>
@@ -356,7 +351,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
       <div style={{ marginTop: 24, textAlign: 'center' }}>
         <button
           onClick={onLogout}
-          style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 16px', background: 'transparent' }}
+          style={{ fontSize: 13, color: 'var(--muted)', padding: '6px 16px', background: 'transparent' }}
         >
           Sign out of @{user.username}
         </button>

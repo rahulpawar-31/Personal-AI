@@ -11,10 +11,10 @@ export function SectionLabel({ label, tag }) {
   const tc = TAG_STYLES[tag] ?? TAG_STYLES.optional;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '32px 0 10px' }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 500, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <span style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em', padding: '2px 7px', borderRadius: 99, ...tc }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em', padding: '3px 8px', borderRadius: 6, ...tc }}>
         {tag}
       </span>
       <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -27,7 +27,7 @@ export function IntegrationGroup({ children }) {
     <div style={{
       background: 'var(--surface)',
       border: 'var(--border-hairline)',
-      borderRadius: 12,
+      borderRadius: 16,
       overflow: 'hidden',
     }}>
       {children}
@@ -39,12 +39,12 @@ export function IntegrationGroup({ children }) {
 function toggleBtnState(expanded, connected) {
   if (expanded)  return { bg: 'var(--text)', border: 'transparent', color: '#fff', title: 'Close' };
   if (connected) return { bg: 'var(--tag-success-bg)', border: 'var(--success)', color: 'var(--tag-success-fg)', title: 'Manage connection' };
-  return             { bg: 'var(--surface)', border: 'var(--border)', color: 'var(--muted)', title: 'Connect' };
+  return             { bg: 'var(--surface)', border: 'var(--border-strong)', color: 'var(--text-2)', title: 'Connect' };
 }
 
 function ToggleBtnIcon({ expanded, connected }) {
   const glyph = expanded ? '×' : connected ? '✓' : '+';
-  return <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1 }}>{glyph}</span>;
+  return <span style={{ fontSize: 18, fontWeight: 500, lineHeight: 1 }}>{glyph}</span>;
 }
 
 // Action button — green ✓ when connected, + when not, × when the panel is open
@@ -57,9 +57,9 @@ export function ToggleBtn({ expanded, onClick, connected }) {
       title={title}
       aria-label={title}
       style={{
-        width: 28, height: 28, padding: 0, flexShrink: 0,
+        width: 44, height: 44, padding: 0, flexShrink: 0,
         border: `1.5px solid ${border}`,
-        borderRadius: 7,
+        borderRadius: 10,
         background: bg,
         color,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -74,10 +74,10 @@ export function ToggleBtn({ expanded, onClick, connected }) {
 export function IntegrationRow({ service, label, connected, children, actionSlot }) {
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px' }}>
         {/* Brand icon */}
         <div style={{
-          width: 36, height: 36, borderRadius: 9,
+          width: 40, height: 40, borderRadius: 10,
           background: 'var(--surface)', border: 'var(--border-hairline)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, overflow: 'hidden',
@@ -88,9 +88,9 @@ export function IntegrationRow({ service, label, connected, children, actionSlot
         {/* Name + status */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 500, fontSize: 13.5, color: 'var(--text)' }}>{label}</span>
+            <span style={{ fontWeight: 600, fontSize: 15.5, color: 'var(--text)' }}>{label}</span>
             {connected && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 500, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 500, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--tag-success-fg)' }} />
                 {' '}Connected
               </span>
@@ -135,7 +135,7 @@ export function Modal({ open, onClose, title, children }) {
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
         style={{
           position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(20,20,18,0.28)',
+          background: 'rgba(23,25,27,0.4)',
         }}
       />
       {/* Dialog */}
@@ -143,9 +143,9 @@ export function Modal({ open, onClose, title, children }) {
         position: 'fixed',
         top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 480, maxWidth: '94vw', maxHeight: '90vh',
-        background: 'var(--bg)',
-        borderRadius: 12,
+        width: 520, maxWidth: '94vw', maxHeight: '90vh',
+        background: 'var(--surface)',
+        borderRadius: 16,
         border: '1px solid var(--border)',
         zIndex: 201,
         display: 'flex', flexDirection: 'column',
@@ -155,22 +155,22 @@ export function Modal({ open, onClose, title, children }) {
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px',
+          padding: '16px 22px',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          <span style={{ fontWeight: 500, fontSize: 14, color: 'var(--text)' }}>{title}</span>
+          <span style={{ fontWeight: 600, fontSize: 18, color: 'var(--text)' }}>{title}</span>
           <button onClick={onClose} aria-label="Close" style={{
-            width: 26, height: 26, borderRadius: 6, padding: 0,
-            border: '1px solid var(--border)', background: 'transparent',
+            width: 44, height: 44, borderRadius: 10, padding: 0,
+            border: '1px solid var(--border-strong)', background: 'transparent',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)', fontSize: 14, fontWeight: 500,
+            color: 'var(--text-2)', fontSize: 20, fontWeight: 500,
           }}>
             ×
           </button>
         </div>
         {/* Scrollable content */}
-        <div style={{ overflowY: 'auto', padding: '20px 20px 28px', flex: 1 }}>
+        <div style={{ overflowY: 'auto', padding: '22px 22px 28px', flex: 1 }}>
           {children}
         </div>
       </div>
@@ -185,7 +185,7 @@ export function FieldGroup({ label, hint, linkText, linkHref, value, onChange, p
   return (
     <div style={{ marginBottom: 16 }}>
       {/* Label with required marker */}
-      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
+      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
         {label}
         {required && <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>}
       </div>
@@ -202,7 +202,7 @@ export function FieldGroup({ label, hint, linkText, linkHref, value, onChange, p
         />
         {isSecret && (
           <button type="button" onClick={() => setShow(v => !v)} tabIndex={-1}
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--hint)', display: 'flex', alignItems: 'center', fontSize: 11, fontWeight: 500 }}
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--hint)', display: 'flex', alignItems: 'center', fontSize: 12.5, fontWeight: 500 }}
             aria-label={show ? 'Hide' : 'Show'}>
             {show ? 'Hide' : 'Show'}
           </button>
@@ -210,7 +210,7 @@ export function FieldGroup({ label, hint, linkText, linkHref, value, onChange, p
       </div>
       {/* Hint BELOW the input */}
       {hint && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>
           {hint}
           {linkText && linkHref && (
             <> — <a href={linkHref} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{linkText}</a></>
@@ -252,7 +252,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
             background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
           }}>
             <ServiceIcon service={service} />
-            <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text)' }}>
               {setupLinkLabel ?? `${label} Setup`}
             </span>
             <span style={{ fontSize: 14, color: 'var(--muted)' }}>↗</span>
@@ -265,7 +265,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
         <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>
           {credentialsTitle ?? CREDENTIALS_TITLES[service] ?? `${label} Credentials`}
         </div>
-        <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
           {credentialsSubtitle ?? `Enter your ${label} authentication details`}
         </p>
         {children}
@@ -274,13 +274,13 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
       {/* ── Actions ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="primary" onClick={onSave} disabled={testing}
-          style={{ padding: '7px 16px', fontSize: 13 }}>
+          style={{ padding: '0 20px', minHeight: 44, fontSize: 14.5 }}>
           {testing ? 'Testing…' : 'Save & test'}
         </button>
         {extraActions}
         {connected && onDisconnect && (
           <button onClick={onDisconnect}
-            style={{ fontSize: 12, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+            style={{ fontSize: 13, color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
             Disconnect
           </button>
         )}
@@ -294,7 +294,7 @@ export function SetupPanel({ service, label, setupLinkLabel, setupLinkHref, cred
 export function WarnMsg({ msg }) {
   if (!msg) return null;
   return (
-    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tag-warn-fg)', background: 'var(--tag-warn-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
+    <div style={{ marginTop: 8, fontSize: 13, color: 'var(--tag-warn-fg)', background: 'var(--tag-warn-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
       {msg}
     </div>
   );
@@ -303,7 +303,7 @@ export function WarnMsg({ msg }) {
 export function ErrorMsg({ msg }) {
   if (!msg) return null;
   return (
-    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--tag-danger-fg)', background: 'var(--tag-danger-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
+    <div style={{ marginTop: 8, fontSize: 13, color: 'var(--tag-danger-fg)', background: 'var(--tag-danger-bg)', padding: '7px 10px', borderRadius: 6, lineHeight: 1.5 }}>
       {msg}
     </div>
   );

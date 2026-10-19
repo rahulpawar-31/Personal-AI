@@ -2,9 +2,10 @@
 // Enforces two design-system/README.md rules that have regressed before
 // this lint existed:
 //
-// 1. "Weights: 400, 500. No 600 or 700 anywhere." — PR #329 swept the
-//    codebase for this once; PR #332 reintroduced it on new icon glyphs
-//    a batch later, caught only by a manual code review.
+// 1. "Weights: 400, 500, 600. No 700 anywhere." — PR #329 swept the
+//    codebase for the old 400/500-only rule; PR #332 reintroduced it on
+//    new icon glyphs a batch later, caught only by a manual code review.
+//    The Dayhand redesign added 600 for headings and primary actions.
 // 2. Every var(--x) reference must have a matching "--x:" definition in
 //    index.css — --text-muted was referenced at 18 call sites (a real,
 //    silent text-color rendering bug) before anyone noticed it was never
@@ -38,14 +39,14 @@ function forEachLine(file, fn) {
 
 const errors = [];
 
-// --- Rule 1: no fontWeight 600/650/700 ---
-const FONT_WEIGHT_RE = /fontWeight:\s*['"]?(600|650|700)['"]?/g;
+// --- Rule 1: no fontWeight 650/700 ---
+const FONT_WEIGHT_RE = /fontWeight:\s*['"]?(650|700)['"]?/g;
 for (const file of walk(CLIENT_SRC, ['.js', '.jsx'])) {
   forEachLine(file, (line, lineNo) => {
     FONT_WEIGHT_RE.lastIndex = 0;
     let m;
     while ((m = FONT_WEIGHT_RE.exec(line))) {
-      errors.push(`${relative(ROOT, file)}:${lineNo}  fontWeight: ${m[1]} — design-system/README.md allows only 400/500 ("No 600 or 700 anywhere")`);
+      errors.push(`${relative(ROOT, file)}:${lineNo}  fontWeight: ${m[1]} — design-system/README.md allows only 400/500/600 ("No 700 anywhere")`);
     }
   });
 }

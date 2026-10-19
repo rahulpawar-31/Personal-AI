@@ -1,3 +1,4 @@
+import PageHeader from './components/PageHeader.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
@@ -86,9 +87,8 @@ export default function AdminPage({ user }) {
   if (error)   return <ErrorState title="Couldn't load the admin dashboard" description={error} onRetry={load} />;
 
   return (
-    <div style={{ maxWidth: 900 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>Admin dashboard</h2>
-      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 24 }}>Manage users and view system health.</p>
+    <div style={{ maxWidth: 1000 }}>
+      <PageHeader eyebrow="Account" title="Admin" subtitle="Manage users and view system health." />
 
       {/* Stats row */}
       {stats && (
@@ -100,11 +100,11 @@ export default function AdminPage({ user }) {
             { label: 'Uptime (s)',       val: stats.uptime },
           ].map(s => (
             <div key={s.label} style={{
-              background: 'var(--surface)', border: '0.5px solid var(--border)',
-              borderRadius: 'var(--radius)', padding: '12px 14px',
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: '16px 18px',
             }}>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 500 }}>{s.val}</div>
+              <div className="t-eyebrow" style={{ marginBottom: 8 }}>{s.label}</div>
+              <div className="t-stat">{s.val}</div>
             </div>
           ))}
         </div>
@@ -114,12 +114,12 @@ export default function AdminPage({ user }) {
       <NetworkCard />
 
       {/* Users table */}
-      <div className="scroll-x" style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)' }}>
-        <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 13 }}>
+      <div className="scroll-x" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+        <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
-            <tr style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
               {['ID', 'Username', 'Email', 'Keys', 'Connected', 'Joined', 'Role', ''].map(h => (
-                <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
+                <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)', fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -131,45 +131,45 @@ export default function AdminPage({ user }) {
                 onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setViewing(u); } }}
                 tabIndex={0}
                 title="Show saved keys"
-                style={{ cursor: 'pointer', borderBottom: i < users.length - 1 ? '0.5px solid var(--border)' : 'none' }}
+                style={{ cursor: 'pointer', borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}
               >
-                <td style={{ padding: '9px 12px', color: 'var(--muted)' }}>{u.id}</td>
-                <td style={{ padding: '9px 12px', fontWeight: 500 }}>
+                <td style={{ padding: '12px 14px', color: 'var(--muted)' }}>{u.id}</td>
+                <td style={{ padding: '12px 14px', fontWeight: 500 }}>
                   {u.username}
-                  {u.id === user.id && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', background: 'rgba(29,158,117,.1)', padding: '1px 5px', borderRadius: 8 }}>you</span>}
+                  {u.id === user.id && <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--accent)', background: 'rgba(15,123,92,.1)', padding: '1px 5px', borderRadius: 8 }}>you</span>}
                 </td>
-                <td style={{ padding: '9px 12px', color: 'var(--muted)' }}>{u.email ?? '—'}</td>
-                <td style={{ padding: '9px 12px' }}>
-                  <span style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '2px 8px', fontSize: 12 }}>
+                <td style={{ padding: '12px 14px', color: 'var(--muted)' }}>{u.email ?? '—'}</td>
+                <td style={{ padding: '12px 14px' }}>
+                  <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '2px 8px', fontSize: 13 }}>
                     {u.integrationCount}
                   </span>
                 </td>
-                <td style={{ padding: '9px 12px', color: 'var(--muted)', maxWidth: 240 }}>
+                <td style={{ padding: '12px 14px', color: 'var(--muted)', maxWidth: 240 }}>
                   {serviceLabels(u.connectedServices).join(', ') || 'None'}
                 </td>
-                <td style={{ padding: '9px 12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</td>
-                <td style={{ padding: '9px 12px' }} onClick={e => e.stopPropagation()}>
+                <td style={{ padding: '12px 14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</td>
+                <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => u.id !== user.id && toggleAdmin(u)}
                     disabled={u.id === user.id}
                     title={u.id === user.id ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
                     style={{
-                      fontSize: 11, padding: '2px 8px', borderRadius: 10, cursor: u.id === user.id ? 'default' : 'pointer',
-                      background: u.isAdmin ? 'rgba(29,158,117,.1)' : 'var(--bg)',
-                      border: `0.5px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`,
+                      fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 999, cursor: u.id === user.id ? 'default' : 'pointer',
+                      background: u.isAdmin ? 'rgba(15,123,92,.1)' : 'var(--bg)',
+                      border: `1px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`,
                       color: u.isAdmin ? 'var(--accent)' : 'var(--muted)',
                     }}
                   >
                     {u.isAdmin ? 'Admin' : 'User'}
                   </button>
                 </td>
-                <td style={{ padding: '9px 12px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                <td style={{ padding: '12px 14px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                   {u.id !== user.id && (
                     <>
                       {confirmingId === u.id && (
                         <button
                           onClick={() => setConfirmingId(null)}
-                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', marginRight: 6 }}
+                          style={{ fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 8, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', marginRight: 6 }}
                         >
                           Cancel
                         </button>
@@ -178,7 +178,7 @@ export default function AdminPage({ user }) {
                         onClick={() => onDeleteClick(u)}
                         disabled={deleting === u.id}
                         title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
-                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
+                        style={{ fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 8, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
                       >
                         {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
                       </button>
@@ -191,7 +191,7 @@ export default function AdminPage({ user }) {
         </table>
       </div>
 
-      <p style={{ marginTop: 12, fontSize: 11, color: 'var(--muted)' }}>
+      <p style={{ marginTop: 12, fontSize: 12.5, color: 'var(--muted)' }}>
         Node {stats?.nodeVersion} · server uptime {Math.floor((stats?.uptime ?? 0) / 60)}m
       </p>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCache } from '../hooks/useCache.js';
+import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
 import { LoadingState } from './ui/States.jsx';
@@ -179,7 +180,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
 
   if (!connected) return (
     <div>
-      <h2 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>GitHub</h2>
+      <PageHeader eyebrow="Work" title="GitHub" subtitle="Pull requests, issues and branches." />
       <NotConnected
         title="GitHub not connected"
         description="Add your GitHub token in Settings to view open PRs, track stale issues, and generate changelogs."
@@ -192,12 +193,11 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 500 }}>GitHub</h2>
-        <button onClick={() => { load(activeRepo); setContributions(null); setBranches([]); }} disabled={loading}>
+      <PageHeader eyebrow="Work" title="GitHub" subtitle={activeRepo ? `${activeRepo} · pull requests, issues and branches.` : 'Pull requests, issues and branches.'}>
+        <button onClick={() => { load(activeRepo); setContributions(null); setBranches([]); }} disabled={loading} style={{ minHeight: 44, padding: '0 18px', fontSize: 14, fontWeight: 500, border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
-      </div>
+      </PageHeader>
 
       {/* Repo selector */}
       {repos.length > 1 && (
@@ -207,10 +207,10 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
             const active = activeRepo === r;
             return (
               <button key={r} title={name} onClick={() => { setActiveRepo(r); setContributions(null); setBranches([]); }} style={{
-                fontSize: 12, padding: '4px 12px', borderRadius: 20,
+                fontSize: 13, padding: '4px 12px', borderRadius: 20,
                 background: active ? 'var(--text)' : 'var(--surface)',
                 color:      active ? 'var(--bg)'   : 'var(--muted)',
-                border:    `0.5px solid ${active ? 'var(--text)' : 'var(--border)'}`,
+                border:    `1px solid ${active ? 'var(--text)' : 'var(--border)'}`,
                 fontWeight: active ? 600 : 400,
                 maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
@@ -221,8 +221,8 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
         </div>
       )}
       {repos.length === 1 && (
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-          <span style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 20, padding: '3px 10px' }}>{activeRepo}</span>
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+          <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px' }}>{activeRepo}</span>
         </div>
       )}
 
@@ -234,7 +234,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           { key: 'branches',      label: 'Branches' },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
-            fontSize: 13, padding: '8px 16px', fontWeight: tab === t.key ? 600 : 400,
+            fontSize: 14.5, padding: '0 18px', minHeight: 44, borderRadius: 0, fontWeight: tab === t.key ? 600 : 500,
             background: 'transparent', border: 'none',
             borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`,
             color: tab === t.key ? 'var(--text)' : 'var(--muted)',
@@ -258,11 +258,11 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
             ].map(s => (
               <div key={s.label} style={{
                 background: s.warn ? 'var(--tag-danger-bg)' : 'var(--surface)',
-                border: `0.5px solid ${s.warn ? 'var(--danger)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius)', padding: '12px 14px', textAlign: 'center',
+                border: `1px solid ${s.warn ? 'var(--danger)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-lg)', padding: '16px 18px', textAlign: 'left',
               }}>
-                <div style={{ fontSize: 22, fontWeight: 500, color: s.warn ? 'var(--danger)' : 'var(--text)', lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 10, color: s.warn ? 'var(--danger)' : 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: s.warn ? 'var(--danger)' : 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.08em' }}>{s.label}</div>
+                <div className="t-stat" style={{ color: s.warn ? 'var(--danger)' : 'var(--text)' }}>{s.value}</div>
               </div>
             ))}
           </div>
@@ -282,7 +282,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           )}
 
           {!loading && prs.length === 0 && (
-            <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 16, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', marginBottom: 16, fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>
               No open pull requests
             </div>
           )}
@@ -292,12 +292,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
               <SectionLabel label="Merged this week" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {merged.map(pr => (
-                  <div key={pr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 14px' }}>
+                  <div key={pr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '12px 18px' }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
-                    <span style={{ flex: 1, fontSize: 13 }}>{pr.title}</span>
-                    <span style={{ fontSize: 10, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
-                    <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', flexShrink: 0 }}>#{pr.id}</span>
+                    <span style={{ flex: 1, fontSize: 14 }}>{pr.title}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
+                    <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', flexShrink: 0 }}>↗</a>
                   </div>
                 ))}
               </div>
@@ -308,22 +308,22 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <SectionLabel label="Open Issues" noMargin />
-              <button onClick={() => { setShowForm(f => !f); setIssueError(''); }} style={{ fontSize: 11, padding: '4px 10px' }}>
+              <button onClick={() => { setShowForm(f => !f); setIssueError(''); }} style={{ fontSize: 12.5, padding: '4px 10px' }}>
                 {showForm ? 'Cancel' : '+ New Issue'}
               </button>
             </div>
 
             {showForm && (
-              <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: 14, marginBottom: 10 }}>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 14, marginBottom: 10 }}>
                 <input placeholder="Issue title" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ marginBottom: 8 }} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Description</span>
-                  <button onClick={draftBody} disabled={drafting || !newTitle.trim()} style={{ fontSize: 11, padding: '3px 10px', color: 'var(--accent)', border: '0.5px solid var(--accent)', background: 'transparent' }}>
+                  <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Description</span>
+                  <button onClick={draftBody} disabled={drafting || !newTitle.trim()} style={{ fontSize: 12.5, padding: '3px 10px', color: 'var(--accent)', border: '1px solid var(--accent)', background: 'transparent' }}>
                     {drafting ? 'Drafting…' : '✦ AI Draft'}
                   </button>
                 </div>
                 <textarea placeholder="Description (optional)" value={newBody} onChange={e => setNewBody(e.target.value)} rows={newBody ? 8 : 3} style={{ width: '100%', marginBottom: 8, resize: 'vertical' }} />
-                {issueError && <p style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8 }}>{issueError}</p>}
+                {issueError && <p style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 8 }}>{issueError}</p>}
                 <button className="primary" onClick={submitIssue} disabled={creating || !newTitle.trim()}>
                   {creating ? 'Creating…' : 'Create Issue'}
                 </button>
@@ -331,43 +331,43 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
             )}
 
             {issues.length === 0 && !showForm && (
-              <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>
                 No open issues
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {issues.map(issue => (
-                <div key={`${issue.repo ?? ''}/${issue.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '10px 14px' }}>
+                <div key={`${issue.repo ?? ''}/${issue.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '10px 14px' }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--info)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{issue.id}</span>
-                  <span style={{ flex: 1, fontSize: 13 }}>{issue.title}</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--hint)', flexShrink: 0 }}>#{issue.id}</span>
+                  <span style={{ flex: 1, fontSize: 14 }}>{issue.title}</span>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {issue.labels?.map(l => {
                       const c = labelColor(l);
-                      return <span key={l} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: c.bg, color: c.color, fontWeight: 500 }}>{l}</span>;
+                      return <span key={l} style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: c.bg, color: c.color, fontWeight: 500 }}>{l}</span>;
                     })}
                   </div>
-                  <a href={issue.url} target="_blank" rel="noreferrer" aria-label={`Open issue #${issue.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+                  <a href={issue.url} target="_blank" rel="noreferrer" aria-label={`Open issue #${issue.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', flexShrink: 0 }}>↗</a>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Changelog */}
-          <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: changelog ? '0.5px solid var(--border)' : 'none' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: changelog ? '1px solid var(--border)' : 'none' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>AI Changelog</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Generated from merged PRs</div>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>AI Changelog</div>
+                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Generated from merged PRs</div>
               </div>
-              <button onClick={generateChangelog} disabled={clLoading} style={{ fontSize: 11 }}>
+              <button onClick={generateChangelog} disabled={clLoading} style={{ fontSize: 12.5 }}>
                 {clLoading ? 'Generating…' : 'Generate'}
               </button>
             </div>
             {changelog
-              ? <pre style={{ fontSize: 12, lineHeight: 1.8, whiteSpace: 'pre-wrap', color: 'var(--text)', padding: '12px 14px' }}>{changelog}</pre>
-              : <p style={{ fontSize: 12, color: 'var(--muted)', padding: '12px 14px' }}>Click Generate to create a polished release note from your merged PRs.</p>
+              ? <pre style={{ fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', color: 'var(--text)', padding: '12px 14px' }}>{changelog}</pre>
+              : <p style={{ fontSize: 13, color: 'var(--muted)', padding: '12px 14px' }}>Click Generate to create a polished release note from your merged PRs.</p>
             }
           </div>
         </div>
@@ -387,9 +387,9 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                   { label: 'PRs opened',        value: contributions.prsOpened,     color: 'var(--success)' },
                   { label: 'Reviews done',      value: contributions.reviewsDone,   color: 'var(--info)' },
                 ].map(s => (
-                  <div key={s.label} style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', textAlign: 'center' }}>
+                  <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontWeight: 500, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -398,13 +398,13 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
               {contributions.streak > 0 && (
                 <div style={{ background: 'var(--tag-success-bg)', border: 'var(--border-hairline)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 20 }}>
                   <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--tag-success-fg)' }}>{contributions.streak}-day streak</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>Keep it up — you've committed every day for {contributions.streak} days</div>
+                  <div style={{ fontSize: 13, color: 'var(--muted)' }}>Keep it up — you've committed every day for {contributions.streak} days</div>
                 </div>
               )}
 
               {/* 30-day activity heatmap */}
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>
                   Activity — last 30 days
                 </div>
                 <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end' }}>
@@ -421,13 +421,13 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                   })}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                  <span style={{ fontSize: 10, color: 'var(--hint)' }}>30 days ago</span>
-                  <span style={{ fontSize: 10, color: 'var(--hint)' }}>Today</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--hint)' }}>30 days ago</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--hint)' }}>Today</span>
                 </div>
               </div>
 
               {contributions.totalCommits === 0 && (
-                <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>
+                <p style={{ fontSize: 14, color: 'var(--muted)', textAlign: 'center', padding: '20px 0' }}>
                   No commits in the last 30 days for {contributions.author}
                 </p>
               )}
@@ -435,7 +435,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           )}
 
           {!contribLoad && !contributions && (
-            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '40px 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--muted)', textAlign: 'center', padding: '40px 0' }}>
               Could not load contributions. Make sure your GitHub token has the right permissions.
             </p>
           )}
@@ -456,16 +456,16 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                   { label: 'Active',   value: branches.filter(b => !b.stale).length,      color: 'var(--success)' },
                   { label: 'Stale',    value: branches.filter(b => b.stale).length,       color: branches.some(b => b.stale) ? 'var(--warning)' : 'var(--muted)' },
                 ].map(s => (
-                  <div key={s.label} style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 14px', textAlign: 'center' }}>
+                  <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '12px 14px', textAlign: 'center' }}>
                     <div style={{ fontSize: 24, fontWeight: 500, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Stale warning */}
               {branches.filter(b => b.stale).length > 0 && (
-                <div style={{ background: 'var(--tag-warn-bg)', border: '0.5px solid var(--warning)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--tag-warn-fg)' }}>
+                <div style={{ background: 'var(--tag-warn-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--tag-warn-fg)' }}>
                   <strong>{branches.filter(b => b.stale).length} stale branch{branches.filter(b => b.stale).length > 1 ? 'es' : ''}</strong> — no commits in 14+ days. Consider merging or deleting them.
                 </div>
               )}
@@ -476,33 +476,33 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                   <div key={b.name} style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     background: 'var(--surface)',
-                    border: `0.5px solid ${b.stale ? 'var(--warning)' : 'var(--border)'}`,
+                    border: `1px solid ${b.stale ? 'var(--warning)' : 'var(--border)'}`,
                     borderLeft: `3px solid ${branchAccentColor(b)}`,
                     borderRadius: '0 var(--radius) var(--radius) 0',
                     padding: '9px 12px',
                   }}>
-                    <code style={{ flex: 1, fontSize: 12, color: 'var(--text)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <code style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {b.name}
                     </code>
 
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0 }}>
                       {b.isDefault && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)', fontWeight: 500 }}>default</span>
+                        <span style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)', fontWeight: 500 }}>default</span>
                       )}
                       {b.protected && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)', fontWeight: 500 }}>protected</span>
+                        <span style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)', fontWeight: 500 }}>protected</span>
                       )}
                       {b.stale && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-warn-bg)', color: 'var(--tag-warn-fg)', fontWeight: 500 }}>
+                        <span style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-warn-bg)', color: 'var(--tag-warn-fg)', fontWeight: 500 }}>
                           {b.daysOld}d stale
                         </span>
                       )}
                       {!b.stale && !b.isDefault && b.daysOld !== null && (
-                        <span style={{ fontSize: 10, color: 'var(--hint)' }}>
+                        <span style={{ fontSize: 11.5, color: 'var(--hint)' }}>
                           {b.daysOld === 0 ? 'today' : `${b.daysOld}d ago`}
                         </span>
                       )}
-                      <code style={{ fontSize: 10, color: 'var(--hint)', fontFamily: 'monospace' }}>{b.sha}</code>
+                      <code style={{ fontSize: 11.5, color: 'var(--hint)', fontFamily: 'monospace' }}>{b.sha}</code>
                     </div>
                   </div>
                 ))}
@@ -511,7 +511,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           )}
 
           {!branchLoad && branches.length === 0 && (
-            <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '40px 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--muted)', textAlign: 'center', padding: '40px 0' }}>
               No branches found.
             </p>
           )}
@@ -523,7 +523,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
 
 function SectionLabel({ label, danger, noMargin }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: noMargin ? 0 : 8 }}>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: noMargin ? 0 : 10 }}>
       {label}
     </div>
   );
@@ -534,35 +534,35 @@ function PRCard({ pr, stale }) {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 0,
       background: 'var(--surface)',
-      border: '0.5px solid var(--border)',
-      borderRadius: 'var(--radius)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
-      marginBottom: 6,
+      marginBottom: 8,
     }}>
       <div style={{ width: 3, alignSelf: 'stretch', background: stale ? 'var(--danger)' : 'var(--accent)', flexShrink: 0 }} />
-      <div style={{ flex: 1, padding: '10px 12px', minWidth: 0 }}>
+      <div style={{ flex: 1, padding: '14px 18px', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--hint)', flexShrink: 0 }}>#{pr.id}</span>
-          <span style={{ fontSize: 13, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', flexShrink: 0 }}>#{pr.id}</span>
+          <span style={{ fontSize: 15, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</span>
           {stale && (
-            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)', fontWeight: 500, flexShrink: 0 }}>
+            <span style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)', fontWeight: 500, flexShrink: 0 }}>
               {pr.daysStale}d stale
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>by {pr.author}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>by {pr.author}</span>
           {pr.branch && (
-            <span style={{ fontSize: 10, color: 'var(--hint)', background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 4, padding: '1px 6px', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)' }}>
               {pr.branch}
             </span>
           )}
           {pr.reviewers?.length > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>· reviewers: {pr.reviewers.join(', ')}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>· reviewers: {pr.reviewers.join(', ')}</span>
           )}
         </div>
       </div>
-      <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 12, color: 'var(--info)', padding: '0 14px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>↗</a>
+      <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', padding: '0 14px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>↗</a>
     </div>
   );
 }

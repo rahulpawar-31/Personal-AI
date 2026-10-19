@@ -33,19 +33,19 @@ export default function UserKeysModal({ user, onClose }) {
 
   return (
     <Modal open={Boolean(user)} onClose={onClose} title={user ? `Saved keys · ${user.username}` : ''}>
-      {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
-      {!error && rows === null && <p style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</p>}
-      {rows && rows.length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>This account has no saved keys.</p>}
+      {error && <p style={{ fontSize: 14, color: 'var(--danger)' }}>{error}</p>}
+      {!error && rows === null && <p style={{ fontSize: 14, color: 'var(--muted)' }}>Loading…</p>}
+      {rows && rows.length === 0 && <p style={{ fontSize: 14, color: 'var(--muted)' }}>This account has no saved keys.</p>}
       {groups.map(g => (
         <div key={g.service} style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
             {g.label}{' '}
             {g.keys.some(k => k.serviceConnected)
               ? <span style={{ color: 'var(--muted)', fontWeight: 400 }}>connected</span>
               : <span style={{ color: 'var(--danger)', fontWeight: 400 }}>not connected</span>}
           </div>
           {g.keys.map(k => (
-            <div key={k.keyName} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12, padding: '5px 0', borderBottom: '0.5px solid var(--border)' }}>
+            <div key={k.keyName} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
               <code style={{ wordBreak: 'break-all' }}>{k.keyName}</code>
               <span style={{ color: k.unreadable ? 'var(--danger)' : 'var(--muted)', whiteSpace: 'nowrap' }}>
                 {k.unreadable ? 'unreadable · ' : ''}{fmtDate(k.updatedAt)}
@@ -54,7 +54,7 @@ export default function UserKeysModal({ user, onClose }) {
           ))}
         </div>
       ))}
-      {rows && rows.length > 0 && <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Only names and dates are shown, never the keys themselves.</p>}
+      {rows && rows.length > 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Only names and dates are shown, never the keys themselves.</p>}
     </Modal>
   );
 }
