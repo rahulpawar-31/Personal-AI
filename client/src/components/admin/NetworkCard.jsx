@@ -35,7 +35,7 @@ export default function NetworkCard() {
       <div style={{ fontSize: 13, color: 'var(--muted)' }}>
         Shows which address the server takes to be yours, which the per-address rate limits use.
       </div>
-      <button onClick={check} disabled={loading} style={{ fontSize: 13, padding: '5px 14px', marginTop: 8 }}>
+      <button onClick={check} disabled={loading} style={{ fontSize: 13.5, padding: '0 16px', minHeight: 40, marginTop: 10, border: '1px solid var(--border-strong)', background: 'var(--surface)', fontWeight: 500 }}>
         {loading ? 'Checking…' : info ? 'Check again' : 'Check request path'}
       </button>
 

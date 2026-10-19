@@ -535,7 +535,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
       )}
 
       {!isEmpty && (
-        <div style={{ flexShrink: 0, display: 'flex', flexWrap: compact ? 'nowrap' : 'wrap', overflowX: compact ? 'auto' : 'visible', gap: 8, marginTop: 8 }}>
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: compact ? 'nowrap' : 'wrap', overflowX: compact ? 'auto' : 'visible', scrollbarWidth: 'none', gap: 8, marginTop: 8 }}>
           {ALL_SUGGESTIONS.filter(sg => sg.key === null || (sg.key === 'google' ? connected : Boolean(health[sg.key]))).slice(0, 3).map(sg => (
             <button key={sg.text} onClick={() => { setInput(sg.text); textareaRef.current?.focus(); }} style={{ fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 36, borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border-strong)', whiteSpace: 'nowrap', flexShrink: 0 }}>{sg.text}</button>
           ))}
