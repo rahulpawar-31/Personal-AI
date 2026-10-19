@@ -279,7 +279,7 @@ export default function App() {
   const isChatView  = view === 'chat';
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
       <ToastContainer />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
 

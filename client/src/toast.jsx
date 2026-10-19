@@ -37,9 +37,13 @@ export function ToastContainer() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        .toast-stack { position: fixed; bottom: 24px; right: 24px; }
+        @media (max-width: 768px) {
+          .toast-stack { bottom: calc(88px + env(safe-area-inset-bottom)); right: 16px; }
+        }
       `}</style>
-      <div style={{
-        position: 'fixed', bottom: 24, right: 24, left: 'auto', zIndex: 9999, maxWidth: 'calc(100vw - 32px)',
+      <div className="toast-stack" style={{
+        zIndex: 9999, maxWidth: 'calc(100vw - 32px)',
         display: 'flex', flexDirection: 'column', gap: 8,
         pointerEvents: 'none',
       }}>

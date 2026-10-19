@@ -60,7 +60,7 @@ export default function AuthPage({ onAuth }) {
     <div className="auth-split">
       <section className="auth-split__brand">
         <Logo size={36} textSize={26} color="var(--bg)" />
-        <div className="auth-split__pitch" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 460 }}>
+        <div className="auth-split__pitch auth-split__pitch--copy" style={{ flexDirection: 'column', gap: 18, maxWidth: 460 }}>
           <h1 style={{ fontSize: 44, lineHeight: 1.08, fontWeight: 600, letterSpacing: '-0.025em' }}>
             Your mail, calendar, tasks and code in one place.
           </h1>
