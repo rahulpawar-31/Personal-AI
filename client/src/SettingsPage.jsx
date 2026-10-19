@@ -144,8 +144,8 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
   }
 
   return (
-    <div style={{ maxWidth: 820, width: '100%', paddingBottom: 60 }}>
-      <PageHeader eyebrow="Account" title="Settings" subtitle="API keys are encrypted at rest and never logged." />
+    <div style={{ width: '100%', paddingBottom: 60 }}>
+      <PageHeader eyebrow="Account" title="Settings" subtitle="Your keys are tested before they are saved, and stored encrypted." />
 
       {aiMissing && (
         <div style={{
@@ -169,6 +169,8 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
         </div>
       )}
 
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+        <div style={{ flex: '999 1 480px', minWidth: 0, maxWidth: 820 }}>
       {/* AI Engine */}
       <SectionLabel label="AI Engine" tag={hasSharedAiKey && !hasOwnAiKey ? 'optional' : 'required'} />
       <IntegrationGroup>
@@ -348,13 +350,30 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
       <SectionLabel label="Account" tag="optional" />
       <AccountSection user={user} onLogout={onLogout} />
 
-      <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <button
-          onClick={onLogout}
-          style={{ fontSize: 13, color: 'var(--muted)', padding: '6px 16px', background: 'transparent' }}
-        >
-          Sign out of @{user.username}
-        </button>
+        </div>
+        <aside aria-label="Account" style={{ flex: '1 1 280px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600 }}>Profile</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 48, height: 48, borderRadius: 999, background: 'var(--sidebar-bg)', color: 'var(--accent-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 600 }}>
+                {user.username?.charAt(0).toUpperCase()}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontSize: 16, fontWeight: 600, overflowWrap: 'anywhere' }}>{user.username}</span>
+                <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>Personal workspace</span>
+              </span>
+            </div>
+            <button type="button" onClick={onLogout} style={{ minHeight: 44, border: '1px solid #E8C4B6', borderRadius: 10, background: 'var(--surface)', color: '#8E3414', fontSize: 14.5, fontWeight: 600 }}>
+              Sign out
+            </button>
+          </section>
+          {user.isAdmin && (
+            <section style={{ background: 'var(--surface-sunken)', borderRadius: 16, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>Admin</span>
+              <span style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--text-2)' }}>Admin accounts also see a user dashboard in the sidebar.</span>
+            </section>
+          )}
+        </aside>
       </div>
     </div>
   );

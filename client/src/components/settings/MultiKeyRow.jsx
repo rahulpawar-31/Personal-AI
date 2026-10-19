@@ -29,7 +29,7 @@ export default function MultiKeyRow({ service, label, description, fields: field
   return (
     <>
       <IntegrationRow
-        service={service} label={label} connected={connected}
+        service={service} label={label} description={description} connected={connected}
         actionSlot={<ToggleBtn expanded={expanded} connected={connected} onClick={() => setExpanded(e => !e)} />}
       />
       <Modal open={expanded} onClose={() => setExpanded(false)} title={`${label} Configuration`}>

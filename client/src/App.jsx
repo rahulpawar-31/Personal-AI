@@ -64,6 +64,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen,    setSidebarOpen]    = useState(false);
   const [paletteOpen,    setPaletteOpen]    = useState(false);
+  const [chatPrompt,     setChatPrompt]     = useState('');
 
   const isLoggedIn = Boolean(user);
 
@@ -309,19 +310,19 @@ export default function App() {
           className={isTasksView || isChatView ? 'main-content--tight' : 'main-content'}
           style={{
             flex: 1,
-            overflow: isTasksView ? 'hidden' : 'auto',
+            overflow: 'auto',
             display: 'flex',
             flexDirection: 'column',
           }}
         >
-          <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} userName={user?.username} onOpenPalette={() => setPaletteOpen(true)} onGoToSettings={() => handleViewChange('settings')} /></div>
+          <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} userName={user?.username} onNavigate={navigateTo} onAsk={text => { setChatPrompt(text); navigateTo('chat'); }} onOpenPalette={() => setPaletteOpen(true)} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'comms'    ? 'block' : 'none' }}><EmailPanel userId={user?.id} connected={connected} refreshKey={emailRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'calendar' ? 'block' : 'none' }}><CalendarPanel connected={connected} refreshKey={calendarRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: isTasksView ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><TaskPanel refreshKey={taskRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'github'   ? 'block' : 'none' }}><GitHubPanel userId={user?.id} health={health} refreshKey={githubRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'linkedin' ? 'block' : 'none' }}><LinkedInPanel health={health} /></div>
           <div style={{ display: view === 'slack'    ? 'block' : 'none' }}><SlackPanel health={health} onGoToSettings={() => handleViewChange('settings')} /></div>
-          <div style={{ display: isChatView ? 'flex' : 'none', flex: 1, flexDirection: 'column', minHeight: 0 }}><ChatPanel onAction={handleChatAction} health={health} connected={connected} user={user} /></div>
+          <div style={{ display: isChatView ? 'flex' : 'none', flex: 1, flexDirection: 'column', minHeight: 0 }}><ChatPanel onAction={handleChatAction} health={health} connected={connected} user={user} prompt={chatPrompt} onPromptUsed={() => setChatPrompt('')} /></div>
           {view === 'settings' && <SettingsPage user={user} onLogout={handleLogout} health={health} />}
           {view === 'admin'    && <AdminPage user={user} />}
         </div>

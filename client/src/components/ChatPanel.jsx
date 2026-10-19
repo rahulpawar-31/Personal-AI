@@ -131,7 +131,7 @@ const CONNECTED_TOOLS = [
   { key: 'linkedin', label: 'LinkedIn',         dot: '#0A66C2' },
 ];
 
-export default function ChatPanel({ onAction, health = {}, connected = false, user }) {
+export default function ChatPanel({ onAction, health = {}, connected = false, user, prompt = '', onPromptUsed }) {
   const storageKey = storageKeyFor(user?.id);
   const [messages,    setMessages]    = useState(() => {
     try { return JSON.parse(localStorage.getItem(storageKey)) ?? []; } catch { return []; }
@@ -162,6 +162,14 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
   }
 
   useEffect(() => { refreshPending(); }, []);
+
+  // A question handed over from another page lands in the input, ready to send.
+  useEffect(() => {
+    if (!prompt) return;
+    setInput(prompt);
+    onPromptUsed?.();
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [prompt]);
 
   const SpeechRecognition = typeof window !== 'undefined' &&
     (window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -313,32 +321,37 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         eyebrow="Overview"
         title="Chat"
         subtitle="Ask across mail, calendar, tasks and code. Every answer says which service it came from."
-      >
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', padding: '4px 10px', borderRadius: 999, background: 'var(--surface-sunken)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
-          {useAgent ? 'agent · LangChain' : 'classic engine'}
-        </span>
-        <button
-          onClick={toggleAgent}
-          aria-pressed={useAgent}
-          title={useAgent ? 'Using the LangChain agent — click to switch back to the classic engine' : 'Switch to the LangChain agent'}
-          style={{
-            fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 40, borderRadius: 999,
-            border: `1px solid ${useAgent ? 'var(--accent)' : 'var(--border-strong)'}`,
-            background: useAgent ? 'var(--accent)' : 'var(--surface)',
-            color: useAgent ? '#fff' : 'var(--text-2)', cursor: 'pointer',
-          }}
-        >
-          Agent: {useAgent ? 'ON' : 'OFF'}
-        </button>
-        {!isEmpty && (
-          <button onClick={clearHistory} style={{ fontSize: 13, color: 'var(--text-2)', padding: '0 14px', minHeight: 40, background: 'transparent', border: '1px solid var(--border-strong)', borderRadius: 999 }}>
-            Clear
-          </button>
-        )}
-      </PageHeader>
+      />
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px 16px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 }}>
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', flexShrink: 0 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600 }}>{isEmpty ? 'New conversation' : 'Conversation'}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', padding: '4px 10px', borderRadius: 999, background: 'var(--surface-sunken)' }}>
+            {useAgent ? 'agent · Gemini with Groq fallback' : 'classic engine'}
+          </span>
+          <button
+            onClick={toggleAgent}
+            aria-pressed={useAgent}
+            title={useAgent ? 'Using the LangChain agent — click to switch back to the classic engine' : 'Switch to the LangChain agent'}
+            style={{
+              fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 40, borderRadius: 999,
+              border: `1px solid ${useAgent ? 'var(--accent)' : 'var(--border-strong)'}`,
+              background: useAgent ? 'var(--accent)' : 'var(--surface)',
+              color: useAgent ? '#fff' : 'var(--text-2)', cursor: 'pointer',
+            }}
+          >
+            Agent: {useAgent ? 'ON' : 'OFF'}
+          </button>
+          {!isEmpty && (
+            <button onClick={clearHistory} style={{ fontSize: 13, fontWeight: 600, color: '#fff', padding: '0 16px', minHeight: 40, background: 'var(--accent)', borderRadius: 10 }}>
+              New chat
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '20px 24px 16px' }}>
 
       {/* Messages */}
       <div role="log" aria-live="polite" aria-label="Conversation" style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
@@ -516,6 +529,14 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         </div>
       )}
 
+      {!isEmpty && (
+        <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+          {ALL_SUGGESTIONS.filter(sg => sg.key === null || (sg.key === 'google' ? connected : Boolean(health[sg.key]))).slice(0, 3).map(sg => (
+            <button key={sg.text} onClick={() => { setInput(sg.text); textareaRef.current?.focus(); }} style={{ fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 36, borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border-strong)' }}>{sg.text}</button>
+          ))}
+        </div>
+      )}
+
       {/* Input area */}
       <div style={{
         flexShrink: 0,
@@ -611,6 +632,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         {listening ? '● Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
       </div>
 
+      </div>
       </div>
 
       <style>{`

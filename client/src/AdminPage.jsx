@@ -16,6 +16,7 @@ export default function AdminPage({ user }) {
   const [deleting, setDeleting] = useState(null);
   const [confirmingId, setConfirmingId] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [roleFilter, setRoleFilter] = useState('all');
   const armedAt = useRef(0);
 
   const load = useCallback(async () => {
@@ -86,114 +87,151 @@ export default function AdminPage({ user }) {
   if (loading) return <LoadingState label="Loading admin dashboard…" />;
   if (error)   return <ErrorState title="Couldn't load the admin dashboard" description={error} onRetry={load} />;
 
-  return (
-    <div style={{ maxWidth: 1000 }}>
-      <PageHeader eyebrow="Account" title="Admin" subtitle="Manage users and view system health." />
+  const shown = users.filter(u => roleFilter === 'all' || (roleFilter === 'admin' ? u.isAdmin : !u.isAdmin));
+  const byService = (() => {
+    const counts = {};
+    users.forEach(u => (u.connectedServices ?? []).forEach(id => { counts[id] = (counts[id] ?? 0) + 1; }));
+    const max = Math.max(1, ...Object.values(counts));
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ name: serviceLabels([id])[0], n, pct: `${Math.round((n / max) * 100)}%` }));
+  })();
+  const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 };
+  const COLS = '52px minmax(120px, 1.2fr) minmax(120px, 1.6fr) 70px 120px 92px 200px';
+  const uptimeText = stats ? (stats.uptime >= 3600 ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m` : `${Math.floor(stats.uptime / 60)}m`) : '—';
 
-      {/* Stats row */}
+  return (
+    <div style={{ maxWidth: 1280 }}>
+      <PageHeader eyebrow="Admin only" title="Admin dashboard" subtitle="Manage users and view system health.">
+        <button type="button" onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '0 18px', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)', fontSize: 14.5, fontWeight: 600 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8 M20 4v5h-5" /></svg>
+          Refresh
+        </button>
+      </PageHeader>
+
       {stats && (
-        <div className="grid-stat-4" style={{ marginBottom: 28 }}>
+        <section aria-label="Totals" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
-            { label: 'Total users',     val: stats.userCount },
-            { label: 'Admins',          val: stats.adminCount },
-            { label: 'Saved keys (all)', val: stats.integrationRows },
-            { label: 'Uptime (s)',       val: stats.uptime },
-          ].map(s => (
-            <div key={s.label} style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)', padding: '16px 18px',
-            }}>
-              <div className="t-eyebrow" style={{ marginBottom: 8 }}>{s.label}</div>
-              <div className="t-stat">{s.val}</div>
+            { label: 'Total users',      val: stats.userCount,      note: 'Accounts on this deployment' },
+            { label: 'Admins',           val: stats.adminCount,     note: 'Can manage users' },
+            { label: 'Saved keys (all)', val: stats.integrationRows, note: 'Across every user' },
+            { label: 'Uptime',           val: uptimeText,           note: `Node ${stats.nodeVersion ?? ''}` },
+          ].map(st => (
+            <div key={st.label} style={{ ...card, borderRadius: 14, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>{st.label}</span>
+              <span style={{ fontSize: 32, lineHeight: 1.1, fontWeight: 600, letterSpacing: '-0.02em' }}>{st.val}</span>
+              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{st.note}</span>
             </div>
           ))}
-        </div>
+        </section>
       )}
 
-      <EncryptionCard />
-      <NetworkCard />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
 
-      {/* Users table */}
-      <div className="scroll-x" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-        <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-              {['ID', 'Username', 'Email', 'Keys', 'Connected', 'Joined', 'Role', ''].map(h => (
-                <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)', fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u, i) => (
-              <tr
-                key={u.id}
-                onClick={() => setViewing(u)}
-                onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setViewing(u); } }}
-                tabIndex={0}
-                title="Show saved keys"
-                style={{ cursor: 'pointer', borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none' }}
-              >
-                <td style={{ padding: '12px 14px', color: 'var(--muted)' }}>{u.id}</td>
-                <td style={{ padding: '12px 14px', fontWeight: 500 }}>
-                  {u.username}
-                  {u.id === user.id && <span style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--accent)', background: 'rgba(15,123,92,.1)', padding: '1px 5px', borderRadius: 8 }}>you</span>}
-                </td>
-                <td style={{ padding: '12px 14px', color: 'var(--muted)' }}>{u.email ?? '—'}</td>
-                <td style={{ padding: '12px 14px' }}>
-                  <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '2px 8px', fontSize: 13 }}>
-                    {u.integrationCount}
-                  </span>
-                </td>
-                <td style={{ padding: '12px 14px', color: 'var(--muted)', maxWidth: 240 }}>
-                  {serviceLabels(u.connectedServices).join(', ') || 'None'}
-                </td>
-                <td style={{ padding: '12px 14px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</td>
-                <td style={{ padding: '12px 14px' }} onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => u.id !== user.id && toggleAdmin(u)}
-                    disabled={u.id === user.id}
-                    title={u.id === user.id ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
-                    style={{
-                      fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 999, cursor: u.id === user.id ? 'default' : 'pointer',
-                      background: u.isAdmin ? 'rgba(15,123,92,.1)' : 'var(--bg)',
-                      border: `1px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`,
-                      color: u.isAdmin ? 'var(--accent)' : 'var(--muted)',
-                    }}
+        <section aria-label="Users" style={{ ...card, flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 22px' }}>
+            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.01em' }}>Users <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: 15 }}>{shown.length}</span></h2>
+            <div role="group" aria-label="Role filter" style={{ display: 'flex', gap: 6 }}>
+              {[['all', 'All'], ['admin', 'Admins'], ['user', 'Users']].map(([id, label]) => {
+                const on = roleFilter === id;
+                return <button key={id} type="button" aria-pressed={on} onClick={() => setRoleFilter(id)} style={{ minHeight: 40, padding: '0 16px', border: `1px solid ${on ? 'var(--text)' : 'var(--border-strong)'}`, borderRadius: 999, background: on ? 'var(--text)' : 'var(--surface)', color: on ? '#fff' : 'var(--text-2)', fontSize: 14, fontWeight: 500 }}>{label}</button>;
+              })}
+            </div>
+          </div>
+          <div className="scroll-x">
+            <div style={{ minWidth: 780 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '10px 22px', background: 'var(--bg)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                <span>ID</span><span>Username</span><span>Email</span><span>Keys</span><span>Joined</span><span>Role</span><span style={{ textAlign: 'right' }}>Actions</span>
+              </div>
+              {shown.map(u => {
+                const you = u.id === user.id;
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setViewing(u)}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setViewing(u); } }}
+                    tabIndex={0}
+                    title="Show saved keys"
+                    style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center', padding: '12px 22px', borderTop: '1px solid var(--border)', cursor: 'pointer' }}
                   >
-                    {u.isAdmin ? 'Admin' : 'User'}
-                  </button>
-                </td>
-                <td style={{ padding: '12px 14px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                  {u.id !== user.id && (
-                    <>
-                      {confirmingId === u.id && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)' }}>{u.id}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 600, minWidth: 0 }}>
+                      <span style={{ width: 32, height: 32, flex: 'none', borderRadius: 999, background: u.isAdmin ? 'var(--sidebar-bg)' : 'var(--surface-sunken)', color: u.isAdmin ? 'var(--accent-soft)' : 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>{u.username?.charAt(0).toUpperCase()}</span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</span>
+                      {you && <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 600, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 999 }}>you</span>}
+                    </span>
+                    <span style={{ fontSize: 14, color: 'var(--text-2)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email ?? '—'}</span>
+                    <span><span style={{ fontSize: 13, padding: '3px 10px', borderRadius: 999, background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>{u.integrationCount}</span></span>
+                    <span style={{ fontSize: 13.5, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</span>
+                    <span onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => !you && toggleAdmin(u)}
+                        disabled={you}
+                        title={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
+                        aria-label={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
+                        style={{ minHeight: 36, padding: '0 12px', borderRadius: 999, cursor: you ? 'default' : 'pointer', background: u.isAdmin ? 'var(--accent-ring)' : 'var(--surface-sunken)', border: `1px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`, color: u.isAdmin ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600 }}
+                      >
+                        {u.isAdmin ? 'Admin' : 'User'}
+                      </button>
+                    </span>
+                    <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }} onClick={e => e.stopPropagation()}>
+                      {!you && confirmingId === u.id && (
+                        <button onClick={() => setConfirmingId(null)} style={{ minHeight: 40, padding: '0 12px', border: '1px solid var(--border-strong)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }}>Cancel</button>
+                      )}
+                      {!you && (
                         <button
-                          onClick={() => setConfirmingId(null)}
-                          style={{ fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 8, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', marginRight: 6 }}
+                          onClick={() => onDeleteClick(u)}
+                          disabled={deleting === u.id}
+                          title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
+                          style={{ minHeight: 40, padding: '0 14px', border: `1px solid ${confirmingId === u.id ? 'var(--danger)' : 'var(--border-strong)'}`, borderRadius: 8, background: confirmingId === u.id ? 'var(--danger)' : 'var(--surface)', color: confirmingId === u.id ? '#fff' : 'var(--danger)', fontSize: 13, fontWeight: 600 }}
                         >
-                          Cancel
+                          {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
                         </button>
                       )}
-                      <button
-                        onClick={() => onDeleteClick(u)}
-                        disabled={deleting === u.id}
-                        title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
-                        style={{ fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 8, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
-                      >
-                        {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    </span>
+                  </div>
+                );
+              })}
+              {shown.length === 0 && <div style={{ padding: '36px 22px', textAlign: 'center', color: 'var(--muted)', fontSize: 15, borderTop: '1px solid var(--border)' }}>No users match this filter.</div>}
+            </div>
+          </div>
+          <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border)', fontSize: 12.5, color: 'var(--muted)' }}>
+            Deleting a user is permanent. You cannot change your own role or delete yourself.
+          </div>
+        </section>
 
-      <p style={{ marginTop: 12, fontSize: 12.5, color: 'var(--muted)' }}>
-        Node {stats?.nodeVersion} · server uptime {Math.floor((stats?.uptime ?? 0) / 60)}m
-      </p>
+        <aside aria-label="System" style={{ flex: '1 1 280px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <section style={{ background: 'var(--sidebar-bg)', color: 'var(--bg)', borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-soft)' }}>System health</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: 'var(--accent-soft)' }} />
+              <span style={{ fontSize: 20, fontWeight: 600 }}>API running</span>
+            </div>
+            <div>
+              {[['Node version', stats?.nodeVersion ?? '—'], ['Server uptime', uptimeText]].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #2A2D30', fontSize: 14 }}>
+                  <span style={{ color: '#B9B8B1' }}>{k}</span><span style={{ fontFamily: 'var(--font-mono)' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <EncryptionCard />
+          <NetworkCard />
+
+          <section style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600 }}>Connections by service</h2>
+            {byService.length === 0 && <p style={{ fontSize: 14, color: 'var(--muted)' }}>No services connected yet.</p>}
+            {byService.map(k => (
+              <div key={k.name} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 32 }}>
+                <span style={{ width: 90, flex: 'none', fontSize: 14 }}>{k.name}</span>
+                <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: 8, width: k.pct, background: 'var(--accent)', borderRadius: 999 }} />
+                </span>
+                <span style={{ width: 20, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)' }}>{k.n}</span>
+              </div>
+            ))}
+          </section>
+        </aside>
+      </div>
 
       <UserKeysModal user={viewing} onClose={() => setViewing(null)} />
     </div>

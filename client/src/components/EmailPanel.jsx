@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useMediaQuery } from '../useMediaQuery.js';
 import { useCache } from '../hooks/useCache.js';
 import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
@@ -61,9 +62,9 @@ function EmailIframe({ html }) {
 
 // ─── Inline reply draft ───────────────────────────────────────────────────────
 
-function ReplyDraft({ email, toAddr, onSent }) {
+function ReplyDraft({ email, toAddr, onSent, startOpen = false }) {
   const [text,    setText]    = useState(email.draftReply || '');
-  const [open,    setOpen]    = useState(false);
+  const [open,    setOpen]    = useState(startOpen);
   const [sending, setSending] = useState(false);
 
   async function send() {
@@ -156,6 +157,9 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
   const [fetching,   setFetching]   = useState({});
   const [cacheAge,   setCacheAge]   = useState(null);
   const [authError,  setAuthError]  = useState(false);
+  const [filter,     setFilter]     = useState('all');
+  const [replying,   setReplying]   = useState(false);
+  const stacked = useMediaQuery('(max-width: 900px)');
   // Scoped per user so one account never reads another's cached emails.
   const cache = useCache(`devos_emails_${userId ?? 'anon'}`, TTL_30MIN);
 
@@ -196,8 +200,13 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
     } finally { setLoading(false); }
   }
 
+  // Wide screens open the first message so the reading pane is never empty.
+  useEffect(() => {
+    if (!stacked && !openId && emails.length) openEmail(emails[0].id);
+  }, [emails, stacked]);
+
   async function openEmail(id) {
-    if (openId === id) { setOpenId(null); return; }
+    setReplying(false);
     setOpenId(id);
     if (fullEmails[id]) return;
 
@@ -242,6 +251,11 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
 
     const PRIORITY_TAG = { P1: 'tag-danger', P2: 'tag-warn', P3: 'tag-gray' };
 
+  async function addToTasks(email) {
+    const r = await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: `Reply: ${email.subject}` }) });
+    toast(r.ok ? 'Added to Tasks' : 'Could not add task', r.ok ? 'success' : 'error');
+  }
+
   if (!connected) return (
     <div>
       <PageHeader eyebrow="Inbox & calendar" title="Mail" subtitle="Triaged by priority, with reply drafts." />
@@ -256,16 +270,36 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
     </div>
   );
 
+  const needReply = emails.filter(e => e.draftReply).length;
+  const urgent    = emails.filter(e => e.priority === 'P1').length;
+  const FILTERS   = [['all', 'All'], ['urgent', 'Urgent'], ['reply', 'Needs reply']];
+  const shown     = emails.filter(e => filter === 'all' || (filter === 'urgent' && e.priority === 'P1') || (filter === 'reply' && e.draftReply));
+  const cur       = emails.find(e => e.id === openId);
+  const full      = cur ? fullEmails[cur.id] : null;
+  const curParsed = cur ? parseFrom(cur.from) : null;
+  const showList  = !stacked || !cur;
+  const showPane  = !stacked || Boolean(cur);
+
+  const sectionStyle = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 };
+
   return (
     <div>
-      {/* Header */}
       <PageHeader
         eyebrow="Inbox & calendar"
         title="Mail"
-        subtitle={loading ? 'Triaging your inbox…' : `${emails.length} ${emails.length === 1 ? 'message' : 'messages'} triaged by priority.`}
+        subtitle={loading ? 'Triaging your inbox…' : `${emails.length} ${emails.length === 1 ? 'message' : 'messages'}, ${urgent} urgent, ${needReply} with a reply drafted.`}
       >
+        <div role="group" aria-label="Filter" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {FILTERS.map(([id, label]) => {
+            const on = filter === id;
+            return (
+              <button key={id} type="button" aria-pressed={on} onClick={() => setFilter(id)} style={{ minHeight: 40, padding: '0 16px', border: `1px solid ${on ? 'var(--text)' : 'var(--border-strong)'}`, borderRadius: 999, background: on ? 'var(--text)' : 'var(--surface)', color: on ? '#fff' : 'var(--text-2)', fontSize: 14, fontWeight: 500 }}>{label}</button>
+            );
+          })}
+        </div>
         {cacheAge && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>cached {formatAge(cacheAge)}</span>}
       </PageHeader>
+
       {loading    && <LoadingState label="Triaging inbox…" />}
       {authError  && (
         <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -276,154 +310,92 @@ export default function EmailPanel({ connected, refreshKey, onConnectGoogle, onG
         </div>
       )}
 
-      <div style={{ border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)' }}>
-      {emails.map(email => {
-        const isOpen = openId === email.id;
-        const full   = fullEmails[email.id];
-        const isLoading = fetching[email.id];
-
-        const { name, email: addr } = parseFrom(email.from);
-
-        return (
-          <div
-            key={email.id}
-            style={{
-              borderBottom: '1px solid var(--border)',
-              background:   'var(--surface)',
-              overflow:     'hidden',
-            }}
-          >
-            {/* Collapsed row */}
-            <button
-              type="button"
-              onClick={() => openEmail(email.id)}
-              style={{
-                all: 'unset', boxSizing: 'border-box', width: '100%',
-                display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 20px', cursor: 'pointer', minHeight: 44,
-              }}
-            >
-              {/* Avatar */}
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                background: 'var(--surface-sunken)', color: 'var(--text)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 15, fontWeight: 600,
-              }}>
-                {(name || addr).charAt(0).toUpperCase()}
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Sender name + email */}
-                <div style={{ fontSize: 14.5, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>{name}</span>
-                  {addr && <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 13 }}>&lt;{addr}&gt;</span>}
-                </div>
-                {/* Preview: subject, then snippet */}
-                <div style={{
-                  fontSize: 14, color: 'var(--text-2)', marginTop: 3, lineHeight: 1.45,
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                }}>
-                  {email.subject}
-                  {email.snippet && <span style={{ color: 'var(--muted)' }}> — {email.snippet}</span>}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginTop: 2 }}>
-                {email.priority && <span className={`tag ${PRIORITY_TAG[email.priority] ?? 'tag-gray'}`} style={{ fontFamily: 'var(--font-mono)' }}>{email.priority}</span>}
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>
-                  {new Date(email.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-              </div>
-            </button>
-
-            {/* Expanded — Gmail-style */}
-            {isOpen && (
-              <div style={{ borderTop: '1px solid var(--border)' }}>
-
-                {/* Subject bar */}
-                <div style={{ padding: '20px 24px 0', background: 'var(--surface)' }}>
-                  <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.2, color: 'var(--text)', marginBottom: 14 }}>
-                    {email.subject}
-                  </div>
-
-                  {/* Sender row */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      {/* Avatar */}
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                        background: 'var(--surface-sunken)', color: 'var(--text)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 15, fontWeight: 500,
-                      }}>
-                        {(name || addr).charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text)' }}>
-                          {(full?.from || email.from).replace(/<.*>/, '').trim()}
-                        </div>
-                        <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
-                          {full?.from || email.from}
-                        </div>
-                        {full?.to && (
-                          <div style={{ fontSize: 13, color: 'var(--muted)' }}>to {full.to}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginTop: 4 }}>
-                      {new Date(email.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Email body */}
-                <div style={{ background: 'var(--surface)', padding: '0 4px' }}>
-                  {isLoading && <LoadingState label="Loading…" />}
-                  {!isLoading && full?.htmlBody && (
-                    <EmailIframe html={full.htmlBody} />
-                  )}
-                  {!isLoading && !full?.htmlBody && (
-                    <pre style={{
-                      margin: 0, padding: '0 24px 24px',
-                      fontSize: 15.5, lineHeight: 1.65, color: 'var(--text)',
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit',
-                      maxHeight: 500, overflowY: 'auto',
-                    }}>
-                      {full?.body || email.snippet}
-                    </pre>
-                  )}
-                </div>
-
-                {/* AI reply draft */}
-                <ReplyDraft email={email} toAddr={addr || email.from} onSent={onReplySent} />
-
-                {/* Action bar */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 24px 16px', background: 'var(--surface)',
-                  borderTop: '1px solid var(--border)',
-                }}>
-                  {email.intent && (
-                    <span style={{ fontSize: 13, color: 'var(--muted)', flex: 1 }}>{email.intent}</span>
-                  )}
-                  <button
-                    onClick={e => archive(email.id, e)}
-                    style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginLeft: 'auto', border: '1px solid var(--border-strong)', minHeight: 40, padding: '0 18px' }}
-                  >
-                    Archive
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      </div>
-
-      {!loading && emails.length === 0 && connected && (
+      {!loading && emails.length === 0 && (
         <p style={{ color: 'var(--muted)', textAlign: 'center', paddingTop: 40, fontSize: 15 }}>Inbox clear ✓</p>
+      )}
+
+      {emails.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+
+          {showList && (
+            <section aria-label="Messages" style={{ ...sectionStyle, flex: '1 1 340px', maxWidth: stacked ? 'none' : 440, padding: 8, display: 'flex', flexDirection: 'column', maxHeight: stacked ? 'none' : 'calc(100vh - 230px)', overflowY: 'auto' }}>
+              {shown.length === 0 && <p style={{ padding: 20, color: 'var(--muted)', fontSize: 14.5 }}>Nothing matches this filter.</p>}
+              {shown.map(email => {
+                const { name } = parseFrom(email.from);
+                const on = cur?.id === email.id;
+                return (
+                  <button
+                    key={email.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => openEmail(email.id)}
+                    style={{ textAlign: 'left', border: 0, borderRadius: 10, padding: 14, minHeight: 44, background: on ? 'var(--surface-sunken)' : 'transparent', display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                      {email.priority && <span className={`tag ${PRIORITY_TAG[email.priority] ?? 'tag-gray'}`} style={{ fontFamily: 'var(--font-mono)' }}>{email.priority}</span>}
+                      <span style={{ flex: 'none', fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)' }}>
+                        {new Date(email.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.3 }}>{email.subject}</span>
+                    {email.snippet && (
+                      <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{email.snippet}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </section>
+          )}
+
+          {showPane && cur && (
+            <section aria-label="Message" style={{ ...sectionStyle, flex: '999 1 420px', minWidth: 0, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {stacked && (
+                <button type="button" onClick={() => setOpenId(null)} style={{ alignSelf: 'flex-start', minHeight: 44, padding: '0 14px', border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 500 }}>
+                  ‹ Back to inbox
+                </button>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                  <h2 style={{ fontSize: 24, lineHeight: 1.2, fontWeight: 600, letterSpacing: '-0.01em', overflowWrap: 'anywhere' }}>{cur.subject}</h2>
+                  <span style={{ fontSize: 14, color: 'var(--muted)', overflowWrap: 'anywhere' }}>
+                    {curParsed.name}{curParsed.email ? ` <${curParsed.email}>` : ''} · {new Date(cur.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                {cur.priority && <span className={`tag ${PRIORITY_TAG[cur.priority] ?? 'tag-gray'}`} style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase', padding: '4px 10px' }}>{cur.priority}</span>}
+              </div>
+
+              {cur.intent && (
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--bg)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Dayhand summary</span>
+                  <span style={{ fontSize: 14.5, lineHeight: 1.5 }}>{cur.intent}</span>
+                </div>
+              )}
+
+              <div>
+                {fetching[cur.id] && <LoadingState label="Loading…" />}
+                {!fetching[cur.id] && full?.htmlBody && <EmailIframe html={full.htmlBody} />}
+                {!fetching[cur.id] && !full?.htmlBody && (
+                  <pre style={{ margin: 0, fontSize: 15.5, lineHeight: 1.65, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit', maxWidth: 680 }}>
+                    {full?.body || cur.snippet}
+                  </pre>
+                )}
+              </div>
+
+              {replying && cur.draftReply && (
+                <ReplyDraft email={cur} toAddr={curParsed.email || cur.from} onSent={onReplySent} startOpen />
+              )}
+
+              <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {cur.draftReply && !replying && (
+                  <button type="button" onClick={() => setReplying(true)} className="primary" style={{ minHeight: 44, padding: '0 20px', fontSize: 14.5 }}>Draft a reply</button>
+                )}
+                <button type="button" onClick={() => addToTasks(cur)} style={{ minHeight: 44, padding: '0 18px', border: '1px solid var(--border-strong)', background: 'var(--surface)', fontSize: 14.5, fontWeight: 500 }}>Add to Tasks</button>
+                <button type="button" onClick={e => archive(cur.id, e)} style={{ minHeight: 44, padding: '0 18px', border: '1px solid var(--border-strong)', background: 'var(--surface)', fontSize: 14.5, fontWeight: 500 }}>Archive</button>
+              </div>
+            </section>
+          )}
+        </div>
       )}
     </div>
   );
