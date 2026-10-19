@@ -168,16 +168,6 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
     return 'var(--border)';
   }
 
-  function labelColor(label) {
-    const l = label.toLowerCase();
-    if (l === 'bug')                            return { bg: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)' };
-    if (l === 'feature' || l === 'enhancement') return { bg: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)' };
-    if (l === 'docs' || l === 'documentation')  return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
-    if (l === 'good first issue')               return { bg: 'var(--tag-success-bg)', color: 'var(--tag-success-fg)' };
-    if (l.includes('phase') || l.includes('integration')) return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
-    return { bg: 'var(--tag-gray-bg)', color: 'var(--tag-gray-fg)' };
-  }
-
   if (!connected) return (
     <div>
       <PageHeader eyebrow="Work" title="GitHub" subtitle="Pull requests, issues and branches." />
@@ -193,185 +183,128 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
   return (
     <div>
       {/* Header */}
-      <PageHeader eyebrow="Work" title="GitHub" subtitle={activeRepo ? `${activeRepo} · pull requests, issues and branches.` : 'Pull requests, issues and branches.'}>
-        <button onClick={() => { load(activeRepo); setContributions(null); setBranches([]); }} disabled={loading} style={{ minHeight: 44, padding: '0 18px', fontSize: 14, fontWeight: 500, border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </PageHeader>
-
-      {/* Repo selector */}
-      {repos.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {repos.map(r => {
-            const name   = r.split('/')[1];
-            const active = activeRepo === r;
+      <PageHeader
+        eyebrow="Work"
+        title="GitHub"
+        subtitle={
+          <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            {repos.length > 1 ? (
+              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
+                {repos.map(r => {
+                  const active = activeRepo === r;
+                  return (
+                    <button key={r} type="button" aria-pressed={active} title={r} onClick={() => { setActiveRepo(r); setContributions(null); setBranches([]); }} style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 13, padding: '3px 9px', minHeight: 30, borderRadius: 6,
+                      background: active ? 'var(--text)' : 'var(--surface)', color: active ? '#fff' : 'var(--text)',
+                      border: `1px solid ${active ? 'var(--text)' : 'var(--border)'}`, maxWidth: 200,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{r.split('/')[1]}</button>
+                  );
+                })}
+              </span>
+            ) : (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, padding: '3px 9px', borderRadius: 6, background: 'var(--surface)', border: '1px solid var(--border)' }}>{activeRepo || 'no repository'}</span>
+            )}
+            <span>pull requests, issues and branches</span>
+          </span>
+        }
+      >
+        <div role="group" aria-label="View" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {[['overview', 'Overview'], ['contributions', 'Contributions'], ['branches', 'Branches']].map(([id, label]) => {
+            const on = tab === id;
             return (
-              <button key={r} title={name} onClick={() => { setActiveRepo(r); setContributions(null); setBranches([]); }} style={{
-                fontSize: 13, padding: '4px 12px', borderRadius: 20,
-                background: active ? 'var(--text)' : 'var(--surface)',
-                color:      active ? 'var(--bg)'   : 'var(--muted)',
-                border:    `1px solid ${active ? 'var(--text)' : 'var(--border)'}`,
-                fontWeight: active ? 600 : 400,
-                maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {name}
-              </button>
+              <button key={id} type="button" aria-pressed={on} onClick={() => setTab(id)} style={{ minHeight: 40, padding: '0 16px', border: `1px solid ${on ? 'var(--text)' : 'var(--border-strong)'}`, borderRadius: 999, background: on ? 'var(--text)' : 'var(--surface)', color: on ? '#fff' : 'var(--text-2)', fontSize: 14, fontWeight: 500 }}>{label}</button>
             );
           })}
-        </div>
-      )}
-      {repos.length === 1 && (
-        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-          <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 10px' }}>{activeRepo}</span>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 18, borderBottom: '1px solid var(--border)' }}>
-        {[
-          { key: 'overview',      label: 'Overview' },
-          { key: 'contributions', label: 'Contributions' },
-          { key: 'branches',      label: 'Branches' },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            fontSize: 14.5, padding: '0 18px', minHeight: 44, borderRadius: 0, fontWeight: tab === t.key ? 600 : 500,
-            background: 'transparent', border: 'none',
-            borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`,
-            color: tab === t.key ? 'var(--text)' : 'var(--muted)',
-            cursor: 'pointer', marginBottom: -1,
-          }}>
-            {t.label}
+          <button onClick={() => { load(activeRepo); setContributions(null); setBranches([]); }} disabled={loading} style={{ minHeight: 40, padding: '0 16px', fontSize: 14, fontWeight: 500, border: '1px solid var(--border-strong)', borderRadius: 999, background: 'var(--surface)' }}>
+            {loading ? 'Loading…' : 'Refresh'}
           </button>
-        ))}
-      </div>
+        </div>
+      </PageHeader>
 
       {/* ── Overview tab ── */}
-      {tab === 'overview' && (
-        <div>
-          {/* Stats */}
-          <div className="grid-stat-4" style={{ marginBottom: 18 }}>
-            {[
-              { label: 'Open PRs',    value: prs.length,      warn: false },
-              { label: 'Stale PRs',   value: stalePRs.length, warn: stalePRs.length > 0 },
-              { label: 'Merged (7d)', value: merged.length,   warn: false },
-              { label: 'Issues',      value: issues.length,   warn: false },
-            ].map(s => (
-              <div key={s.label} style={{
-                background: s.warn ? 'var(--tag-danger-bg)' : 'var(--surface)',
-                border: `1px solid ${s.warn ? 'var(--danger)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-lg)', padding: '16px 18px', textAlign: 'left',
-              }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: s.warn ? 'var(--danger)' : 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.08em' }}>{s.label}</div>
-                <div className="t-stat" style={{ color: s.warn ? 'var(--danger)' : 'var(--text)' }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
+      {tab === 'overview' && (() => {
+        const rows = [
+          ...stalePRs.map(pr => ({ key: `s${pr.id}`, pill: 'stale', tone: 'danger', title: pr.title, meta: `#${pr.id} · by ${pr.author} · ${pr.daysStale}d without activity`, url: pr.url, action: 'Review' })),
+          ...freshPRs.map(pr => ({ key: `p${pr.id}`, pill: 'PR', tone: 'code', title: pr.title, meta: `#${pr.id} · by ${pr.author}${pr.branch ? ` · ${pr.branch}` : ''}`, url: pr.url, action: 'Review' })),
+          ...issues.map(i => ({ key: `i${i.repo ?? ''}${i.id}`, pill: 'issue', tone: 'info', title: i.title, meta: [`#${i.id}`, ...(i.labels ?? [])].join(' · '), url: i.url, action: 'Open' })),
+          ...merged.map(pr => ({ key: `m${pr.id}`, pill: 'merged', tone: 'success', title: pr.title, meta: `#${pr.id}`, url: pr.url, action: 'Open' })),
+        ];
+        const toneStyle = { danger: ['var(--tag-danger-bg)', 'var(--tag-danger-fg)'], code: ['var(--tag-code-bg)', 'var(--tag-code-fg)'], info: ['var(--tag-info-bg)', 'var(--tag-info-fg)'], success: ['var(--tag-success-bg)', 'var(--tag-success-fg)'] };
+        const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 };
+        return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
 
-          {stalePRs.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <SectionLabel label="Needs attention" danger />
-              {stalePRs.map(pr => <PRCard key={pr.id} pr={pr} stale />)}
-            </div>
-          )}
-
-          {freshPRs.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <SectionLabel label="Open PRs" />
-              {freshPRs.map(pr => <PRCard key={pr.id} pr={pr} />)}
-            </div>
-          )}
-
-          {!loading && prs.length === 0 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', marginBottom: 16, fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>
-              No open pull requests
-            </div>
-          )}
-
-          {merged.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <SectionLabel label="Merged this week" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {merged.map(pr => (
-                  <div key={pr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '12px 18px' }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', flexShrink: 0 }}>#{pr.id}</span>
-                    <span style={{ flex: 1, fontSize: 14 }}>{pr.title}</span>
-                    <span style={{ fontSize: 11.5, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>merged</span>
-                    <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+            <section aria-label="Activity" style={{ ...card, flex: '999 1 460px', minWidth: 0, padding: '10px 24px', display: 'flex', flexDirection: 'column' }}>
+              {rows.length === 0 && !loading && (
+                <p style={{ padding: '28px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 15 }}>No open pull requests, issues or merges this week.</p>
+              )}
+              {rows.map((r, i) => (
+                <div key={r.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 16px', padding: '16px 0', borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
+                  <span style={{ flex: 'none', minWidth: 64, textAlign: 'center', padding: '4px 8px', borderRadius: 6, background: toneStyle[r.tone][0], color: toneStyle[r.tone][1], fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{r.pill}</span>
+                  <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{r.title}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', overflowWrap: 'anywhere' }}>{r.meta}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Issues */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <SectionLabel label="Open Issues" noMargin />
-              <button onClick={() => { setShowForm(f => !f); setIssueError(''); }} style={{ fontSize: 12.5, padding: '4px 10px' }}>
-                {showForm ? 'Cancel' : '+ New Issue'}
-              </button>
-            </div>
-
-            {showForm && (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 14, marginBottom: 10 }}>
-                <input placeholder="Issue title" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ marginBottom: 8 }} />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Description</span>
-                  <button onClick={draftBody} disabled={drafting || !newTitle.trim()} style={{ fontSize: 12.5, padding: '3px 10px', color: 'var(--accent)', border: '1px solid var(--accent)', background: 'transparent' }}>
-                    {drafting ? 'Drafting…' : '✦ AI Draft'}
-                  </button>
-                </div>
-                <textarea placeholder="Description (optional)" value={newBody} onChange={e => setNewBody(e.target.value)} rows={newBody ? 8 : 3} style={{ width: '100%', marginBottom: 8, resize: 'vertical' }} />
-                {issueError && <p style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 8 }}>{issueError}</p>}
-                <button className="primary" onClick={submitIssue} disabled={creating || !newTitle.trim()}>
-                  {creating ? 'Creating…' : 'Create Issue'}
-                </button>
-              </div>
-            )}
-
-            {issues.length === 0 && !showForm && (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>
-                No open issues
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {issues.map(issue => (
-                <div key={`${issue.repo ?? ''}/${issue.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '10px 14px' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--info)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, color: 'var(--hint)', flexShrink: 0 }}>#{issue.id}</span>
-                  <span style={{ flex: 1, fontSize: 14 }}>{issue.title}</span>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {issue.labels?.map(l => {
-                      const c = labelColor(l);
-                      return <span key={l} style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: c.bg, color: c.color, fontWeight: 500 }}>{l}</span>;
-                    })}
-                  </div>
-                  <a href={issue.url} target="_blank" rel="noreferrer" aria-label={`Open issue #${issue.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', flexShrink: 0 }}>↗</a>
+                  {r.url && (
+                    <a href={r.url} target="_blank" rel="noreferrer" aria-label={`${r.action}: ${r.title}`} style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '0 16px', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text)', fontSize: 13.5, fontWeight: 600, textDecoration: 'none' }}>{r.action} ↗</a>
+                  )}
                 </div>
               ))}
-            </div>
-          </div>
+            </section>
 
-          {/* Changelog */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: changelog ? '1px solid var(--border)' : 'none' }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>AI Changelog</div>
-                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Generated from merged PRs</div>
-              </div>
-              <button onClick={generateChangelog} disabled={clLoading} style={{ fontSize: 12.5 }}>
-                {clLoading ? 'Generating…' : 'Generate'}
-              </button>
-            </div>
-            {changelog
-              ? <pre style={{ fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', color: 'var(--text)', padding: '12px 14px' }}>{changelog}</pre>
-              : <p style={{ fontSize: 13, color: 'var(--muted)', padding: '12px 14px' }}>Click Generate to create a polished release note from your merged PRs.</p>
-            }
+            <aside aria-label="Repository" style={{ flex: '1 1 280px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <section style={{ background: 'var(--sidebar-bg)', color: 'var(--bg)', borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-soft)' }}>
+                  {stalePRs.length > 0 ? 'Needs attention' : 'This week'}
+                </span>
+                <span style={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>
+                  {prs.length} open {prs.length === 1 ? 'PR' : 'PRs'}, {stalePRs.length} stale
+                </span>
+                <span style={{ fontSize: 14, color: '#B9B8B1', lineHeight: 1.5 }}>
+                  {merged.length} merged in the last 7 days and {issues.length} open {issues.length === 1 ? 'issue' : 'issues'}.
+                </span>
+                <button type="button" onClick={generateChangelog} disabled={clLoading} style={{ marginTop: 6, minHeight: 44, borderRadius: 10, background: 'var(--accent-soft)', color: '#0E1A15', fontSize: 14.5, fontWeight: 600 }}>
+                  {clLoading ? 'Generating…' : 'Generate changelog'}
+                </button>
+              </section>
+
+              {changelog && (
+                <section style={{ ...card, padding: '20px 22px' }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 8 }}>Changelog</h2>
+                  <pre style={{ fontFamily: 'inherit', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{changelog}</pre>
+                </section>
+              )}
+
+              <section style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 600 }}>New issue</h2>
+                  <button onClick={() => { setShowForm(f => !f); setIssueError(''); }} style={{ minHeight: 40, padding: '0 14px', fontSize: 13.5, fontWeight: 600, border: '1px solid var(--border-strong)' }}>
+                    {showForm ? 'Cancel' : '+ New issue'}
+                  </button>
+                </div>
+                {!showForm && <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>Describe the problem and Dayhand can draft the body for you.</p>}
+                {showForm && (
+                  <>
+                    <input placeholder="Issue title" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>Description</span>
+                      <button onClick={draftBody} disabled={drafting || !newTitle.trim()} style={{ fontSize: 13, minHeight: 36, padding: '0 12px', color: 'var(--accent)', border: '1px solid var(--accent)', background: 'transparent' }}>
+                        {drafting ? 'Drafting…' : '✦ AI Draft'}
+                      </button>
+                    </div>
+                    <textarea placeholder="Description (optional)" value={newBody} onChange={e => setNewBody(e.target.value)} rows={newBody ? 8 : 3} style={{ width: '100%', resize: 'vertical' }} />
+                    {issueError && <p style={{ fontSize: 13.5, color: 'var(--danger)' }}>{issueError}</p>}
+                    <button className="primary" onClick={submitIssue} disabled={creating || !newTitle.trim()} style={{ minHeight: 44 }}>
+                      {creating ? 'Creating…' : 'Create issue'}
+                    </button>
+                  </>
+                )}
+              </section>
+            </aside>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Contributions tab ── */}
       {tab === 'contributions' && (
@@ -517,52 +450,6 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function SectionLabel({ label, danger, noMargin }) {
-  return (
-    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: noMargin ? 0 : 10 }}>
-      {label}
-    </div>
-  );
-}
-
-function PRCard({ pr, stale }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 0,
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      overflow: 'hidden',
-      marginBottom: 8,
-    }}>
-      <div style={{ width: 3, alignSelf: 'stretch', background: stale ? 'var(--danger)' : 'var(--accent)', flexShrink: 0 }} />
-      <div style={{ flex: 1, padding: '14px 18px', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', flexShrink: 0 }}>#{pr.id}</span>
-          <span style={{ fontSize: 15, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.title}</span>
-          {stale && (
-            <span style={{ fontSize: 11.5, padding: '2px 7px', borderRadius: 4, background: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)', fontWeight: 500, flexShrink: 0 }}>
-              {pr.daysStale}d stale
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>by {pr.author}</span>
-          {pr.branch && (
-            <span style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)' }}>
-              {pr.branch}
-            </span>
-          )}
-          {pr.reviewers?.length > 0 && (
-            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>· reviewers: {pr.reviewers.join(', ')}</span>
-          )}
-        </div>
-      </div>
-      <a href={pr.url} target="_blank" rel="noreferrer" aria-label={`Open PR #${pr.id} on GitHub`} style={{ fontSize: 13, color: 'var(--info)', padding: '0 14px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>↗</a>
     </div>
   );
 }

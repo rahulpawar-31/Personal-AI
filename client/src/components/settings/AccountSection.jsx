@@ -54,25 +54,9 @@ export default function AccountSection({ user, onLogout }) {
     <div style={{
       background: 'var(--surface)',
       border: '1px solid var(--border)',
-      borderRadius: 10,
+      borderRadius: 16,
       overflow: 'hidden',
     }}>
-      {/* Profile row */}
-      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border)' }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: '50%',
-          background: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 500, fontSize: 16,
-        }}>
-          {user.username?.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <div style={{ fontWeight: 500, fontSize: 14 }}>@{user.username}</div>
-          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Personal account</div>
-        </div>
-      </div>
-
       {/* Email */}
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Email address</div>

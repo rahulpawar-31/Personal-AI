@@ -1,64 +1,73 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { nextHourLocal, localToInstantISO } from '../dateInput.js';
 import NotConnected from './NotConnected.jsx';
 import { Modal } from './settings/primitives.jsx';
-import { useMediaQuery } from '../useMediaQuery.js';
-import { sameDay, eventsOnDay, eventTimeLabel, eventDurationLabel, dayLabel, dayCellLabel, dayCoverage, dayCoverageNote } from '../calendarEvents.js';
+import { sameDay, eventsOnDay, eventTimeLabel, eventDurationLabel, dayLabel, dayCellLabel, dayCoverage, dayCoverageNote, isAllDay, parseEventDate } from '../calendarEvents.js';
 
 const DAYS = [
   { label: 'Mon', num: 1 }, { label: 'Tue', num: 2 }, { label: 'Wed', num: 3 },
   { label: 'Thu', num: 4 }, { label: 'Fri', num: 5 }, { label: 'Sat', num: 6 }, { label: 'Sun', num: 7 },
 ];
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-// minmax(0, 1fr), not 1fr: a plain 1fr column grows to fit its widest unbreakable
-// text, so one long event title made that day wide and the empty days narrow.
-const GRID_COLUMNS = 'repeat(7, minmax(0, 1fr))';
-// Below this width seven columns are too narrow for event titles.
-const COMPACT_QUERY = '(max-width: 700px)';
-
 function addDays(date, n) {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
   return d;
 }
 
-function startOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+function startOfWeek(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dow = d.getDay();
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return d;
 }
 
-function dayNumberColor(isToday, isCurrentMonth) {
-  if (isToday) return 'var(--accent)';
-  return isCurrentMonth ? 'var(--text)' : 'var(--hint)';
-}
-
-function eventColor(title = '') {
+// Block colours for a day's schedule: meetings blue, focus time green, the rest grey.
+function blockTone(title = '') {
   const t = title.toLowerCase();
-  if (t.includes('focus') || t.includes('deep work') || t.includes('frontend') || t.includes('dev'))
-    return '#7591b0';
-  if (t.includes('design') || t.includes('product') || t.includes('ui') || t.includes('brand'))
-    return '#7ba88c';
-  if (t.includes('research') || t.includes('interview') || t.includes('study') || t.includes('dsa') || t.includes('test'))
-    return '#9488b6';
-  if (t.includes('lunch') || t.includes('break') || t.includes('meet') || t.includes('andria'))
-    return '#c08fa1';
-  if (t.includes('standup') || t.includes('sync') || t.includes('catch') || t.includes('collab'))
-    return '#c0a37c';
-  return '#a3abb4';
+  if (t.includes('focus') || t.includes('deep work')) return { bg: 'var(--tag-success-bg)', fg: 'var(--tag-success-fg)' };
+  if (t.includes('standup') || t.includes('meet') || t.includes('sync') || t.includes('review') || t.includes('call') || t.includes('catch'))
+    return { bg: 'var(--tag-info-bg)', fg: 'var(--tag-info-fg)' };
+  return { bg: 'var(--surface-sunken)', fg: 'var(--text)' };
 }
+
+const DAY_START = 8;
+const DAY_END = 18;
+
+// Longest gap between 08:00 and 18:00 not covered by a timed event.
+function longestFreeBlock(day, evs) {
+  const open  = new Date(day.getFullYear(), day.getMonth(), day.getDate(), DAY_START);
+  const close = new Date(day.getFullYear(), day.getMonth(), day.getDate(), DAY_END);
+  const busy = evs
+    .filter(ev => !isAllDay(ev))
+    .map(ev => [parseEventDate(ev.start), parseEventDate(ev.end ?? ev.start)])
+    .filter(([a, z]) => a && z)
+    .sort((x, y) => x[0] - y[0]);
+  let cursor = open;
+  let best = null;
+  for (const [a, z] of busy) {
+    if (a > cursor && (!best || a - cursor > best.end - best.start)) best = { start: cursor, end: new Date(Math.min(a, close)) };
+    if (z > cursor) cursor = z;
+  }
+  if (close > cursor && (!best || close - cursor > best.end - best.start)) best = { start: cursor, end: close };
+  return best && best.end - best.start >= 30 * 60000 ? best : null;
+}
+
+const hhmm = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+const sectionCard = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 };
 
 export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, onGoToSettings }) {
   const [events,    setEvents]   = useState([]);
   const [loading,   setLoading]  = useState(false);
   const [authError, setAuthError] = useState(false);
-  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
   const [showForm,  setShowForm] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [openEvent, setOpenEvent] = useState(null);
   const openerRef = useRef(null);
-  const compact = useMediaQuery(COMPACT_QUERY);
   const [creating,  setCreating] = useState(false);
   const [form, setForm] = useState(() => (
     { title: '', date: nextHourLocal(), duration: 60, recurring: false, days: [], time: '14:00' }
@@ -103,24 +112,6 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
     setForm(f => ({ ...f, days: f.days.includes(num) ? f.days.filter(d => d !== num) : [...f.days, num] }));
   }
 
-  const today = new Date();
-
-  // 6-week grid starting on the Monday on or before the 1st of the displayed month
-  const gridDays = useMemo(() => {
-    const dow    = monthStart.getDay();            // 0=Sun
-    const offset = dow === 0 ? -6 : 1 - dow;      // shift back to Monday
-    const start  = addDays(monthStart, offset);
-    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
-  }, [monthStart]);
-
-  // Selecting a month keeps today selected only when today is in it, so the
-  // list under the grid never shows a day that is not on screen.
-  function goToMonth(date) {
-    setMonthStart(date);
-    const now = new Date();
-    setSelectedDay(date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() ? now : null);
-  }
-
   function showDetails(ev, opener) {
     openerRef.current = opener ?? document.activeElement;
     setOpenEvent(ev);
@@ -132,10 +123,25 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
     if (opener?.isConnected) setTimeout(() => opener.focus(), 0);
   }
 
-  const selectedEvents = selectedDay ? eventsOnDay(events, selectedDay) : [];
-  const coverageNote = selectedDay ? dayCoverageNote(dayCoverage(selectedDay, events), selectedEvents.length) : null;
+  // Opens the create dialog for a focus block in the longest free gap of the selected day.
+  function protectBlock(block) {
+    const pad = n => String(n).padStart(2, '0');
+    const d = block.start;
+    const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const mins = Math.min(120, Math.round((block.end - block.start) / 60000));
+    setForm({ title: 'Focus time', date: local, duration: mins, recurring: false, days: [], time: '14:00' });
+    setShowForm(true);
+  }
 
-  const monthLabel = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const today = new Date();
+  const weekStart = startOfWeek(selectedDay);
+  const week = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const dayEvents = eventsOnDay(events, selectedDay);
+  const meetings = dayEvents.filter(ev => !blockTone(ev.title).fg.includes('success')).length;
+  const coverageNote = dayCoverageNote(dayCoverage(selectedDay, events), dayEvents.length);
+  const free = longestFreeBlock(selectedDay, dayEvents);
+  const comingUp = events.filter(ev => { const s = parseEventDate(ev.start); return s && s > today && !sameDay(s, selectedDay); }).slice(0, 4);
+  const weekLabel = `${week[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${week[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
   if (!connected) return (
     <div>
@@ -161,181 +167,100 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
           </button>
         </div>
       )}
-      <PageHeader eyebrow="Inbox & calendar" title="Calendar" subtitle={monthLabel}>
-        <button
-          onClick={() => goToMonth(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
-          aria-label="Previous month"
-          style={navBtn}
-        >‹</button>
-        <button
-          onClick={() => goToMonth(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1))}
-          aria-label="Next month"
-          style={navBtn}
-        >›</button>
-        <button onClick={() => goToMonth(startOfMonth(new Date()))} style={{ fontSize: 14, fontWeight: 500, minHeight: 44, padding: '0 16px', border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>Today</button>
-        <button
-          className="primary"
-          onClick={() => setShowForm(true)}
-          style={{ fontSize: 14.5, padding: '0 20px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Create
-        </button>
+
+      <PageHeader
+        eyebrow="Inbox & calendar"
+        title="Calendar"
+        subtitle={loading ? 'Loading your events…' : dayEvents.length === 0 ? 'Nothing scheduled.' : `${dayEvents.length} ${dayEvents.length === 1 ? 'event' : 'events'}, ${meetings} of them meetings.`}
+      >
+        <div role="group" aria-label="Day" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {week.map(d => {
+            const on = sameDay(d, selectedDay);
+            return (
+              <button
+                key={d.getTime()} type="button" aria-pressed={on}
+                aria-label={dayCellLabel(d, eventsOnDay(events, d).length)}
+                onClick={() => setSelectedDay(d)}
+                style={{ minWidth: 60, minHeight: 56, padding: '6px 8px', border: `1px solid ${on ? 'var(--text)' : 'var(--border-strong)'}`, borderRadius: 12, background: on ? 'var(--text)' : 'var(--surface)', color: on ? '#fff' : 'var(--text)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+              >
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{DOW[(d.getDay() + 6) % 7]}</span>
+                <span style={{ fontSize: 18, fontWeight: 600 }}>{d.getDate()}</span>
+              </button>
+            );
+          })}
+        </div>
       </PageHeader>
 
-      {/* Month grid. On a phone each day shows coloured dots instead of titles
-          and the selected day's events are listed underneath; on wider screens
-          each day lists its events and a chip opens the details. */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)' }}>
-
-        {/* Day-of-week headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-          {DOW.map((d, i) => (
-            <div key={d} style={{
-              padding: '10px 0', textAlign: 'center',
-              fontFamily: 'var(--font-mono)', fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, color: 'var(--muted)',
-              borderRight: i < 6 ? '1px solid var(--border)' : 'none',
-            }}>{d}</div>
-          ))}
-        </div>
-
-        {/* 6 week rows */}
-        {Array.from({ length: 6 }, (_, week) => (
-          <div
-            key={week}
-            style={{
-              display: 'grid', gridTemplateColumns: GRID_COLUMNS,
-              borderBottom: week < 5 ? '1px solid var(--border)' : 'none',
-            }}
-          >
-            {gridDays.slice(week * 7, week * 7 + 7).map((day, di) => {
-              const isToday        = sameDay(day, today);
-              const isCurrentMonth = day.getMonth() === monthStart.getMonth();
-              const isSelected     = Boolean(selectedDay) && sameDay(day, selectedDay);
-              const dayEvs         = eventsOnDay(events, day);
-              const overflow       = dayEvs.length - 3;
-              const cellBackground = isSelected
-                ? 'color-mix(in srgb, var(--accent) 10%, var(--surface))'
-                : isToday ? 'color-mix(in srgb, var(--accent) 5%, var(--surface))' : 'var(--surface)';
-              const cell = {
-                minWidth: 0,
-                height: compact ? 58 : 128,
-                boxSizing: 'border-box',
-                borderRight: di < 6 ? '1px solid var(--border)' : 'none',
-                background: cellBackground,
-                outline: isSelected || isToday ? '2px solid var(--accent)' : 'none',
-                outlineOffset: '-2px',
-              };
-              const numberStyle = {
-                fontSize: 14, fontWeight: isToday ? 600 : 500, color: dayNumberColor(isToday, isCurrentMonth),
-              };
-
-              if (compact) {
-                return (
-                  <button
-                    key={day.getTime()} type="button"
-                    onClick={() => setSelectedDay(day)}
-                    aria-label={dayCellLabel(day, dayEvs.length)}
-                    aria-pressed={isSelected}
-                    style={{
-                      ...cell, border: 'none', borderRight: cell.borderRight, borderRadius: 0, boxShadow: 'none',
-                      padding: '6px 2px', cursor: 'pointer', font: 'inherit',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                    }}
-                  >
-                    <span style={numberStyle}>{day.getDate()}</span>
-                    <span aria-hidden="true" style={{ display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      {dayEvs.slice(0, 3).map(ev => (
-                        <span key={ev.id} style={{ width: 6, height: 6, borderRadius: '50%', background: eventColor(ev.title) }} />
-                      ))}
-                    </span>
-                    {overflow > 0 && <span aria-hidden="true" style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1 }}>+{overflow}</span>}
-                  </button>
-                );
-              }
-
-              return (
-                <div key={day.getTime()} style={{ ...cell, padding: '8px 8px 6px' }}>
-                  {/* Date number: selects the day */}
-                  <button
-                    type="button" onClick={() => setSelectedDay(day)}
-                    aria-label={dayCellLabel(day, dayEvs.length)} aria-pressed={isSelected}
-                    style={{ ...numberStyle, display: 'block', marginBottom: 5, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                  >
-                    {day.getDate()}
-                  </button>
-
-                  {/* Event chips */}
-                  {dayEvs.slice(0, 3).map(ev => (
-                    <button
-                      key={ev.id} type="button" title={ev.title}
-                      onClick={e => showDetails(ev, e.currentTarget)}
-                      aria-label={`${ev.title}, ${eventTimeLabel(ev)}. Show details`}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5, width: '100%',
-                        marginBottom: 3, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none',
-                        cursor: 'pointer', textAlign: 'left', font: 'inherit',
-                      }}
-                    >
-                      <span style={{ width: 3, height: 14, borderRadius: 2, background: eventColor(ev.title), flexShrink: 0 }} />
-                      <span style={{
-                        fontSize: 12.5, color: 'var(--text)',
-                        flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {ev.title}
-                      </span>
-                      <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>›</span>
-                    </button>
-                  ))}
-
-                  {overflow > 0 && (
-                    <button
-                      type="button" onClick={() => setSelectedDay(day)}
-                      style={{ marginTop: 2, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}
-                    >
-                      +{overflow} more
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 18 }}>
+        <button onClick={() => setSelectedDay(addDays(selectedDay, -7))} aria-label="Previous week" style={navBtn}>‹</button>
+        <button onClick={() => setSelectedDay(addDays(selectedDay, 7))} aria-label="Next week" style={navBtn}>›</button>
+        <button onClick={() => setSelectedDay(new Date())} style={{ fontSize: 14, fontWeight: 500, minHeight: 44, padding: '0 16px', border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>Today</button>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)' }}>{weekLabel}</span>
+        <button className="primary" onClick={() => setShowForm(true)} style={{ marginLeft: 'auto', fontSize: 14.5, padding: '0 20px', minHeight: 44 }}>
+          + Create
+        </button>
       </div>
 
-      {/* The selected day's events, listed in full */}
-      {selectedDay && (
-        <section aria-label={`Events on ${dayLabel(selectedDay)}`} style={{ marginTop: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px' }}>
-          <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 12px' }}>{dayLabel(selectedDay)}</h3>
-          {selectedEvents.length === 0 ? (
-            <p style={{ fontSize: 14.5, color: 'var(--muted)', margin: 0 }}>{coverageNote}</p>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {selectedEvents.map(ev => (
-                <li key={ev.id}>
-                  <button
-                    type="button" onClick={e => showDetails(ev, e.currentTarget)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                      padding: '12px 14px', minHeight: 44, borderRadius: 12, border: 'none',
-                      background: 'var(--bg)', boxShadow: 'none', cursor: 'pointer', font: 'inherit',
-                    }}
-                  >
-                    <span style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: eventColor(ev.title), flexShrink: 0 }} />
-                    <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={{ display: 'block', fontSize: 15.5, fontWeight: 600, color: 'var(--text)', overflowWrap: 'anywhere' }}>{ev.title}</span>
-                      <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>{eventTimeLabel(ev)}</span>
-                    </span>
-                    <span aria-hidden="true" style={{ fontSize: 14, color: 'var(--muted)' }}>›</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+
+        <section aria-label={`Schedule for ${dayLabel(selectedDay)}`} style={{ ...sectionCard, flex: '999 1 460px', minWidth: 0, padding: '14px 26px', display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, padding: '8px 0 6px' }}>{dayLabel(selectedDay)}</h2>
+          {dayEvents.map(ev => {
+            const tone = blockTone(ev.title);
+            const start = parseEventDate(ev.start);
+            return (
+              <div key={ev.id} style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 22px', padding: '18px 0', borderTop: '1px solid var(--border)' }}>
+                <div style={{ flex: 'none', width: 76, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 500 }}>{isAllDay(ev) ? 'All day' : hhmm(start)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>{eventDurationLabel(ev) ?? ''}</span>
+                </div>
+                <button
+                  type="button" onClick={e => showDetails(ev, e.currentTarget)}
+                  aria-label={`${ev.title}, ${eventTimeLabel(ev)}. Show details`}
+                  style={{ flex: '1 1 260px', minWidth: 0, padding: '12px 16px', borderRadius: 12, background: tone.bg, color: tone.fg, display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'left', border: 0 }}
+                >
+                  <span style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{ev.title}</span>
+                  {ev.location && <span style={{ fontSize: 13.5, opacity: 0.85, overflowWrap: 'anywhere' }}>{ev.location}</span>}
+                </button>
+              </div>
+            );
+          })}
+          {dayEvents.length === 0 && (
+            <div style={{ padding: '36px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 15, borderTop: '1px solid var(--border)' }}>
+              {coverageNote ?? 'Nothing scheduled. A clear day.'}
+            </div>
           )}
-          {selectedEvents.length > 0 && coverageNote && (
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>{coverageNote}</p>
-          )}
+          {dayEvents.length > 0 && coverageNote && <p style={{ fontSize: 13, color: 'var(--muted)', paddingTop: 10 }}>{coverageNote}</p>}
         </section>
-      )}
+
+        <aside aria-label="Free time" style={{ flex: '1 1 280px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <section style={{ background: 'var(--sidebar-bg)', color: 'var(--bg)', borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-soft)' }}>Longest free block</span>
+            <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.01em' }}>{free ? `${hhmm(free.start)} – ${hhmm(free.end)}` : 'No free block'}</span>
+            <span style={{ fontSize: 14, color: '#B9B8B1', lineHeight: 1.5 }}>
+              {free ? 'The longest stretch with nothing booked between 08:00 and 18:00.' : 'Nothing free of 30 minutes or more between 08:00 and 18:00.'}
+            </span>
+            {free && (
+              <button type="button" onClick={() => protectBlock(free)} style={{ marginTop: 6, minHeight: 44, borderRadius: 10, background: 'var(--accent-soft)', color: '#0E1A15', fontSize: 14.5, fontWeight: 600 }}>
+                Protect it as focus time
+              </button>
+            )}
+          </section>
+
+          <section style={{ ...sectionCard, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600 }}>Coming up</h2>
+            {comingUp.length === 0 && <p style={{ fontSize: 14, color: 'var(--muted)' }}>Nothing else loaded.</p>}
+            {comingUp.map(ev => (
+              <button key={ev.id} type="button" onClick={e => { setSelectedDay(parseEventDate(ev.start)); showDetails(ev, e.currentTarget); }} style={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'left', padding: '8px 0', minHeight: 44, border: 0, borderTop: '1px solid var(--border)', borderRadius: 0 }}>
+                <span style={{ fontSize: 14.5, fontWeight: 600, overflowWrap: 'anywhere' }}>{ev.title}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)' }}>
+                  {parseEventDate(ev.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {eventTimeLabel(ev)}
+                </span>
+              </button>
+            ))}
+          </section>
+        </aside>
+      </div>
 
       {openEvent && <EventDetailModal event={openEvent} onClose={closeDetails} />}
 

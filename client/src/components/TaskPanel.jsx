@@ -77,81 +77,58 @@ function Card({ task, onDragStart, onToggle }) {
   const due    = dueFmt(task.due);
   const done   = task.status === 'Done';
   const pColor = PRIORITY_COLOR[task.priority];
+  const canToggle = task.source !== 'trello' && onToggle;
 
   return (
     <div
       draggable
       onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('id', task.id); onDragStart(task); }}
       style={{
-        background: 'var(--bg)',
-        borderLeft: pColor ? `3px solid ${pColor}` : '3px solid transparent',
-        borderRadius: 12,
-        marginBottom: 8,
-        cursor: 'grab',
-        userSelect: 'none',
-        overflow: 'hidden',
+        display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0',
+        borderTop: '1px solid var(--border)', cursor: 'grab', userSelect: 'none',
       }}
     >
-      <div style={{ padding: '12px 14px 11px' }}>
-        {/* Title */}
-        <p style={{
-          margin: '0 0 10px', fontSize: 15, fontWeight: 500,
-          lineHeight: 'var(--lh-normal)', color: done ? 'var(--muted)' : 'var(--text)',
-          textDecoration: done ? 'line-through' : 'none',
+      {canToggle ? (
+        <button
+          type="button" role="checkbox" aria-checked={done}
+          onClick={e => { e.stopPropagation(); onToggle(task.id, task.status, task.source); }}
+          aria-label={task.title}
+          style={{
+            flex: 'none', width: 26, height: 26, marginTop: 1, padding: 0, minHeight: 0, borderRadius: 8,
+            border: `1.5px solid ${done ? 'var(--accent)' : '#A9A69B'}`,
+            background: done ? 'var(--accent)' : 'var(--surface)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: done ? 1 : 0 }}><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+        </button>
+      ) : (
+        <span aria-hidden="true" style={{ flex: 'none', width: 26, height: 26, marginTop: 1, borderRadius: 8, border: '1.5px dashed var(--border-strong)' }} />
+      )}
+
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{
+          fontSize: 15, fontWeight: 500, lineHeight: 1.35, overflowWrap: 'anywhere',
+          color: done ? 'var(--muted)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none',
         }}>
           {task.title}
-        </p>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        </span>
+        <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           <SourceBadge source={task.source} />
-
-          {due && (
-            <span style={{
-              fontSize: 'var(--fs-sm)', fontWeight: 500, color: due.color,
-              display: 'flex', alignItems: 'center', gap: 3,
-            }}>
-              {due.text}
-            </span>
-          )}
-
-          <div style={{ flex: 1 }} />
-
-          {task.source !== 'trello' && onToggle && (
-            <button
-              onClick={e => { e.stopPropagation(); onToggle(task.id, task.status, task.source); }}
-              title={done ? 'Reopen' : 'Mark done'}
-              aria-label={done ? 'Reopen task' : 'Mark task done'}
-              style={{
-                width: 26, height: 26, borderRadius: 8, padding: 0, minHeight: 0,
-                border: `1.5px solid ${done ? 'var(--success)' : 'var(--hint)'}`,
-                background: done ? 'var(--success)' : 'transparent',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, transition: 'all var(--t-fast)',
-              }}
-            >
-              {done && (
-                <span style={{ color: '#fff', fontSize: 11.5, fontWeight: 500, lineHeight: 1 }}>✓</span>
-              )}
-            </button>
-          )}
-
-          {task.url && (
-            <a href={task.url} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{
-                width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--muted)', textDecoration: 'none', flexShrink: 0,
-                borderRadius: 'var(--radius-sm)',
-              }}
-              title="Open"
-              aria-label="Open in source"
-            >
-              <span style={{ fontSize: 13 }}>↗</span>
-            </a>
-          )}
-        </div>
+          {pColor && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: pColor }} />}
+          {due && <span style={{ fontSize: 12.5, fontWeight: 500, color: due.color }}>{due.text}</span>}
+        </span>
       </div>
+
+      {task.url && (
+        <a href={task.url} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', textDecoration: 'none', flexShrink: 0 }}
+          title="Open" aria-label="Open in source"
+        >
+          <span style={{ fontSize: 14 }}>↗</span>
+        </a>
+      )}
     </div>
   );
 }
@@ -178,7 +155,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
       onDragLeave={onDragLeave}
       onDrop={e => { e.preventDefault(); onDrop(); }}
       style={{
-        minWidth: 300, maxWidth: 300,
+        minWidth: 0,
         display: 'flex', flexDirection: 'column',
         // Column background — distinct from page bg
         background: isDragOver ? `color-mix(in srgb, ${col.accent} 3%, transparent)` : 'var(--surface)',
@@ -186,13 +163,11 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
         borderRadius: 16,
         transition: 'border-color var(--t-fast), background var(--t-fast)',
         // Height management
-        maxHeight: 'calc(100vh - 260px)',
-        flexShrink: 0,
       }}
     >
       {/* Header */}
       <div style={{
-        padding: '18px 18px 12px',
+        padding: '20px 22px 10px',
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
         <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col.accent, flexShrink: 0 }} />
@@ -208,7 +183,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
 
       {/* Scrollable card list */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '2px 12px 2px',
+        flex: 1, padding: '0 22px 2px',
         // Custom scrollbar
         scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
       }}>
@@ -228,7 +203,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
       </div>
 
       {/* Add card */}
-      <div style={{ padding: '4px 12px 14px', flexShrink: 0 }}>
+      <div style={{ padding: '4px 14px 14px', flexShrink: 0 }}>
         {adding ? (
           <div>
             <textarea
@@ -284,11 +259,8 @@ function NoteCard({ note }) {
   return (
     <div
       style={{
-        background: 'var(--surface)',
-        border: 'var(--border-hairline)',
-        borderRadius: 'var(--radius)',
-        marginBottom: 6,
-        overflow: 'hidden',
+        borderTop: '1px solid var(--border)',
+        marginBottom: 0,
       }}
     >
       <div style={{ padding: '10px 12px 9px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -361,14 +333,14 @@ function NotionNotesColumn({ notes, onAdd }) {
 
   return (
     <div style={{
-      minWidth: 300, maxWidth: 300, flexShrink: 0,
+      minWidth: 0,
       background: 'var(--surface)', border: '1px solid var(--border)',
       borderRadius: 16,
-      maxHeight: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column',
+      display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
       <div style={{
-        padding: '18px 18px 12px',
+        padding: '20px 22px 10px',
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
         <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
@@ -398,7 +370,7 @@ function NotionNotesColumn({ notes, onAdd }) {
 
       {/* Note cards */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '2px 12px 2px',
+        flex: 1, padding: '0 22px 2px',
         scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
       }}>
         {notes.length === 0 && !adding && (
@@ -414,7 +386,7 @@ function NotionNotesColumn({ notes, onAdd }) {
       </div>
 
       {/* Add page */}
-      <div style={{ padding: '4px 12px 14px', flexShrink: 0 }}>
+      <div style={{ padding: '4px 14px 14px', flexShrink: 0 }}>
         {adding ? (
           <div>
             <textarea
@@ -614,10 +586,8 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
         <div
           onDragEnd={() => { dragging.current = null; setDragOver(null); }}
           style={{
-            display: 'flex', gap: 12, overflowX: 'auto', flex: 1,
-            alignItems: 'flex-start', paddingBottom: 16,
-            // Subtle scrollbar
-            scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 20,
+            alignItems: 'start', paddingBottom: 16,
           }}
         >
           {columns.map(col => (

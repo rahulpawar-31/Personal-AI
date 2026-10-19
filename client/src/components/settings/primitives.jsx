@@ -35,74 +35,60 @@ export function IntegrationGroup({ children }) {
   );
 }
 
-// Colors + copy for ToggleBtn's 3 states — was a chain of nested ternaries.
-function toggleBtnState(expanded, connected) {
-  if (expanded)  return { bg: 'var(--text)', border: 'transparent', color: '#fff', title: 'Close' };
-  if (connected) return { bg: 'var(--tag-success-bg)', border: 'var(--success)', color: 'var(--tag-success-fg)', title: 'Manage connection' };
-  return             { bg: 'var(--surface)', border: 'var(--border-strong)', color: 'var(--text-2)', title: 'Connect' };
-}
-
-function ToggleBtnIcon({ expanded, connected }) {
-  const glyph = expanded ? '×' : connected ? '✓' : '+';
-  return <span style={{ fontSize: 18, fontWeight: 500, lineHeight: 1 }}>{glyph}</span>;
-}
-
-// Action button — green ✓ when connected, + when not, × when the panel is open
+// Text button for an integration row: "Connect", "Manage" or "Close".
 export function ToggleBtn({ expanded, onClick, connected }) {
-  const { bg, border, color, title } = toggleBtnState(expanded, connected);
-
+  const label = expanded ? 'Close' : connected ? 'Manage' : 'Connect';
   return (
     <button
       onClick={onClick}
-      title={title}
-      aria-label={title}
+      aria-expanded={expanded}
       style={{
-        width: 44, height: 44, padding: 0, flexShrink: 0,
-        border: `1.5px solid ${border}`,
-        borderRadius: 10,
-        background: bg,
-        color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer',
+        minHeight: 44, padding: '0 18px', flexShrink: 0,
+        border: '1px solid var(--border-strong)', borderRadius: 10,
+        background: 'var(--surface)', color: 'var(--text)',
+        fontSize: 14, fontWeight: 600, cursor: 'pointer',
       }}
     >
-      <ToggleBtnIcon expanded={expanded} connected={connected} />
+      {label}
     </button>
   );
 }
 
-export function IntegrationRow({ service, label, connected, children, actionSlot }) {
+export function IntegrationRow({ service, label, description, connected, children, actionSlot }) {
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px' }}>
-        {/* Brand icon */}
-        <div style={{
-          width: 40, height: 40, borderRadius: 10,
-          background: 'var(--surface)', border: 'var(--border-hairline)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, overflow: 'hidden',
-        }}>
-          <ServiceIcon service={service} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px', padding: '16px 22px' }}>
+        {/* Brand icon with a status dot */}
+        <span style={{ position: 'relative', flex: 'none', width: 44, height: 44 }}>
+          <span style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            <ServiceIcon service={service} />
+          </span>
+          <span style={{
+            position: 'absolute', right: -3, bottom: -3, width: 13, height: 13, borderRadius: 999,
+            background: connected ? 'var(--success)' : '#D08A1E', border: '2.5px solid var(--surface)', boxSizing: 'border-box',
+          }} />
+        </span>
+
+        {/* Name + description */}
+        <div style={{ flex: '1 1 220px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text)' }}>{label}</span>
+          {description && <span style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.4 }}>{description}</span>}
         </div>
 
-        {/* Name + status */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: 15.5, color: 'var(--text)' }}>{label}</span>
-            {connected && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 500, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '1px 8px', borderRadius: 99, flexShrink: 0 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--tag-success-fg)' }} />
-                {' '}Connected
-              </span>
-            )}
-          </div>
-        </div>
+        <span style={{ fontSize: 13, fontWeight: 500, color: connected ? 'var(--tag-success-fg)' : 'var(--warning)' }}>
+          {connected ? 'Connected' : 'Not connected'}
+        </span>
 
         {actionSlot}
       </div>
 
       {children && (
-        <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)', padding: '16px 18px' }}>
+        <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)', padding: '16px 22px' }}>
           {children}
         </div>
       )}
