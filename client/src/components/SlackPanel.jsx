@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
 
@@ -41,7 +42,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
 
   if (!connected) return (
     <div>
-      <h2 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>Slack</h2>
+      <PageHeader eyebrow="Social" title="Slack" subtitle="Send messages and run team digests." />
       <NotConnected
         title="Slack not connected"
         description="Add your Slack bot token in Settings to send messages, run team digests, and get alerts."
@@ -53,14 +54,13 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 500 }}>Slack</h2>
-        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--tag-success-bg)', color: 'var(--tag-success-fg)' }}>● Connected</span>
-      </div>
+      <PageHeader eyebrow="Social" title="Slack" subtitle="Send yourself a message or run the morning digest.">
+        <span className="tag tag-success" style={{ fontSize: 12.5, padding: '5px 12px', borderRadius: 999 }}>● Connected</span>
+      </PageHeader>
 
       {/* Send DM */}
-      <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: 14, marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)', marginBottom: 8 }}>Send yourself a message</div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', marginBottom: 20 }}>
+        <h2 className="t-h2" style={{ marginBottom: 12 }}>Send yourself a message</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             placeholder="Type a message…"
@@ -76,7 +76,7 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
         {log.length > 0 && (
           <div role="status" aria-live="polite" style={{ marginTop: 10 }}>
             {log.slice(0, 5).map((l, i) => (
-              <div key={`${l.at}-${i}`} style={{ fontSize: 11, color: l.ok ? 'var(--success)' : 'var(--danger)', marginBottom: 3 }}>
+              <div key={`${l.at}-${i}`} style={{ fontSize: 12.5, color: l.ok ? 'var(--success)' : 'var(--danger)', marginBottom: 3 }}>
                 {l.ok ? '✓' : '✗'} {l.text} <span style={{ opacity: 0.5 }}>{l.at}</span>
                 {l.error && <span> — {l.error}</span>}
               </div>
@@ -86,22 +86,22 @@ export default function SlackPanel({ health = {}, onGoToSettings }) {
       </div>
 
       {/* Digest */}
-      <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)', padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px 24px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>Morning Digest</div>
-            <div style={{ fontSize: 11, color: 'var(--hint)' }}>Runs automatically at 9 AM — sends to your Slack DM</div>
+            <h2 className="t-h2">Morning digest</h2>
+            <div style={{ fontSize: 13.5, color: 'var(--muted)', marginTop: 2 }}>Runs automatically at 9 AM — sends to your Slack DM</div>
           </div>
           <button className="primary" onClick={runDigest} disabled={loading === 'digest'}>
             {loading === 'digest' ? 'Running…' : 'Run now'}
           </button>
         </div>
         {digest && (
-          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)' }}>
+          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
             <div>Emails pending: <strong style={{ color: 'var(--text)' }}>{digest.comms?.pending?.length ?? 0}</strong></div>
             <div>Calendar conflicts: <strong style={{ color: 'var(--text)' }}>{digest.calendar?.conflicts?.length ?? 0}</strong></div>
             <div>Blockers: <strong style={{ color: 'var(--text)' }}>{digest.tasks?.blockers?.length ?? 0}</strong></div>
-            <div style={{ fontSize: 11, marginTop: 4, color: 'var(--hint)' }}>Sent to Slack at {new Date(digest.generatedAt).toLocaleTimeString()}</div>
+            <div style={{ fontSize: 12.5, marginTop: 4, color: 'var(--muted)' }}>Sent to Slack at {new Date(digest.generatedAt).toLocaleTimeString()}</div>
           </div>
         )}
       </div>

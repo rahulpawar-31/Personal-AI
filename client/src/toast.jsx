@@ -37,9 +37,13 @@ export function ToastContainer() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        .toast-stack { position: fixed; bottom: 24px; right: 24px; }
+        @media (max-width: 768px) {
+          .toast-stack { bottom: calc(88px + env(safe-area-inset-bottom)); right: 16px; }
+        }
       `}</style>
-      <div style={{
-        position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+      <div className="toast-stack" style={{
+        zIndex: 9999, maxWidth: 'calc(100vw - 32px)',
         display: 'flex', flexDirection: 'column', gap: 8,
         pointerEvents: 'none',
       }}>
@@ -47,12 +51,12 @@ export function ToastContainer() {
           <div key={t.id} style={{
             background: BG[t.type] ?? BG.info,
             color: '#fff',
-            padding: '10px 14px',
-            borderRadius: 8,
-            fontSize: 13,
+            padding: '12px 16px',
+            borderRadius: 12,
+            fontSize: 14,
             lineHeight: 1.5,
             boxShadow: 'var(--shadow-2)',
-            maxWidth: 360,
+            maxWidth: 380,
             display: 'flex', alignItems: 'flex-start', gap: 10,
             pointerEvents: 'all',
             animation: 'toastIn 0.2s ease',
@@ -63,7 +67,7 @@ export function ToastContainer() {
                 onClick={() => { t.action.onClick(); dismiss(t.id); }}
                 style={{
                   background: 'none', border: 'none', color: '#fff', textDecoration: 'underline',
-                  cursor: 'pointer', fontSize: 13, padding: 0, flexShrink: 0, fontWeight: 500,
+                  cursor: 'pointer', fontSize: 14, padding: 0, flexShrink: 0, fontWeight: 600,
                 }}
               >{t.action.label}</button>
             )}

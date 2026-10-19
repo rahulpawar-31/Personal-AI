@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { LoadingState, EmptyState } from './ui/States.jsx';
@@ -17,8 +18,8 @@ const PRIORITY_COLOR = { 4: 'var(--danger)', 3: 'var(--warning)', 2: 'var(--info
 // so most of these stay literal. The 4 that do match an existing token
 // (warning/accent/danger/info) reference it instead of duplicating the hex.
 const COL_ACCENTS = [
-  '#6366f1','var(--warning)','var(--accent)','var(--danger)',
-  '#8b5cf6','var(--info)','#ec4899','#14b8a6','#f97316','#64748b',
+  '#2F6FDB','var(--warning)','var(--accent)','var(--danger)',
+  '#6B4FD3','var(--info)','#ec4899','#14b8a6','#f97316','#64748b',
 ];
 
 const STATUS_COL = {
@@ -34,7 +35,7 @@ const COL_STATUS = {
 };
 
 const BUILT_IN = [
-  { id: 'todo',       name: 'To Do',       accent: '#6366f1' },
+  { id: 'todo',       name: 'To Do',       accent: '#2F6FDB' },
   { id: 'inprogress', name: 'In Progress', accent: 'var(--warning)' },
   { id: 'done',       name: 'Done',        accent: 'var(--accent)' },
 ];
@@ -61,8 +62,8 @@ function SourceBadge({ source }) {
   const s = map[source] ?? map.notion;
   return (
     <span style={{
-      fontSize: 10, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase',
-      padding: '2px 6px', borderRadius: 'var(--radius-sm)',
+      fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase',
+      padding: '2px 7px', borderRadius: 'var(--radius-sm)',
       background: s.bg, color: s.color,
     }}>
       {s.label}
@@ -82,21 +83,20 @@ function Card({ task, onDragStart, onToggle }) {
       draggable
       onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('id', task.id); onDragStart(task); }}
       style={{
-        background: 'var(--surface)',
-        border: 'var(--border-hairline)',
-        borderLeft: pColor ? `3px solid ${pColor}` : undefined,
-        borderRadius: pColor ? '0 var(--radius) var(--radius) 0' : 'var(--radius)',
-        marginBottom: 6,
+        background: 'var(--bg)',
+        borderLeft: pColor ? `3px solid ${pColor}` : '3px solid transparent',
+        borderRadius: 12,
+        marginBottom: 8,
         cursor: 'grab',
         userSelect: 'none',
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '10px 12px 9px' }}>
+      <div style={{ padding: '12px 14px 11px' }}>
         {/* Title */}
         <p style={{
-          margin: '0 0 9px', fontSize: 'var(--fs-base)', fontWeight: 500,
-          lineHeight: 'var(--lh-normal)', color: done ? 'var(--hint)' : 'var(--text)',
+          margin: '0 0 10px', fontSize: 15, fontWeight: 500,
+          lineHeight: 'var(--lh-normal)', color: done ? 'var(--muted)' : 'var(--text)',
           textDecoration: done ? 'line-through' : 'none',
         }}>
           {task.title}
@@ -108,7 +108,7 @@ function Card({ task, onDragStart, onToggle }) {
 
           {due && (
             <span style={{
-              fontSize: 'var(--fs-sm)', color: due.color,
+              fontSize: 'var(--fs-sm)', fontWeight: 500, color: due.color,
               display: 'flex', alignItems: 'center', gap: 3,
             }}>
               {due.text}
@@ -123,15 +123,15 @@ function Card({ task, onDragStart, onToggle }) {
               title={done ? 'Reopen' : 'Mark done'}
               aria-label={done ? 'Reopen task' : 'Mark task done'}
               style={{
-                width: 18, height: 18, borderRadius: '50%', padding: 0,
-                border: `1.5px solid ${done ? 'var(--success)' : 'var(--border)'}`,
+                width: 26, height: 26, borderRadius: 8, padding: 0, minHeight: 0,
+                border: `1.5px solid ${done ? 'var(--success)' : 'var(--hint)'}`,
                 background: done ? 'var(--success)' : 'transparent',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0, transition: 'all var(--t-fast)',
               }}
             >
               {done && (
-                <span style={{ color: '#fff', fontSize: 10, fontWeight: 500, lineHeight: 1 }}>✓</span>
+                <span style={{ color: '#fff', fontSize: 11.5, fontWeight: 500, lineHeight: 1 }}>✓</span>
               )}
             </button>
           )}
@@ -140,14 +140,14 @@ function Card({ task, onDragStart, onToggle }) {
             <a href={task.url} target="_blank" rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
               style={{
-                width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--hint)', textDecoration: 'none', flexShrink: 0,
+                width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--muted)', textDecoration: 'none', flexShrink: 0,
                 borderRadius: 'var(--radius-sm)',
               }}
               title="Open"
               aria-label="Open in source"
             >
-              <span style={{ fontSize: 12 }}>↗</span>
+              <span style={{ fontSize: 13 }}>↗</span>
             </a>
           )}
         </div>
@@ -178,33 +178,29 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
       onDragLeave={onDragLeave}
       onDrop={e => { e.preventDefault(); onDrop(); }}
       style={{
-        minWidth: 272, maxWidth: 272,
+        minWidth: 300, maxWidth: 300,
         display: 'flex', flexDirection: 'column',
         // Column background — distinct from page bg
-        background: isDragOver ? `${col.accent}08` : 'var(--surface)',
+        background: isDragOver ? `color-mix(in srgb, ${col.accent} 3%, transparent)` : 'var(--surface)',
         border: `1px solid ${isDragOver ? col.accent : 'var(--border)'}`,
-        borderTop: `3px solid ${col.accent}`,
-        borderRadius: 'var(--radius-lg)',
+        borderRadius: 16,
         transition: 'border-color var(--t-fast), background var(--t-fast)',
         // Height management
-        maxHeight: 'calc(100vh - 180px)',
+        maxHeight: 'calc(100vh - 260px)',
         flexShrink: 0,
       }}
     >
       {/* Header */}
       <div style={{
-        padding: '11px 14px 10px',
-        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
-        borderBottom: '1px solid var(--border)',
+        padding: '18px 18px 12px',
+        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
-        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
+        <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col.accent, flexShrink: 0 }} />
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', flex: 1 }}>
           {col.name}
-        </span>
+        </h2>
         <span style={{
-          fontSize: 11, fontWeight: 500,
-          color: col.accent, background: `${col.accent}14`,
-          padding: '1px 8px', borderRadius: 'var(--radius-pill)',
-          minWidth: 22, textAlign: 'center',
+          fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)',
         }}>
           {cards.length}
         </span>
@@ -212,15 +208,15 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
 
       {/* Scrollable card list */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '10px 10px 2px',
+        flex: 1, overflowY: 'auto', padding: '2px 12px 2px',
         // Custom scrollbar
         scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
       }}>
         {cards.length === 0 && !adding && (
           <div style={{
             margin: '4px 0 8px', padding: '18px 12px',
-            border: '1.5px dashed var(--border)', borderRadius: 'var(--radius)',
-            textAlign: 'center', fontSize: 'var(--fs-sm)', color: 'var(--hint)',
+            border: '1.5px dashed var(--border-strong)', borderRadius: 12,
+            textAlign: 'center', fontSize: 14, color: 'var(--muted)',
             transition: 'border-color var(--t-fast)',
           }}>
             {isDragOver ? 'Drop here' : 'No cards'}
@@ -232,7 +228,7 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
       </div>
 
       {/* Add card */}
-      <div style={{ padding: '4px 10px 10px', flexShrink: 0 }}>
+      <div style={{ padding: '4px 12px 14px', flexShrink: 0 }}>
         {adding ? (
           <div>
             <textarea
@@ -267,8 +263,8 @@ function Column({ col, cards, isDragOver, onDragOver, onDragLeave, onDrop, onTog
           <button
             onClick={() => setAdding(true)}
             style={{
-              width: '100%', textAlign: 'left', padding: '6px 8px',
-              fontSize: 'var(--fs-sm)', color: 'var(--muted)',
+              width: '100%', textAlign: 'left', padding: '0 10px', minHeight: 44,
+              fontSize: 14, fontWeight: 500, color: 'var(--text-2)',
               background: 'transparent', borderRadius: 'var(--radius)',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
@@ -309,7 +305,7 @@ function NoteCard({ note }) {
             title="Open in Notion"
             aria-label="Open in Notion"
           >
-            <span style={{ fontSize: 12 }}>↗</span>
+            <span style={{ fontSize: 13 }}>↗</span>
           </a>
         )}
       </div>
@@ -323,7 +319,7 @@ function NotionNotesColumn({ notes, onAdd }) {
   const [saving,    setSaving]    = useState(false);
   const [exporting, setExporting] = useState(false);
   const taRef = useRef(null);
-  const ACCENT = '#8b5cf6';
+  const ACCENT = '#6B4FD3';
 
   useEffect(() => { if (adding) taRef.current?.focus(); }, [adding]);
 
@@ -365,23 +361,22 @@ function NotionNotesColumn({ notes, onAdd }) {
 
   return (
     <div style={{
-      minWidth: 272, maxWidth: 272, flexShrink: 0,
+      minWidth: 300, maxWidth: 300, flexShrink: 0,
       background: 'var(--surface)', border: '1px solid var(--border)',
-      borderTop: `3px solid ${ACCENT}`, borderRadius: 'var(--radius-lg)',
-      maxHeight: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column',
+      borderRadius: 16,
+      maxHeight: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
       <div style={{
-        padding: '11px 14px 10px', borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+        padding: '18px 18px 12px',
+        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
-        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', flex: 1 }}>
+        <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: ACCENT, flexShrink: 0 }} />
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', flex: 1 }}>
           Notion Notes
-        </span>
+        </h2>
         <span style={{
-          fontSize: 11, fontWeight: 500, color: ACCENT,
-          background: `${ACCENT}14`, padding: '1px 8px', borderRadius: 'var(--radius-pill)',
-          minWidth: 22, textAlign: 'center',
+          fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)',
         }}>
           {notes.length}
         </span>
@@ -391,7 +386,7 @@ function NotionNotesColumn({ notes, onAdd }) {
           title="Export all notes as Markdown files"
           aria-label="Export all notes as Markdown files"
           style={{
-            padding: '2px 7px', fontSize: 10, fontWeight: 500,
+            padding: '2px 7px', fontSize: 11.5, fontWeight: 500,
             border: `1px solid ${ACCENT}30`, borderRadius: 'var(--radius-sm)',
             background: 'transparent', color: ACCENT, cursor: notes.length ? 'pointer' : 'default',
             opacity: notes.length ? 1 : 0.4, display: 'flex', alignItems: 'center', gap: 3,
@@ -403,14 +398,14 @@ function NotionNotesColumn({ notes, onAdd }) {
 
       {/* Note cards */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '10px 10px 2px',
+        flex: 1, overflowY: 'auto', padding: '2px 12px 2px',
         scrollbarWidth: 'thin', scrollbarColor: 'var(--border) transparent',
       }}>
         {notes.length === 0 && !adding && (
           <div style={{
             margin: '4px 0 8px', padding: '18px 12px',
-            border: '1.5px dashed var(--border)', borderRadius: 'var(--radius)',
-            textAlign: 'center', fontSize: 'var(--fs-sm)', color: 'var(--hint)',
+            border: '1.5px dashed var(--border-strong)', borderRadius: 12,
+            textAlign: 'center', fontSize: 14, color: 'var(--muted)',
           }}>
             No pages yet
           </div>
@@ -419,7 +414,7 @@ function NotionNotesColumn({ notes, onAdd }) {
       </div>
 
       {/* Add page */}
-      <div style={{ padding: '4px 10px 10px', flexShrink: 0 }}>
+      <div style={{ padding: '4px 12px 14px', flexShrink: 0 }}>
         {adding ? (
           <div>
             <textarea
@@ -454,8 +449,8 @@ function NotionNotesColumn({ notes, onAdd }) {
           <button
             onClick={() => setAdding(true)}
             style={{
-              width: '100%', textAlign: 'left', padding: '6px 8px',
-              fontSize: 'var(--fs-sm)', color: 'var(--muted)',
+              width: '100%', textAlign: 'left', padding: '0 10px', minHeight: 44,
+              fontSize: 14, fontWeight: 500, color: 'var(--text-2)',
               background: 'transparent', borderRadius: 'var(--radius)',
               display: 'flex', alignItems: 'center', gap: 4,
             }}
@@ -572,29 +567,28 @@ export default function TaskPanel({ refreshKey, onGoToSettings }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 0 }}>
 
-      {/* Toolbar */}
-      <div style={{
-        display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexShrink: 0,
-      }}>
-        <input
-          placeholder="Quick-add a task…"
-          value={newTask}
-          onChange={e => setNewTask(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && newTask.trim()) { addTask(newTask.trim()); setNewTask(''); } }}
-          style={{ flex: 1, fontSize: 'var(--fs-base)' }}
-        />
-        <button className="primary"
-          onClick={() => { if (newTask.trim()) { addTask(newTask.trim()); setNewTask(''); } }}
-          style={{ fontSize: 'var(--fs-base)', whiteSpace: 'nowrap' }}
-        >
-          Add task
-        </button>
-        {loading && (
-          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--hint)', whiteSpace: 'nowrap' }}>
-            Loading…
-          </span>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Work"
+        title="Tasks"
+        subtitle={loading ? 'Loading your tasks…' : `${columns.reduce((n, c) => n + c.cards.length, 0)} cards across ${columns.length} lists.`}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 5px 5px 14px', border: '1px solid var(--border-strong)', borderRadius: 12, background: 'var(--surface)', minWidth: 'min(320px, 100%)' }}>
+          <input
+            aria-label="Add a task"
+            placeholder="Add a task"
+            value={newTask}
+            onChange={e => setNewTask(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && newTask.trim()) { addTask(newTask.trim()); setNewTask(''); } }}
+            style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', minHeight: 40, padding: 0, boxShadow: 'none' }}
+          />
+          <button className="primary"
+            onClick={() => { if (newTask.trim()) { addTask(newTask.trim()); setNewTask(''); } }}
+            style={{ minHeight: 44, padding: '0 18px', whiteSpace: 'nowrap', fontSize: 14 }}
+          >
+            Add
+          </button>
+        </div>
+      </PageHeader>
 
       {/* First load — nothing to show yet */}
       {loading && !hasAny && (

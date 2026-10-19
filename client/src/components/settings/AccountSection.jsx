@@ -69,13 +69,13 @@ export default function AccountSection({ user, onLogout }) {
         </div>
         <div>
           <div style={{ fontWeight: 500, fontSize: 14 }}>@{user.username}</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>Personal account</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Personal account</div>
         </div>
       </div>
 
       {/* Email */}
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Email address</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Email address</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             type="email"
@@ -89,7 +89,7 @@ export default function AccountSection({ user, onLogout }) {
             className="primary"
             onClick={saveEmail}
             disabled={saving === 'email'}
-            style={{ padding: '0 16px', fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ padding: '0 16px', fontSize: 14, whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             {saving === 'email' ? 'Saving…' : 'Save'}
           </button>
@@ -98,7 +98,7 @@ export default function AccountSection({ user, onLogout }) {
 
       {/* Password */}
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Change password</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Change password</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 400 }}>
           <input aria-label="Current password" type="password" value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder="Current password" />
           <input aria-label="New password" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="New password (min 8 chars)" />
@@ -108,7 +108,7 @@ export default function AccountSection({ user, onLogout }) {
               className="primary"
               onClick={changePassword}
               disabled={!currentPass || !newPass || saving === 'password'}
-              style={{ padding: '7px 16px', fontSize: 13 }}
+              style={{ padding: '7px 16px', fontSize: 14 }}
             >
               {saving === 'password' ? 'Saving…' : 'Change password'}
             </button>
@@ -119,7 +119,7 @@ export default function AccountSection({ user, onLogout }) {
       {status && (
         <div style={{
           margin: '0 20px 0', padding: '10px 14px',
-          fontSize: 12, lineHeight: 1.5,
+          fontSize: 13, lineHeight: 1.5,
           color: status.type === 'success' ? 'var(--tag-success-fg)' : 'var(--tag-danger-fg)',
           background: status.type === 'success' ? 'var(--tag-success-bg)' : 'var(--tag-danger-bg)',
           borderBottom: '1px solid var(--border)',
@@ -130,19 +130,19 @@ export default function AccountSection({ user, onLogout }) {
 
       {/* Danger zone */}
       <div style={{ padding: '16px 20px', background: 'var(--bg)' }}>
-        <div style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: 10 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: 10 }}>
           Danger zone
         </div>
         {!showDelete ? (
           <button
             onClick={() => setShowDelete(true)}
-            style={{ fontSize: 12, color: 'var(--danger)', padding: '5px 12px', border: '1px solid var(--danger)', borderRadius: 6, background: 'transparent' }}
+            style={{ fontSize: 13, color: 'var(--danger)', padding: '5px 12px', border: '1px solid var(--danger)', borderRadius: 6, background: 'transparent' }}
           >
             Delete account
           </button>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 380 }}>
-            <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
               This will permanently delete your account and all stored keys. Enter your password to confirm.
             </p>
             <input
@@ -158,11 +158,11 @@ export default function AccountSection({ user, onLogout }) {
                 onClick={deleteAccount}
                 disabled={!deletePass}
                 className="danger"
-                style={{ fontSize: 12, padding: '6px 14px' }}
+                style={{ fontSize: 13, padding: '6px 14px' }}
               >
                 Delete my account
               </button>
-              <button onClick={() => setShowDelete(false)} style={{ fontSize: 12, padding: '6px 14px' }}>
+              <button onClick={() => setShowDelete(false)} style={{ fontSize: 13, padding: '6px 14px' }}>
                 Cancel
               </button>
             </div>

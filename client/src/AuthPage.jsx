@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { setToken } from './api.js';
 import { authErrorMessage } from './authErrors.js';
+import Logo from './components/Logo.jsx';
 
 function submitButtonLabel(loading, isSignup) {
   if (loading) return '…';
@@ -56,34 +57,49 @@ export default function AuthPage({ onAuth }) {
   const isSignup = mode === 'signup';
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', background: 'var(--bg)',
-    }}>
-      <div style={{
-        width: 360, maxWidth: '92vw', padding: 32,
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: 'var(--border-hairline)',
-        boxShadow: 'var(--shadow-2)',
-      }}>
-        {/* Logo area */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{
-              width: 28, height: 28, borderRadius: 6,
-              background: 'var(--accent)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 500, fontSize: 13,
-            }}>D</span>
-            <span style={{ fontWeight: 500, fontSize: 18, color: 'var(--text)' }}>DevOS</span>
-          </div>
-          <p style={{ fontSize: 'var(--fs-base)', color: 'var(--muted)', margin: 0 }}>
-            {isSignup ? 'Create your workspace' : 'Sign in to your workspace'}
+    <div className="auth-split">
+      <section className="auth-split__brand">
+        <Logo size={36} textSize={26} color="var(--bg)" />
+        <div className="auth-split__pitch auth-split__pitch--copy" style={{ flexDirection: 'column', gap: 18, maxWidth: 460 }}>
+          <h1 style={{ fontSize: 44, lineHeight: 1.08, fontWeight: 600, letterSpacing: '-0.025em' }}>
+            Your mail, calendar, tasks and code in one place.
+          </h1>
+          <p style={{ fontSize: 17, lineHeight: 1.55, color: '#B9B8B1' }}>
+            Ask in plain language. Dayhand reads across your connected services and tells you where each answer came from.
+          </p>
+        </div>
+        <div className="auth-split__pitch" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sidebar-muted)' }}>
+          Gmail · Calendar · Notion · GitHub · Trello · Slack
+        </div>
+      </section>
+
+      <section className="auth-split__form">
+      <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div role="group" aria-label="Mode" style={{ display: 'flex', padding: 4, borderRadius: 12, background: '#E9E6DC' }}>
+          {[['login', 'Sign in'], ['signup', 'Create account']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={mode === id}
+              onClick={() => switchMode(id)}
+              style={{
+                flex: 1, minHeight: 44, borderRadius: 9, fontSize: 14.5, fontWeight: 600,
+                background: mode === id ? 'var(--surface)' : 'transparent',
+              }}
+            >{label}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h2 style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>
+            {isSignup ? 'Create your account' : 'Welcome back'}
+          </h2>
+          <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--muted)' }}>
+            {isSignup ? 'You will connect your services in a short setup next.' : 'Sign in to open your day.'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input
             name="username"
             id="username"
@@ -134,9 +150,9 @@ export default function AuthPage({ onAuth }) {
               tabIndex={-1}
               style={{
                 position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                color: 'var(--hint)', display: 'flex', alignItems: 'center',
-                fontSize: 11, fontWeight: 500,
+                background: 'none', border: 'none', padding: '8px 4px', minHeight: 0, cursor: 'pointer',
+                color: 'var(--muted)', display: 'flex', alignItems: 'center',
+                fontSize: 13, fontWeight: 500,
               }}
               aria-label={showPwd ? 'Hide password' : 'Show password'}
             >
@@ -144,13 +160,13 @@ export default function AuthPage({ onAuth }) {
             </button>
           </div>
           {isSignup && (
-            <p style={{ fontSize: 11, color: 'var(--hint)', margin: '0 2px' }}>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 2px' }}>
               Password must be at least 8 characters.
             </p>
           )}
 
           {error && (
-            <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: 0 }}>
+            <p role="alert" style={{ color: 'var(--danger)', fontSize: 13.5, margin: 0 }}>
               {error}
             </p>
           )}
@@ -159,20 +175,20 @@ export default function AuthPage({ onAuth }) {
             type="submit"
             disabled={loading}
             className="primary"
-            style={{ marginTop: 4, padding: '9px 16px', fontSize: 'var(--fs-base)' }}
+            style={{ marginTop: 4, minHeight: 48, padding: '0 16px', fontSize: 15 }}
           >
             {submitButtonLabel(loading, isSignup)}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)', margin: '14px 0 0' }}>
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--muted)', margin: '14px 0 0' }}>
           {isSignup ? 'Already have an account? ' : "Don't have an account? "}
           <button
             type="button"
             onClick={() => switchMode(isSignup ? 'login' : 'signup')}
             style={{
               background: 'none', border: 'none', padding: 0,
-              color: 'var(--accent)', fontWeight: 500, fontSize: 13,
+              color: 'var(--accent)', fontWeight: 600, fontSize: 14, minHeight: 0,
               cursor: 'pointer', textDecoration: 'underline',
             }}
           >
@@ -181,19 +197,19 @@ export default function AuthPage({ onAuth }) {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0' }}>
-          <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
-          <span style={{ fontSize: 11, color: 'var(--hint)' }}>or</span>
-          <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
 
         <a href={`/api/auth/google/signin?origin=${encodeURIComponent(window.location.origin)}`} style={{ textDecoration: 'none', display: 'block' }}>
           <button
             type="button"
             style={{
-              width: '100%', padding: '9px 16px',
-              fontSize: 'var(--fs-base)', fontWeight: 500,
+              width: '100%', minHeight: 48, padding: '0 16px',
+              fontSize: 15, fontWeight: 600,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              background: 'var(--surface)', border: '1px solid var(--border)',
+              background: 'var(--surface)', border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text)',
             }}
           >
@@ -207,6 +223,7 @@ export default function AuthPage({ onAuth }) {
           </button>
         </a>
       </div>
+      </section>
     </div>
   );
 }

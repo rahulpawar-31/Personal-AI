@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import PageHeader from './PageHeader.jsx';
+import { LogoMark } from './Logo.jsx';
 import { apiFetch } from '../api.js';
 import { streamChat } from '../lib/chatStream.js';
 import { toast } from '../toast.jsx';
@@ -307,46 +309,36 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 400 }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 500, fontSize: 14,
-          }}>D</div>
-          <div>
-            <div style={{ fontWeight: 500, fontSize: 14, letterSpacing: '-0.01em' }}>DevOS Agent</div>
-            <div style={{ fontSize: 11, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
-              {useAgent ? 'LangChain agent' : 'Online'}
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* LangChain agent toggle */}
-          <button
-            onClick={toggleAgent}
-            title={useAgent ? 'Using the LangChain agent — click to switch back to the classic engine' : 'Switch to the LangChain agent'}
-            style={{
-              fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 99,
-              border: `1px solid ${useAgent ? 'var(--accent)' : 'var(--border)'}`,
-              background: useAgent ? 'var(--accent)' : 'transparent',
-              color: useAgent ? '#fff' : 'var(--muted)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 5,
-            }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: useAgent ? '#fff' : 'var(--hint)' }} />
-            Agent: {useAgent ? 'ON' : 'OFF'}
+      <PageHeader
+        eyebrow="Overview"
+        title="Chat"
+        subtitle="Ask across mail, calendar, tasks and code. Every answer says which service it came from."
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', padding: '4px 10px', borderRadius: 999, background: 'var(--surface-sunken)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
+          {useAgent ? 'agent · LangChain' : 'classic engine'}
+        </span>
+        <button
+          onClick={toggleAgent}
+          aria-pressed={useAgent}
+          title={useAgent ? 'Using the LangChain agent — click to switch back to the classic engine' : 'Switch to the LangChain agent'}
+          style={{
+            fontSize: 13, fontWeight: 500, padding: '0 14px', minHeight: 40, borderRadius: 999,
+            border: `1px solid ${useAgent ? 'var(--accent)' : 'var(--border-strong)'}`,
+            background: useAgent ? 'var(--accent)' : 'var(--surface)',
+            color: useAgent ? '#fff' : 'var(--text-2)', cursor: 'pointer',
+          }}
+        >
+          Agent: {useAgent ? 'ON' : 'OFF'}
+        </button>
+        {!isEmpty && (
+          <button onClick={clearHistory} style={{ fontSize: 13, color: 'var(--text-2)', padding: '0 14px', minHeight: 40, background: 'transparent', border: '1px solid var(--border-strong)', borderRadius: 999 }}>
+            Clear
           </button>
-          {!isEmpty && (
-            <button onClick={clearHistory} style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 10px', background: 'transparent' }}>
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
+
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px 16px' }}>
 
       {/* Messages */}
       <div role="log" aria-live="polite" aria-label="Conversation" style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
@@ -363,15 +355,9 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 36, paddingBottom: 24 }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: 16,
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 500, fontSize: 22,
-                marginBottom: 14,
-              }}>D</div>
-              <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 6 }}>How can I help?</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, textAlign: 'center', maxWidth: 340, lineHeight: 1.6 }}>
+              <div style={{ marginBottom: 14 }}><LogoMark size={56} /></div>
+              <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 6 }}>How can I help?</div>
+              <div style={{ fontSize: 14.5, color: 'var(--muted)', marginBottom: 18, textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
                 Ask me anything — emails, calendar, tasks, PRs, drafts, or your whole day.
               </div>
 
@@ -381,7 +367,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                   {activeTools.map(t => (
                     <span key={t.key} style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      fontSize: 11, padding: '4px 10px',
+                      fontSize: 12.5, padding: '5px 12px',
                       borderRadius: 20,
                       background: 'var(--surface)',
                       border: '1px solid var(--border)',
@@ -401,16 +387,16 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                     key={s.text}
                     onClick={() => { setInput(s.text); textareaRef.current?.focus(); }}
                     style={{
-                      fontSize: 12, padding: '7px 14px',
-                      borderRadius: 20,
+                      fontSize: 13.5, fontWeight: 500, padding: '0 14px', minHeight: 40,
+                      borderRadius: 999,
                       background: 'var(--surface)',
-                      border: '1px solid var(--border)',
+                      border: '1px solid var(--border-strong)',
                       color: 'var(--text)',
                       cursor: 'pointer',
                       transition: 'border-color 0.15s, color 0.15s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text)'; }}
                   >
                     {s.text}
                   </button>
@@ -418,7 +404,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
               </div>
 
               {activeTools.length === 0 && (
-                <p style={{ fontSize: 12, color: 'var(--hint)', marginTop: 16, textAlign: 'center', maxWidth: 300 }}>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 16, textAlign: 'center', maxWidth: 300 }}>
                   Connect Google, GitHub, or Todoist in Settings to unlock more actions.
                 </p>
               )}
@@ -444,28 +430,20 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             >
               {/* Avatar — only for first assistant message in a group */}
               {!isUser && (
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: showAvatar ? 'var(--accent)' : 'transparent',
-                  flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 500, fontSize: 12,
-                }}>
-                  {showAvatar ? 'D' : ''}
+                <div style={{ width: 28, height: 28, flexShrink: 0 }}>
+                  {showAvatar && <LogoMark size={28} tone="ink" />}
                 </div>
               )}
 
               {/* Bubble */}
               <div style={{ maxWidth: '72%', display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  background: isUser ? 'var(--accent)' : 'var(--surface)',
-                  color: isUser ? '#fff' : 'var(--text)',
-                  border: isUser ? 'none' : '1px solid var(--border)',
-                  borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                  padding: '10px 14px',
-                  fontSize: 13,
-                  lineHeight: 1.65,
-                  boxShadow: isUser ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
+                  background: isUser ? 'var(--text)' : 'var(--bg)',
+                  color: isUser ? 'var(--bg)' : 'var(--text)',
+                  borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  padding: '12px 16px',
+                  fontSize: 15,
+                  lineHeight: 1.55,
                 }}>
                   {renderContent(m.content)}
                   {m.intents?.filter(x => x !== 'general_chat').length > 0 && (
@@ -475,7 +453,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                     }}>
                       {m.intents.filter(x => x !== 'general_chat').map(intent => (
                         <span key={intent} style={{
-                          fontSize: 10, fontWeight: 500,
+                          fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
                           background: 'rgba(255,255,255,0.15)',
                           border: '1px solid rgba(255,255,255,0.2)',
                           borderRadius: 4, padding: '1px 6px',
@@ -487,7 +465,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--hint)', marginTop: 3, padding: '0 2px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)', marginTop: 4, padding: '0 4px' }}>
                   {formatTime(m.at)}
                 </div>
               </div>
@@ -498,16 +476,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         {/* Typing / status indicator */}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, paddingBottom: 12 }}>
+            <LogoMark size={28} tone="ink" />
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: 'var(--accent)',
-              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 500, fontSize: 12,
-            }}>D</div>
-            <div style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: '12px 12px 12px 2px',
-              padding: '10px 14px',
+              background: 'var(--bg)',
+              borderRadius: '16px 16px 16px 4px',
+              padding: '12px 16px',
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
               <span style={{ display: 'flex', gap: 4 }}>
@@ -521,7 +494,7 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
                 ))}
               </span>
               {statusText && (
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>{statusText}</span>
+                <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>{statusText}</span>
               )}
             </div>
           </div>
@@ -547,10 +520,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
       <div style={{
         flexShrink: 0,
         marginTop: 12,
-        background: 'var(--bg)',
-        border: '1.5px solid var(--border)',
-        borderRadius: 16,
-        padding: '10px 10px 10px 14px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 14,
+        padding: '6px 6px 6px 16px',
         display: 'flex', alignItems: 'flex-end', gap: 8,
         transition: 'border-color 0.15s',
       }}
@@ -558,12 +531,12 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
           e.currentTarget.style.borderColor = 'var(--accent)';
         }}
         onBlurCapture={e => {
-          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.borderColor = 'var(--border-strong)';
         }}
       >
         <textarea
           ref={textareaRef}
-          placeholder="Message DevOS…"
+          placeholder="Message Dayhand"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={onKeyDown}
@@ -575,11 +548,12 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             outline: 'none',
             resize: 'none',
             background: 'transparent',
-            fontSize: 13.5,
+            fontSize: 15,
             lineHeight: 1.6,
             color: 'var(--text)',
             fontFamily: 'inherit',
-            padding: '2px 0',
+            padding: '10px 0',
+            minHeight: 44,
             overflowY: 'auto',
             maxHeight: 160,
             boxShadow: 'none',
@@ -592,8 +566,8 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             title={listening ? 'Stop listening' : 'Voice input'}
             aria-label={listening ? 'Stop listening' : 'Voice input'}
             style={{
-              width: 34, height: 34, borderRadius: 10, padding: 0,
-              border: `1px solid ${listening ? 'var(--danger)' : 'var(--border)'}`,
+              width: 44, height: 44, borderRadius: 10, padding: 0,
+              border: `1px solid ${listening ? 'var(--danger)' : 'var(--border-strong)'}`,
               background: listening ? 'var(--tag-danger-bg)' : 'var(--surface)',
               color: listening ? 'var(--danger)' : 'var(--muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -614,11 +588,11 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
             disabled={loading || !input.trim()}
             aria-label="Send message"
             style={{
-              width: 34, height: 34,
+              width: 44, height: 44,
               borderRadius: 10,
-              background: input.trim() && !loading ? 'var(--accent)' : '#E8E7E3',
+              background: input.trim() && !loading ? 'var(--accent)' : 'var(--surface-sunken)',
               border: 'none',
-              color: input.trim() && !loading ? '#fff' : 'var(--hint)',
+              color: input.trim() && !loading ? '#fff' : 'var(--muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 17, fontWeight: 500, padding: 0,
               transition: 'background 0.15s, color 0.15s',
@@ -633,8 +607,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
           </button>
         </div>
       </div>
-      <div style={{ fontSize: 10, color: 'var(--hint)', textAlign: 'center', marginTop: 6 }}>
+      <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 8 }}>
         {listening ? '● Listening… click ■ to stop' : 'Enter ↵ to send  ·  Shift+Enter for new line'}
+      </div>
+
       </div>
 
       <style>{`

@@ -23,24 +23,24 @@ export default function NetworkCard() {
     }
   }
 
-  const label = { fontSize: 11, color: 'var(--muted)', marginBottom: 2 };
-  const mono  = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12, overflowWrap: 'anywhere' };
+  const label = { fontSize: 12.5, color: 'var(--muted)', marginBottom: 2 };
+  const mono  = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 13, overflowWrap: 'anywhere' };
 
   return (
     <section aria-label="Request path" style={{
-      background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius)',
-      padding: '12px 14px', marginBottom: 20,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+      padding: '18px 22px', marginBottom: 20,
     }}>
-      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Request path</div>
-      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+      <div className="t-eyebrow" style={{ marginBottom: 6 }}>Request path</div>
+      <div style={{ fontSize: 13, color: 'var(--muted)' }}>
         Shows which address the server takes to be yours, which the per-address rate limits use.
       </div>
-      <button onClick={check} disabled={loading} style={{ fontSize: 12, padding: '5px 14px', marginTop: 8 }}>
+      <button onClick={check} disabled={loading} style={{ fontSize: 13, padding: '5px 14px', marginTop: 8 }}>
         {loading ? 'Checking…' : info ? 'Check again' : 'Check request path'}
       </button>
 
       {info && (
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
           <div>
             <div style={label}>Treated as your address now (hops: {info.trustProxyHops})</div>
             <div style={mono}>{info.clientAddressSeen ?? 'unknown'}</div>
@@ -55,7 +55,7 @@ export default function NetworkCard() {
           </div>
           <div>
             <div style={label}>Address each hop count would use</div>
-            <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
                 {info.ifHopsWere.map(h => (
                   <tr key={h.hops}>
@@ -66,7 +66,7 @@ export default function NetworkCard() {
               </tbody>
             </table>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>
             Look up your own public address (search "what is my IP"). If the row marked "now" is not it, set
             TRUST_PROXY_HOPS to the hop count whose row is. Only raise it if every request really passes through
             those proxies. If your address is IPv6 and no row matches, look up your IPv4 address too (or the other way

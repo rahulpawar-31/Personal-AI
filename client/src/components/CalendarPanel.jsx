@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import PageHeader from './PageHeader.jsx';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { nextHourLocal, localToInstantISO } from '../dateInput.js';
@@ -138,7 +139,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
 
   if (!connected) return (
     <div>
-      <h2 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>Calendar</h2>
+      <PageHeader eyebrow="Inbox & calendar" title="Calendar" subtitle="Events, meetings and scheduling conflicts." />
       <NotConnected
         title="Calendar not connected"
         description="Connect your Google account to see upcoming events, create meetings, and detect scheduling conflicts."
@@ -154,14 +155,13 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
     <div>
       {authError && (
         <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ color: 'var(--danger)', fontSize: 13 }}>Google disconnected</span>
-          <button className="primary" style={{ fontSize: 12, padding: '5px 14px' }} onClick={onConnectGoogle}>
+          <span style={{ color: 'var(--danger)', fontSize: 14 }}>Google disconnected</span>
+          <button className="primary" style={{ fontSize: 13.5, padding: '0 16px', minHeight: 40 }} onClick={onConnectGoogle}>
             Reconnect
           </button>
         </div>
       )}
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+      <PageHeader eyebrow="Inbox & calendar" title="Calendar" subtitle={monthLabel}>
         <button
           onClick={() => goToMonth(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
           aria-label="Previous month"
@@ -172,30 +172,27 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
           aria-label="Next month"
           style={navBtn}
         >›</button>
-        <h2 style={{ fontSize: 17, fontWeight: 500, margin: 0, letterSpacing: '-0.01em' }}>{monthLabel}</h2>
-        <button onClick={() => goToMonth(startOfMonth(new Date()))} style={{ fontSize: 12 }}>Today</button>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button
-            className="primary"
-            onClick={() => setShowForm(true)}
-            style={{ fontSize: 13, padding: '7px 16px', display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Create
-          </button>
-        </div>
-      </div>
+        <button onClick={() => goToMonth(startOfMonth(new Date()))} style={{ fontSize: 14, fontWeight: 500, minHeight: 44, padding: '0 16px', border: '1px solid var(--border-strong)', background: 'var(--surface)' }}>Today</button>
+        <button
+          className="primary"
+          onClick={() => setShowForm(true)}
+          style={{ fontSize: 14.5, padding: '0 20px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Create
+        </button>
+      </PageHeader>
 
       {/* Month grid. On a phone each day shows coloured dots instead of titles
           and the selected day's events are listed underneath; on wider screens
           each day lists its events and a chip opens the details. */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)' }}>
 
         {/* Day-of-week headers */}
         <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
           {DOW.map((d, i) => (
             <div key={d} style={{
               padding: '10px 0', textAlign: 'center',
-              fontSize: 12, fontWeight: 500, color: 'var(--muted)',
+              fontFamily: 'var(--font-mono)', fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, color: 'var(--muted)',
               borderRight: i < 6 ? '1px solid var(--border)' : 'none',
             }}>{d}</div>
           ))}
@@ -217,8 +214,8 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
               const dayEvs         = eventsOnDay(events, day);
               const overflow       = dayEvs.length - 3;
               const cellBackground = isSelected
-                ? 'color-mix(in srgb, var(--accent) 9%, var(--bg))'
-                : isToday ? 'color-mix(in srgb, var(--accent) 4%, var(--bg))' : 'var(--bg)';
+                ? 'color-mix(in srgb, var(--accent) 10%, var(--surface))'
+                : isToday ? 'color-mix(in srgb, var(--accent) 5%, var(--surface))' : 'var(--surface)';
               const cell = {
                 minWidth: 0,
                 height: compact ? 58 : 128,
@@ -229,7 +226,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                 outlineOffset: '-2px',
               };
               const numberStyle = {
-                fontSize: 13, fontWeight: isToday ? 700 : 400, color: dayNumberColor(isToday, isCurrentMonth),
+                fontSize: 14, fontWeight: isToday ? 600 : 500, color: dayNumberColor(isToday, isCurrentMonth),
               };
 
               if (compact) {
@@ -251,7 +248,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                         <span key={ev.id} style={{ width: 6, height: 6, borderRadius: '50%', background: eventColor(ev.title) }} />
                       ))}
                     </span>
-                    {overflow > 0 && <span aria-hidden="true" style={{ fontSize: 9, color: 'var(--hint)', lineHeight: 1 }}>+{overflow}</span>}
+                    {overflow > 0 && <span aria-hidden="true" style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1 }}>+{overflow}</span>}
                   </button>
                 );
               }
@@ -262,7 +259,7 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                   <button
                     type="button" onClick={() => setSelectedDay(day)}
                     aria-label={dayCellLabel(day, dayEvs.length)} aria-pressed={isSelected}
-                    style={{ ...numberStyle, display: 'block', marginBottom: 5, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13 }}
+                    style={{ ...numberStyle, display: 'block', marginBottom: 5, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     {day.getDate()}
                   </button>
@@ -281,19 +278,19 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                     >
                       <span style={{ width: 3, height: 14, borderRadius: 2, background: eventColor(ev.title), flexShrink: 0 }} />
                       <span style={{
-                        fontSize: 11.5, color: 'var(--text)',
+                        fontSize: 12.5, color: 'var(--text)',
                         flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
                         {ev.title}
                       </span>
-                      <span aria-hidden="true" style={{ fontSize: 10, color: 'var(--hint)', flexShrink: 0 }}>›</span>
+                      <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>›</span>
                     </button>
                   ))}
 
                   {overflow > 0 && (
                     <button
                       type="button" onClick={() => setSelectedDay(day)}
-                      style={{ marginTop: 2, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--hint)' }}
+                      style={{ marginTop: 2, padding: 0, border: 'none', background: 'transparent', boxShadow: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--muted)' }}
                     >
                       +{overflow} more
                     </button>
@@ -307,10 +304,10 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
 
       {/* The selected day's events, listed in full */}
       {selectedDay && (
-        <section aria-label={`Events on ${dayLabel(selectedDay)}`} style={{ marginTop: 18 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 500, margin: '0 0 8px' }}>{dayLabel(selectedDay)}</h3>
+        <section aria-label={`Events on ${dayLabel(selectedDay)}`} style={{ marginTop: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px' }}>
+          <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 12px' }}>{dayLabel(selectedDay)}</h3>
           {selectedEvents.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>{coverageNote}</p>
+            <p style={{ fontSize: 14.5, color: 'var(--muted)', margin: 0 }}>{coverageNote}</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {selectedEvents.map(ev => (
@@ -319,23 +316,23 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
                     type="button" onClick={e => showDetails(ev, e.currentTarget)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                      padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)',
-                      background: 'var(--surface)', boxShadow: 'none', cursor: 'pointer', font: 'inherit',
+                      padding: '12px 14px', minHeight: 44, borderRadius: 12, border: 'none',
+                      background: 'var(--bg)', boxShadow: 'none', cursor: 'pointer', font: 'inherit',
                     }}
                   >
                     <span style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: eventColor(ev.title), flexShrink: 0 }} />
                     <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={{ display: 'block', fontSize: 13, color: 'var(--text)', overflowWrap: 'anywhere' }}>{ev.title}</span>
-                      <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>{eventTimeLabel(ev)}</span>
+                      <span style={{ display: 'block', fontSize: 15.5, fontWeight: 600, color: 'var(--text)', overflowWrap: 'anywhere' }}>{ev.title}</span>
+                      <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>{eventTimeLabel(ev)}</span>
                     </span>
-                    <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--hint)' }}>›</span>
+                    <span aria-hidden="true" style={{ fontSize: 14, color: 'var(--muted)' }}>›</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
           {selectedEvents.length > 0 && coverageNote && (
-            <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>{coverageNote}</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>{coverageNote}</p>
           )}
         </section>
       )}
@@ -356,10 +353,10 @@ export default function CalendarPanel({ connected, refreshKey, onConnectGoogle, 
 }
 
 const navBtn = {
-  width: 32, height: 32, padding: 0, borderRadius: 8,
-  border: 'none', background: 'transparent',
+  width: 44, height: 44, padding: 0, borderRadius: 10,
+  border: '1px solid var(--border-strong)', background: 'var(--surface)',
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  color: 'var(--muted)', fontSize: 18, lineHeight: 1,
+  color: 'var(--text)', fontSize: 20, lineHeight: 1,
 };
 
 function createButtonLabel(creating, recurring) {
@@ -368,8 +365,8 @@ function createButtonLabel(creating, recurring) {
 }
 
 const miniNav = {
-  width: 24, height: 24, padding: 0, borderRadius: 6, border: 'none',
-  background: 'transparent', cursor: 'pointer', color: 'var(--muted)', fontSize: 16, lineHeight: 1,
+  width: 44, height: 44, padding: 0, borderRadius: 10, border: 'none',
+  background: 'transparent', cursor: 'pointer', color: 'var(--muted)', fontSize: 20, lineHeight: 1,
 };
 
 // Read-only details of one event. Focus moves into the dialog when it opens and
@@ -444,17 +441,17 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
         tabIndex={0}
         aria-label="Close dialog"
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
-        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(20,20,18,0.28)' }}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(23,25,27,0.4)' }}
       />
       <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
         width: 440, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
-        background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--border)',
-        zIndex: 201, padding: '20px 22px 24px', boxShadow: 'var(--shadow-2)',
+        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)',
+        zIndex: 201, padding: '24px 26px 28px', boxShadow: 'var(--shadow-2)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <span style={{ fontSize: 15, fontWeight: 500 }}>New event</span>
-          <button onClick={onClose} aria-label="Close" style={{ ...miniNav, border: '1px solid var(--border)' }}>×</button>
+          <span style={{ fontSize: 19, fontWeight: 600 }}>New event</span>
+          <button onClick={onClose} aria-label="Close" style={{ ...miniNav, border: '1px solid var(--border-strong)' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
@@ -462,7 +459,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
             const active = (mode === 'Recurring') === form.recurring;
             return (
               <button key={mode} onClick={() => setForm(f => ({ ...f, recurring: mode === 'Recurring' }))} style={{
-                fontSize: 12, padding: '4px 14px', borderRadius: 7,
+                fontSize: 14, padding: '0 16px', minHeight: 40, borderRadius: 10,
                 background: active ? 'var(--text)' : 'var(--surface)',
                 color: active ? 'var(--bg)' : 'var(--muted)',
                 border: `1px solid ${active ? 'var(--text)' : 'var(--border)'}`,
@@ -485,7 +482,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
                     const on = form.days.includes(num);
                     return (
                       <button key={num} onClick={() => toggleDay(num)} style={{
-                        fontSize: 11, padding: '4px 10px', borderRadius: 6,
+                        fontSize: 13, padding: '0 12px', minHeight: 40, borderRadius: 10,
                         background: on ? 'var(--accent)' : 'var(--surface)',
                         color: on ? '#fff' : 'var(--muted)',
                         border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
@@ -521,7 +518,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
           <div style={{ display: 'flex', gap: 6 }}>
             {[15, 30, 60, 90].map(m => (
               <button key={m} onClick={() => setForm(f => ({ ...f, duration: m }))} style={{
-                fontSize: 11, padding: '3px 10px', borderRadius: 6,
+                fontSize: 13, padding: '0 12px', minHeight: 36, borderRadius: 10,
                 background: Number(form.duration) === m ? 'var(--text)' : 'var(--surface)',
                 color: Number(form.duration) === m ? 'var(--bg)' : 'var(--muted)',
                 border: `1px solid ${Number(form.duration) === m ? 'var(--text)' : 'var(--border)'}`,
@@ -531,7 +528,7 @@ function CreateEventModal({ form, setForm, creating, onCreate, onClose, toggleDa
 
           <button className="primary" onClick={onCreate}
             disabled={creating || !form.title.trim() || (form.recurring ? !form.days.length : !form.date)}
-            style={{ alignSelf: 'flex-end', marginTop: 4, padding: '8px 18px', opacity: (creating || !form.title.trim()) ? 0.4 : 1 }}>
+            style={{ alignSelf: 'flex-end', marginTop: 4, padding: '0 22px', minHeight: 44 }}>
             {createButtonLabel(creating, form.recurring)}
           </button>
         </div>

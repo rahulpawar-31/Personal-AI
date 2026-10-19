@@ -12,6 +12,7 @@ import GitHubPanel     from './components/GitHubPanel.jsx';
 import SlackPanel      from './components/SlackPanel.jsx';
 import Sidebar         from './components/Sidebar.jsx';
 import MobileTopBar    from './components/MobileTopBar.jsx';
+import MobileTabBar    from './components/MobileTabBar.jsx';
 import CommandPalette  from './components/CommandPalette.jsx';
 import AuthPage        from './AuthPage.jsx';
 import OnboardingWizard from './OnboardingWizard.jsx';
@@ -21,8 +22,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
 
 const BASE_NAV = [
-  { id: 'digest',   label: "Today's digest", dot: '#888780' },
-  { id: 'comms',    label: 'Comms',          dot: '#1D9E75' },
+  { id: 'digest',   label: 'Today',          dot: '#5F6064' },
+  { id: 'comms',    label: 'Mail',           dot: '#0F7B5C' },
   { id: 'calendar', label: 'Calendar',       dot: '#7F77DD' },
   { id: 'tasks',    label: 'Tasks',          dot: '#D85A30' },
   { id: 'github',   label: 'GitHub',         dot: '#24292f' },
@@ -34,7 +35,7 @@ const BASE_NAV = [
 const ADMIN_NAV = { id: 'admin', label: 'Admin', dot: 'var(--danger)' };
 
 // Panel a chat action affects → the toast copy pointing the user at it.
-const PANEL_LABEL = { tasks: 'Tasks', calendar: 'Calendar', github: 'GitHub', comms: 'Comms', digest: "Today's digest" };
+const PANEL_LABEL = { tasks: 'Tasks', calendar: 'Calendar', github: 'GitHub', comms: 'Mail', digest: 'Today' };
 
 export default function App() {
   const [navItems, setNavItems] = useState(BASE_NAV);
@@ -265,7 +266,7 @@ export default function App() {
 
   if (!authChecked) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--hint)', fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--muted)', fontSize: 14 }}>
         Loading…
       </div>
     );
@@ -278,7 +279,7 @@ export default function App() {
   const isChatView  = view === 'chat';
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', overflow: 'hidden', background: 'var(--bg)' }}>
       <ToastContainer />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
 
@@ -300,8 +301,8 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        background: 'var(--surface)',
-        borderLeft: '1px solid var(--border)',
+        background: 'var(--bg)',
+        minWidth: 0,
       }}>
         <MobileTopBar onOpenMenu={() => setSidebarOpen(true)} />
         <div
@@ -313,7 +314,7 @@ export default function App() {
             flexDirection: 'column',
           }}
         >
-          <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
+          <div style={{ display: view === 'digest'   ? 'block' : 'none' }}><DigestPanel health={health} connected={connected} refreshKey={digestRefreshKey} userName={user?.username} onOpenPalette={() => setPaletteOpen(true)} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'comms'    ? 'block' : 'none' }}><EmailPanel userId={user?.id} connected={connected} refreshKey={emailRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: view === 'calendar' ? 'block' : 'none' }}><CalendarPanel connected={connected} refreshKey={calendarRefreshKey} onConnectGoogle={handleConnectGoogle} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: isTasksView ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><TaskPanel refreshKey={taskRefreshKey} onGoToSettings={() => handleViewChange('settings')} /></div>
@@ -324,6 +325,7 @@ export default function App() {
           {view === 'settings' && <SettingsPage user={user} onLogout={handleLogout} health={health} />}
           {view === 'admin'    && <AdminPage user={user} />}
         </div>
+        <MobileTabBar view={view} setView={navigateTo} onOpenMore={() => setSidebarOpen(true)} />
       </main>
     </div>
   );

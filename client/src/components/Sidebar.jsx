@@ -1,42 +1,46 @@
 import { groupMainNavItems } from '../navGroups.js';
+import { NavIcon } from '../navIcons.jsx';
+import Logo from './Logo.jsx';
 
-function NavItem({ label, active, onClick, dot }) {
+function NavItem({ id, label, active, onClick, shortcut, badge }) {
   return (
     <button
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
+      className="nav-item"
       style={{
-        display: 'flex', alignItems: 'center', gap: 9,
-        width: '100%', padding: '7px 14px 7px 12px',
-        border: 'none', borderRadius: 7,
+        display: 'flex', alignItems: 'center', gap: 11,
+        width: '100%', minHeight: 40, padding: '0 10px',
+        border: 'none', borderRadius: 8,
         margin: '1px 0',
         background: active ? 'var(--sidebar-active-bg)' : 'transparent',
-        color: active ? 'var(--text)' : 'var(--sidebar-item-color)',
-        fontWeight: active ? 500 : 400,
-        fontSize: 13,
+        color: active ? 'var(--sidebar-text)' : 'var(--sidebar-item-color)',
+        fontWeight: 500,
+        fontSize: 14,
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'background 0.1s, color 0.1s',
-        position: 'relative',
         lineHeight: 1,
       }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--sidebar-hover-bg)'; }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
     >
-      <span style={{
-        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-        background: dot ?? 'transparent',
-        opacity: active ? 1 : 0.65,
-      }} />
-      {label}
+      <NavIcon id={id} />
+      <span style={{ flex: 1 }}>{label}</span>
+      {shortcut && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--sidebar-muted)' }}>{shortcut}</span>}
+      {badge && (
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+          padding: '2px 6px', borderRadius: 5, background: 'var(--sidebar-active-bg)', color: 'var(--accent-soft)',
+        }}>{badge}</span>
+      )}
     </button>
   );
 }
 
 function ServiceDot({ label, ok }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--sidebar-item-color)' }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: ok ? 'var(--success)' : 'var(--danger)', flexShrink: 0 }} />
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--sidebar-item-color)' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: ok ? 'var(--success)' : '#D08A1E', flexShrink: 0 }} />
       {label}
     </span>
   );
@@ -59,6 +63,8 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
   }
 
   const grouped = groupMainNavItems(navItems);
+  const order = grouped.flatMap(g => g.items.map(n => n.id));
+  const shortcutIndex = id => order.indexOf(id) + 1;
 
   return (
     <>
@@ -66,7 +72,7 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
       <aside
         className={`sidebar${mobileOpen ? ' sidebar--open' : ''}`}
         style={{
-          width: 220,
+          width: 232,
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--sidebar-border)',
           display: 'flex',
@@ -77,41 +83,34 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
         }}
       >
         {/* Logo */}
-        <div style={{ padding: '18px 16px 14px', display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 7,
-            background: 'var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 500, fontSize: 13, flexShrink: 0,
-            letterSpacing: '-0.02em',
-          }}>D</div>
-          <span style={{ fontWeight: 500, fontSize: 14.5, color: 'var(--text)', letterSpacing: '-0.02em' }}>DevOS</span>
+        <div style={{ padding: '24px 24px 8px' }}>
+          <Logo color="var(--sidebar-text)" />
         </div>
 
         {/* Main nav */}
-        <nav aria-label="Panels" style={{ flex: 1, overflowY: 'auto', padding: '4px 8px 0' }}>
+        <nav aria-label="Panels" style={{ flex: 1, overflowY: 'auto', padding: '4px 14px 0' }}>
           {grouped.map(({ group, items }) => (
             <div key={group}>
               <div className="nav-section-label">{group}</div>
               {items.map(n => (
-                <NavItem key={n.id} {...n} active={view === n.id} onClick={() => selectView(n.id)} />
+                <NavItem key={n.id} {...n} shortcut={String(shortcutIndex(n.id))} active={view === n.id} onClick={() => selectView(n.id)} />
               ))}
             </div>
           ))}
         </nav>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'var(--sidebar-border)', margin: '6px 16px' }} />
+        <div style={{ height: 1, background: 'var(--sidebar-border)', margin: '6px 24px' }} />
 
         {/* Bottom nav */}
-        <div style={{ padding: '0 8px 4px' }}>
+        <div style={{ padding: '0 14px 4px' }}>
           {bottomItems.map(n => (
-            <NavItem key={n.id} {...n} active={view === n.id} onClick={() => selectView(n.id)} />
+            <NavItem key={n.id} {...n} badge={n.id === 'admin' ? 'admin' : undefined} active={view === n.id} onClick={() => selectView(n.id)} />
           ))}
         </div>
 
         {/* Service status */}
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--sidebar-border)' }}>
+        <div style={{ padding: '12px 24px', borderTop: '1px solid var(--sidebar-border)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 8px' }}>
             {services.map(s => <ServiceDot key={s.label} {...s} />)}
           </div>
@@ -119,8 +118,8 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
             <button
               onClick={onConnectGoogle}
               style={{
-                marginTop: 8, width: '100%', fontSize: 11, padding: '5px 8px',
-                borderRadius: 6, border: '1px solid var(--sidebar-border)',
+                marginTop: 8, width: '100%', fontSize: 12.5, padding: '8px', minHeight: 36,
+                borderRadius: 8, border: '1px solid var(--sidebar-border)',
                 background: 'transparent', color: 'var(--sidebar-item-color)',
                 cursor: 'pointer', textAlign: 'center',
               }}
@@ -131,26 +130,26 @@ export default function Sidebar({ view, setView, navItems, user, health, connect
         </div>
 
         {/* User */}
-        <div style={{ padding: '10px 14px 14px', borderTop: '1px solid var(--sidebar-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '12px 24px 18px', borderTop: '1px solid var(--sidebar-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 26, height: 26, borderRadius: '50%',
+            width: 32, height: 32, borderRadius: '50%',
             background: 'var(--sidebar-avatar-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)', fontWeight: 500, fontSize: 11, flexShrink: 0,
+            color: 'var(--sidebar-text)', fontWeight: 600, fontSize: 13, flexShrink: 0,
           }}>
             {user?.username?.charAt(0).toUpperCase()}
           </div>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--sidebar-item-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            @{user?.username}
+          <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500, color: 'var(--sidebar-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.username}
           </span>
           <button
             onClick={onLogout}
             aria-label="Log out"
             title="Log out"
             style={{
-              padding: '3px 7px', fontSize: 11, borderRadius: 5,
+              width: 44, height: 44, padding: 0, fontSize: 14, borderRadius: 8,
               border: '1px solid var(--sidebar-border)',
-              background: 'transparent', color: 'var(--muted)', cursor: 'pointer',
+              background: 'transparent', color: 'var(--sidebar-item-color)', cursor: 'pointer',
               flexShrink: 0,
             }}
           >
