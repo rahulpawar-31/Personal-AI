@@ -1,5 +1,6 @@
 import PageHeader from './components/PageHeader.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useMediaQuery } from './useMediaQuery.js';
 import { apiFetch } from './api.js';
 import { toast } from './toast.jsx';
 import { serviceLabels } from './serviceLabels.js';
@@ -17,6 +18,7 @@ export default function AdminPage({ user }) {
   const [confirmingId, setConfirmingId] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [roleFilter, setRoleFilter] = useState('all');
+  const phone = useMediaQuery('(max-width: 768px)');
   const armedAt = useRef(0);
 
   const load = useCallback(async () => {
@@ -96,6 +98,34 @@ export default function AdminPage({ user }) {
   })();
   const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16 };
   const COLS = '52px minmax(120px, 1.2fr) minmax(120px, 1.6fr) 70px 120px 92px 200px';
+  const roleButton = (u, you) => (
+    <button
+      onClick={() => !you && toggleAdmin(u)}
+      disabled={you}
+      title={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
+      aria-label={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
+      style={{ minHeight: 36, padding: '0 12px', borderRadius: 999, cursor: you ? 'default' : 'pointer', background: u.isAdmin ? 'var(--accent-ring)' : 'var(--surface-sunken)', border: `1px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`, color: u.isAdmin ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600 }}
+    >
+      {u.isAdmin ? 'Admin' : 'User'}
+    </button>
+  );
+  const deleteButtons = (u, you) => (
+    <>
+      {!you && confirmingId === u.id && (
+        <button onClick={() => setConfirmingId(null)} style={{ minHeight: 40, padding: '0 12px', border: '1px solid var(--border-strong)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }}>Cancel</button>
+      )}
+      {!you && (
+        <button
+          onClick={() => onDeleteClick(u)}
+          disabled={deleting === u.id}
+          title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
+          style={{ minHeight: 40, padding: '0 14px', border: `1px solid ${confirmingId === u.id ? 'var(--danger)' : 'var(--border-strong)'}`, borderRadius: 8, background: confirmingId === u.id ? 'var(--danger)' : 'var(--surface)', color: confirmingId === u.id ? '#fff' : 'var(--danger)', fontSize: 13, fontWeight: 600 }}
+        >
+          {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
+        </button>
+      )}
+    </>
+  );
   const uptimeText = stats ? (stats.uptime >= 3600 ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m` : `${Math.floor(stats.uptime / 60)}m`) : '—';
 
   return (
@@ -136,6 +166,42 @@ export default function AdminPage({ user }) {
               })}
             </div>
           </div>
+          {phone ? (
+            <div style={{ borderTop: '1px solid var(--border)' }}>
+              {shown.map(u => {
+                const you = u.id === user.id;
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setViewing(u)}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setViewing(u); } }}
+                    tabIndex={0}
+                    title="Show saved keys"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 18px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span style={{ width: 36, height: 36, flex: 'none', borderRadius: 999, background: u.isAdmin ? 'var(--sidebar-bg)' : 'var(--surface-sunken)', color: u.isAdmin ? 'var(--accent-soft)' : 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600 }}>{u.username?.charAt(0).toUpperCase()}</span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600 }}>
+                          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{u.username}</span>
+                          {you && <span style={{ flex: 'none', fontSize: 10.5, fontWeight: 600, color: 'var(--tag-success-fg)', background: 'var(--tag-success-bg)', padding: '2px 7px', borderRadius: 999 }}>you</span>}
+                        </div>
+                        <div style={{ fontSize: 13.5, color: 'var(--text-2)', overflowWrap: 'anywhere' }}>{u.email ?? '—'}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>
+                      <span>ID {u.id}</span><span>{u.integrationCount} keys</span><span>Joined {fmt(u.createdAt)}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+                      {roleButton(u, you)}
+                      <span style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>{deleteButtons(u, you)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {shown.length === 0 && <div style={{ padding: '36px 22px', textAlign: 'center', color: 'var(--muted)', fontSize: 15 }}>No users match this filter.</div>}
+            </div>
+          ) : (
           <div className="scroll-x">
             <div style={{ minWidth: 780 }}>
               <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '10px 22px', background: 'var(--bg)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted)' }}>
@@ -162,30 +228,10 @@ export default function AdminPage({ user }) {
                     <span><span style={{ fontSize: 13, padding: '3px 10px', borderRadius: 999, background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>{u.integrationCount}</span></span>
                     <span style={{ fontSize: 13.5, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmt(u.createdAt)}</span>
                     <span onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => !you && toggleAdmin(u)}
-                        disabled={you}
-                        title={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
-                        aria-label={you ? 'Cannot change your own role' : roleToggleTitle(u.isAdmin)}
-                        style={{ minHeight: 36, padding: '0 12px', borderRadius: 999, cursor: you ? 'default' : 'pointer', background: u.isAdmin ? 'var(--accent-ring)' : 'var(--surface-sunken)', border: `1px solid ${u.isAdmin ? 'var(--accent)' : 'var(--border)'}`, color: u.isAdmin ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600 }}
-                      >
-                        {u.isAdmin ? 'Admin' : 'User'}
-                      </button>
+                      {roleButton(u, you)}
                     </span>
                     <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }} onClick={e => e.stopPropagation()}>
-                      {!you && confirmingId === u.id && (
-                        <button onClick={() => setConfirmingId(null)} style={{ minHeight: 40, padding: '0 12px', border: '1px solid var(--border-strong)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-2)', fontSize: 13, fontWeight: 500 }}>Cancel</button>
-                      )}
-                      {!you && (
-                        <button
-                          onClick={() => onDeleteClick(u)}
-                          disabled={deleting === u.id}
-                          title={confirmingId === u.id ? `Permanently delete "${u.username}"` : undefined}
-                          style={{ minHeight: 40, padding: '0 14px', border: `1px solid ${confirmingId === u.id ? 'var(--danger)' : 'var(--border-strong)'}`, borderRadius: 8, background: confirmingId === u.id ? 'var(--danger)' : 'var(--surface)', color: confirmingId === u.id ? '#fff' : 'var(--danger)', fontSize: 13, fontWeight: 600 }}
-                        >
-                          {deleting === u.id ? '…' : confirmingId === u.id ? 'Confirm delete' : 'Delete'}
-                        </button>
-                      )}
+                      {deleteButtons(u, you)}
                     </span>
                   </div>
                 );
@@ -193,6 +239,7 @@ export default function AdminPage({ user }) {
               {shown.length === 0 && <div style={{ padding: '36px 22px', textAlign: 'center', color: 'var(--muted)', fontSize: 15, borderTop: '1px solid var(--border)' }}>No users match this filter.</div>}
             </div>
           </div>
+          )}
           <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border)', fontSize: 12.5, color: 'var(--muted)' }}>
             Deleting a user is permanent. You cannot change your own role or delete yourself.
           </div>
