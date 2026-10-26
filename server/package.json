@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
   "scripts": {
     "dev": "node --env-file=../.env --watch index.js",
     "test": "node --test tests/*.test.js"
@@ -35,6 +38,7 @@
     "qs": "^6.15.2",
     "@langchain/langgraph-sdk": {
       "uuid": "^13.0.0"
-    }
+    },
+    "zod": "$zod"
   }
 }
