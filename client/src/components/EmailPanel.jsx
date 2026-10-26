@@ -6,6 +6,7 @@ import { apiFetch } from '../api.js';
 import NotConnected from './NotConnected.jsx';
 import { LoadingState } from './ui/States.jsx';
 import { toast } from '../toast.jsx';
+import { parseFrom } from '../lib/parseFrom.js';
 
 const TTL_30MIN = 30 * 60 * 1000;
 
@@ -408,9 +409,3 @@ function formatAge(at) {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
-// Split a "Name <email>" header into its two parts.
-function parseFrom(from = '') {
-  const m = /^\s*"?(.*?)"?\s*<(.+?)>\s*$/.exec(from);
-  if (m) return { name: (m[1].trim() || m[2].trim()), email: m[2].trim() };
-  return { name: from.trim(), email: '' };
-}

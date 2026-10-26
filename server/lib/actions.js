@@ -188,8 +188,14 @@ function extractIssueBody(message, title) {
 
 // ─── Pre-classifier ───────────────────────────────────────────────────────────
 
+// The patterns below use `.*` between keywords, which is quadratic on long
+// text (about 240 ms for 20,000 characters). Quick commands are short, so
+// anything longer skips the shortcut and goes to the LLM classifier.
+export const PRECLASSIFY_MAX_LENGTH = 300;
+
 export function preClassify(message) {
   const m = message.toLowerCase().trim();
+  if (m.length > PRECLASSIFY_MAX_LENGTH) return null;
   const acts = (...intents) => ({ actions: intents.map(intent => ({ intent, params: {} })), reply: '' });
 
   const asksScheduleToday = /what.*(do i have|'?s on|s on).*(today|this week)/i.test(m)
