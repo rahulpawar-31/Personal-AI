@@ -46,7 +46,7 @@ export async function sendDigest(digest, creds = {}) {
   const blocks = [
     {
       type: 'header',
-      text: { type: 'plain_text', text: `DevOS Morning Digest — ${new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' })}` },
+      text: { type: 'plain_text', text: `Dayhand Morning Digest — ${new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' })}` },
     },
     { type: 'divider' },
   ];
@@ -101,7 +101,7 @@ export async function sendDigest(digest, creds = {}) {
   });
 
   try {
-    const res = await getClient(creds).chat.postMessage({ channel: userId, blocks, text: 'DevOS Morning Digest' });
+    const res = await getClient(creds).chat.postMessage({ channel: userId, blocks, text: 'Dayhand Morning Digest' });
     return res.ts;
   } catch (err) {
     const code = err.data?.error ?? err.code ?? '';

@@ -7,7 +7,7 @@ import trello   from '../services/trello.js';
 import content  from '../services/content.js';
 import todoist  from '../services/todoist.js';
 import memory   from '../services/memory.js';
-import { runDigest, _digestCache } from './digest.js';
+import { runDigest, getLatestDigest } from './digest.js';
 import { notionReady } from './creds.js';
 
 // ─── Intent sets ─────────────────────────────────────────────────────────────
@@ -474,7 +474,7 @@ export async function executeAction(intent, params, originalMessage = '', creds 
     },
 
     async get_digest() {
-      return _digestCache.get(String(userId)) ?? { message: 'No digest yet — run one first.' };
+      return (await getLatestDigest(userId)) ?? { message: 'No digest yet — run one first.' };
     },
 
     async add_vip() {
