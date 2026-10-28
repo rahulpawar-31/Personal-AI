@@ -2,6 +2,8 @@
 import { google } from 'googleapis';
 import { getAuthClient } from './auth.js';
 import llm from './llm.js';
+import { getUserTimezone } from '../lib/userTimezone.js';
+import { nextOccurrence, parseInZone, localHour } from '../lib/zonedTime.js';
 
 async function cal(userId) {
   return google.calendar({ version: 'v3', auth: await getAuthClient(userId) });
@@ -74,9 +76,11 @@ function formatEvent(e) {
 
 export async function createEvent(userId, title, startISO, durationMinutes = 60, description = '') {
   try {
-    const start = new Date(startISO);
+    const tz    = await getUserTimezone(userId);
+    // A time with no offset ("2026-10-30T15:00") means 3 PM for the user, not for the server.
+    const start = parseInZone(startISO, tz) ?? new Date(startISO);
+    if (isNaN(start)) throw new Error(`Invalid start time "${startISO}"`);
     const end   = new Date(start.getTime() + durationMinutes * 60 * 1000);
-    const tz    = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     const c   = await cal(userId);
     const res = await c.events.insert({
@@ -102,40 +106,34 @@ export async function createEvent(userId, title, startISO, durationMinutes = 60,
 const RRULE_DAY = { 1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR', 6: 'SA', 7: 'SU' };
 const ISO_TO_JS  = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 0 }; // JS getDay() uses 0=Sun
 
+// What Google is sent for a weekly event. `time` is the wall clock in `timezone`
+// (the user's), so the first occurrence is that time on the next matching day
+// there, whatever zone the server runs in. Pure, so it can be tested directly.
+export function recurringEventBody({ title, description = '', days, time, durationMinutes = 60, timezone, now = new Date() }) {
+  const byDay  = days.map(d => RRULE_DAY[d]).join(',');
+  const jsDays = days.map(d => ISO_TO_JS[d]);
+  const start  = nextOccurrence({ now, jsDays, time, timezone });
+  if (!start) throw new Error('Could not find a matching weekday');
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  return {
+    summary:    title,
+    description,
+    start:      { dateTime: start.toISOString(), timeZone: timezone },
+    end:        { dateTime: end.toISOString(),   timeZone: timezone },
+    recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${byDay}`],
+  };
+}
+
 export async function createRecurringEvent(userId, title, days, time, durationMinutes = 60, description = '') {
   if (!days?.length) throw new Error('At least one day is required');
   if (!/^\d{1,2}:\d{2}$/.test(time)) throw new Error('time must be HH:MM');
 
-  const [hh, mm]  = time.split(':').map(Number);
-  const tz        = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const byDay     = days.map(d => RRULE_DAY[d]).join(',');
-  const jsDays    = days.map(d => ISO_TO_JS[d]);
-
-  // Find the next calendar day that matches one of the selected weekdays
-  const start = new Date();
-  start.setHours(hh, mm, 0, 0);
-  if (start <= new Date()) start.setDate(start.getDate() + 1); // already passed today → tomorrow
-
-  let tries = 0;
-  while (!jsDays.includes(start.getDay()) && tries < 7) {
-    tries += 1;
-    start.setDate(start.getDate() + 1);
-  }
-
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const timezone = await getUserTimezone(userId);
 
   try {
+    const requestBody = recurringEventBody({ title, description, days, time, durationMinutes, timezone });
     const c   = await cal(userId);
-    const res = await c.events.insert({
-      calendarId: 'primary',
-      requestBody: {
-        summary:    title,
-        description,
-        start:      { dateTime: start.toISOString(), timeZone: tz },
-        end:        { dateTime: end.toISOString(),   timeZone: tz },
-        recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${byDay}`],
-      },
-    });
+    const res = await c.events.insert({ calendarId: 'primary', requestBody });
     return formatEvent(res.data);
   } catch (err) {
     console.error('[calendar] createRecurringEvent:', err.message);
@@ -182,7 +180,7 @@ export async function scanConflicts(userId) {
 export async function blockFocusTime(userId, projectName = 'Deep work', minBlockMinutes = 90) {
   const events   = await getWeekEvents(userId);
   const blocks   = [];
-  const timezone = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = await getUserTimezone(userId);
 
   // Intentionally sequential with early exit — only one focus block is ever
   // created per run (see `break` below), so at most one createEvent call
@@ -191,9 +189,9 @@ export async function blockFocusTime(userId, projectName = 'Deep work', minBlock
     const gapStart = new Date(events[i].end);
     const gapEnd   = new Date(events[i + 1].start);
     const gapMin   = (gapEnd - gapStart) / 60000;
-    const hour     = parseInt(gapStart.toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }), 10);
+    const hour     = localHour(gapStart, timezone);
 
-    // Only block during working hours (9-18) and gaps big enough
+    // Only block during working hours (9-16 local, so the block ends by 18) and gaps big enough
     if (gapMin >= minBlockMinutes && hour >= 9 && hour <= 16) {
       const created = await createEvent(
         userId,
@@ -282,11 +280,12 @@ export async function updateEvent(userId, idOrTitle, patches = {}) {
       eventId = current.id;
     }
 
-    const tz          = process.env.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tz          = await getUserTimezone(userId);
     const requestBody = {};
     if (patches.title) requestBody.summary = patches.title;
     if (patches.date) {
-      const start  = new Date(patches.date);
+      const start  = parseInZone(patches.date, tz) ?? new Date(patches.date);
+      if (isNaN(start)) throw new Error(`Invalid start time "${patches.date}"`);
       const durMin = patches.duration ?? (current ? Math.round((new Date(current.end) - new Date(current.start)) / 60000) : 60);
       requestBody.start = { dateTime: start.toISOString(), timeZone: tz };
       requestBody.end   = { dateTime: new Date(start.getTime() + durMin * 60000).toISOString(), timeZone: tz };

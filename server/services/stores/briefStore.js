@@ -9,14 +9,20 @@
 // claimBrief(userId, date) is the once-a-day guard: it records `date` as sent
 // and says whether this caller was the one to record it. Two ticks, or two
 // processes, cannot both get true for the same user and date.
+// claimCalendarCheck is the same guard for the 7 AM calendar check, kept apart
+// so the two daily jobs never block each other.
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
-const PREF_DEFAULTS = { enabled: true, time: '09:00', timezone: null, channel: 'slack', lastSentDate: null };
+const PREF_DEFAULTS = {
+  enabled: true, time: '09:00', timezone: null, channel: 'slack',
+  lastSentDate: null, lastCalendarCheckDate: null,
+};
 
 // ─── Postgres adapter ─────────────────────────────────────────────────────────
 
 const PREF_COLUMNS = `user_id AS "userId", enabled, brief_time AS "time", timezone, channel,
-                      last_sent_date AS "lastSentDate"`;
+                      last_sent_date AS "lastSentDate",
+                      last_calendar_check_date AS "lastCalendarCheckDate"`;
 
 export function createPostgresBriefStore(pool) {
   async function getPrefs(userId) {
@@ -58,6 +64,17 @@ export function createPostgresBriefStore(pool) {
       return r.rowCount === 1;
     },
 
+    async claimCalendarCheck(userId, date) {
+      const r = await pool.query(
+        `INSERT INTO user_brief_prefs (user_id, last_calendar_check_date) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET last_calendar_check_date = EXCLUDED.last_calendar_check_date
+           WHERE user_brief_prefs.last_calendar_check_date IS DISTINCT FROM EXCLUDED.last_calendar_check_date
+         RETURNING user_id`,
+        [userId, date]
+      );
+      return r.rowCount === 1;
+    },
+
     async saveDigest(userId, digest) {
       await pool.query(
         `INSERT INTO user_digests (user_id, data, generated_at) VALUES ($1, $2, NOW())
@@ -78,6 +95,17 @@ export function createPostgresBriefStore(pool) {
 function createFileBackedBriefStore({ readPrefs, writePrefs, readDigests, writeDigests }) {
   const sameUser = userId => row => String(row.userId) === String(userId);
 
+  // Record `date` in `field` for the user; false if it was already that date.
+  function claim(field, userId, date) {
+    const rows = readPrefs();
+    const idx  = rows.findIndex(sameUser(userId));
+    if (idx >= 0 && rows[idx][field] === date) return false;
+    if (idx >= 0) rows[idx] = { ...rows[idx], [field]: date };
+    else rows.push({ ...PREF_DEFAULTS, userId, [field]: date });
+    writePrefs(rows);
+    return true;
+  }
+
   return {
     async getPrefs(userId) {
       return readPrefs().find(sameUser(userId)) ?? null;
@@ -96,15 +124,8 @@ function createFileBackedBriefStore({ readPrefs, writePrefs, readDigests, writeD
       return readPrefs();
     },
 
-    async claimBrief(userId, date) {
-      const rows = readPrefs();
-      const idx  = rows.findIndex(sameUser(userId));
-      if (idx >= 0 && rows[idx].lastSentDate === date) return false;
-      if (idx >= 0) rows[idx] = { ...rows[idx], lastSentDate: date };
-      else rows.push({ ...PREF_DEFAULTS, userId, lastSentDate: date });
-      writePrefs(rows);
-      return true;
-    },
+    claimBrief:         async (userId, date) => claim('lastSentDate', userId, date),
+    claimCalendarCheck: async (userId, date) => claim('lastCalendarCheckDate', userId, date),
 
     async saveDigest(userId, digest) {
       const all = readDigests();

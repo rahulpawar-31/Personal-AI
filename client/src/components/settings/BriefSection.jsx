@@ -83,18 +83,21 @@ export default function BriefSection() {
             </label>
           </div>
 
-          <div style={{ ...rowStyle, display: 'flex', gap: 24, flexWrap: 'wrap', opacity: form.enabled ? 1 : 0.5 }}>
-            <div>
+          <div style={{ ...rowStyle, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ opacity: form.enabled ? 1 : 0.5 }}>
               <label htmlFor="brief-time" style={labelStyle}>Time</label>
               <input id="brief-time" type="time" value={form.time} disabled={!form.enabled}
                 onChange={e => set('time', e.target.value)} />
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
               <label htmlFor="brief-timezone" style={labelStyle}>Timezone</label>
-              <select id="brief-timezone" value={form.timezone} disabled={!form.enabled}
+              <select id="brief-timezone" value={form.timezone}
                 onChange={e => set('timezone', e.target.value)} style={{ width: '100%' }}>
                 {zoneOptions(form.timezone, browserTimezone()).map(z => <option key={z} value={z}>{z}</option>)}
               </select>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>
+                Also used for the times of calendar events Dayhand creates and for your 7 AM calendar check.
+              </span>
             </div>
           </div>
 

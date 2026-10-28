@@ -9,6 +9,9 @@ import todoist  from '../services/todoist.js';
 import memory   from '../services/memory.js';
 import { runDigest, getLatestDigest } from './digest.js';
 import { notionReady } from './creds.js';
+import { resolveTimezone } from './briefSchedule.js';
+import { getUserTimezone } from './userTimezone.js';
+import { zonedInstant, parseInZone, localDate, addDays, weekdayOf } from './zonedTime.js';
 
 // ─── Intent sets ─────────────────────────────────────────────────────────────
 
@@ -128,35 +131,38 @@ ROUTING RULES (follow exactly):
 - NEVER respond with general_chat when the user asks about their calendar, tasks, emails, or PRs — always use the correct data-fetching intent`.trim();
 }
 
-export function resolveDate(raw) {
+// Turns what the agent or user said into an exact instant (ISO string, UTC).
+// `timezone` is the user's: "tomorrow at 3pm" and "2026-10-30T15:00" mean 3 PM
+// there, whatever zone the server runs in. A full timestamp with an offset is
+// used as is. A date with no time means 09:00. Formats only the JS engine can
+// read ("Oct 30 2026 3pm") still go through `new Date`, which assumes the
+// server's zone when there is no offset.
+export function resolveDate(raw, timezone = null, now = new Date()) {
   if (!raw) return null;
+  const tz = resolveTimezone(timezone);
+
+  const parsed = parseInZone(String(raw), tz);
+  if (parsed) return parsed.toISOString();
   const direct = new Date(raw);
   if (!isNaN(direct)) return direct.toISOString();
 
-  const s   = String(raw).toLowerCase().trim();
-  const now = new Date();
-  const add = n => new Date(now.getTime() + n * 86400000);
+  const s     = String(raw).toLowerCase().trim();
+  const today = localDate(now, tz);
+  const at    = date => {
+    const t    = extractTime(s);
+    const time = t ? `${String(t.h).padStart(2, '0')}:${String(t.m).padStart(2, '0')}` : '09:00';
+    return zonedInstant(date, time, tz).toISOString();
+  };
 
-  const relMap = { 'today': now, 'tomorrow': add(1), 'yesterday': add(-1) };
-  for (const [kw, d] of Object.entries(relMap)) {
-    if (s.includes(kw)) {
-      const time = extractTime(s);
-      if (time) d.setHours(time.h, time.m, 0, 0);
-      else      d.setHours(9, 0, 0, 0);
-      return d.toISOString();
-    }
+  for (const [kw, offset] of Object.entries({ today: 0, tomorrow: 1, yesterday: -1 })) {
+    if (s.includes(kw)) return at(addDays(today, offset));
   }
 
   const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   for (let i = 0; i < days.length; i += 1) {
     if (s.includes(days[i])) {
-      const d    = new Date(now);
-      const diff = (i - now.getDay() + 7) % 7 || 7;
-      d.setDate(d.getDate() + diff);
-      const time = extractTime(s);
-      if (time) d.setHours(time.h, time.m, 0, 0);
-      else      d.setHours(9, 0, 0, 0);
-      return d.toISOString();
+      const diff = (i - weekdayOf(today) + 7) % 7 || 7;
+      return at(addDays(today, diff));
     }
   }
   return null;
@@ -338,7 +344,7 @@ export async function executeAction(intent, params, originalMessage = '', creds 
         return await calendar.createRecurringEvent(userId, params.title, params.days, params.time, params.duration ?? 60);
       }
       if (params.date) {
-        const resolved = resolveDate(params.date);
+        const resolved = resolveDate(params.date, await getUserTimezone(userId));
         if (!resolved) return { error: `Could not parse date "${params.date}". Use format: YYYY-MM-DDTHH:MM` };
         console.log(`[create_event] title="${params.title}" raw="${params.date}" resolved="${resolved}"`);
         return await calendar.createEvent(userId, params.title, resolved, params.duration ?? 60);
@@ -357,7 +363,7 @@ export async function executeAction(intent, params, originalMessage = '', creds 
       if (!target) return { error: 'Provide the event name to update' };
       const patches = {};
       if (params.body)     patches.title    = params.body;
-      if (params.date)     patches.date     = resolveDate(params.date) ?? params.date;
+      if (params.date)     patches.date     = resolveDate(params.date, await getUserTimezone(userId)) ?? params.date;
       if (params.duration) patches.duration = Number(params.duration);
       return await calendar.updateEvent(userId, target, patches);
     },

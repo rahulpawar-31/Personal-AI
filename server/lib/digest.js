@@ -8,7 +8,7 @@ import trello   from '../services/trello.js';
 import slack    from '../services/slack.js';
 import content  from '../services/content.js';
 import { getUserCreds, notionReady } from './creds.js';
-import { dbListUsers, dbListBriefPrefs, dbClaimBrief, dbSaveDigest, dbGetDigest } from '../services/db.js';
+import { dbListUsers, dbListBriefPrefs, dbClaimBrief, dbClaimCalendarCheck, dbSaveDigest, dbGetDigest } from '../services/db.js';
 import { dueBriefDate, effectiveSettings } from './briefSchedule.js';
 
 async function getTasksForDigest(creds) {
@@ -128,6 +128,59 @@ export async function runDueBriefs({ now = new Date(), deps = defaultBriefDeps }
   return due.map(d => d.userId);
 }
 
+export const CALENDAR_CHECK_TIME = '07:00';
+
+// The 7 AM check for one user: warn on Slack about double-booked meetings today,
+// then protect a focus block.
+async function checkCalendarFor(userId) {
+  const creds     = await getUserCreds(userId);
+  const conflicts = await calendar.scanConflicts(userId);
+  if (conflicts.length) {
+    await slack.sendAlert(
+      `${conflicts.length} calendar conflict(s) today`,
+      conflicts.map(c => `${c.eventA.title} ↔ ${c.eventB.title}`).join('\n'),
+      'high',
+      creds
+    );
+  }
+  await calendar.blockFocusTime(userId);
+}
+
+const defaultCalendarCheckDeps = {
+  connectedUserIds: () => auth.getConnectedUserIds(),
+  listPrefs:        dbListBriefPrefs,
+  claim:            dbClaimCalendarCheck,
+  check:            checkCalendarFor,
+};
+
+// Runs the calendar check for every Google-connected user whose own 7:00 has
+// just passed, in their saved timezone (the server's if they have not saved
+// one). The local date is claimed first, so it runs once per user per day even
+// across restarts or overlapping ticks. Returns the ids it ran for.
+export async function runDueCalendarChecks({ now = new Date(), deps = defaultCalendarCheckDeps } = {}) {
+  const prefRows  = await deps.listPrefs();
+  const prefsById = new Map(prefRows.map(row => [String(row.userId), row]));
+
+  const due = [];
+  for (const userId of deps.connectedUserIds()) {
+    try {
+      const row  = prefsById.get(String(userId));
+      const date = dueBriefDate({ now, time: CALENDAR_CHECK_TIME, timezone: row?.timezone, lastSentDate: row?.lastCalendarCheckDate });
+      if (!date) continue;
+      if (!(await deps.claim(userId, date))) continue;
+      due.push(userId);
+    } catch (err) {
+      console.error(`[cron/calendar] user ${userId}:`, err.message);
+    }
+  }
+
+  // Each user's calendar/Slack work is independent; one failing must not stop the rest.
+  await Promise.allSettled(due.map(userId =>
+    deps.check(userId).catch(err => console.error(`[cron/calendar] user ${userId}:`, err.message))
+  ));
+  return due;
+}
+
 export function setupCronJobs() {
   // Morning brief: every 5 minutes, send to whoever's chosen local time has just
   // passed (see runDueBriefs). Replaces the old fixed 9 AM server-time job.
@@ -135,28 +188,10 @@ export function setupCronJobs() {
     runDueBriefs().catch(err => console.error('[cron/brief]', err.message));
   });
 
-  cron.schedule('0 7 * * *', async () => {
-    console.log('[cron] 7 AM calendar check');
-    // Each user's calendar/Slack work is independent — run concurrently
-    // instead of one user at a time; a per-user error stays isolated to that
-    // user via the try/catch, same as before.
-    await Promise.all(auth.getConnectedUserIds().map(async userId => {
-      try {
-        const creds    = await getUserCreds(userId);
-        const conflicts = await calendar.scanConflicts(userId);
-        if (conflicts.length) {
-          await slack.sendAlert(
-            `${conflicts.length} calendar conflict(s) today`,
-            conflicts.map(c => `${c.eventA.title} ↔ ${c.eventB.title}`).join('\n'),
-            'high',
-            creds
-          );
-        }
-        await calendar.blockFocusTime(userId);
-      } catch (err) {
-        console.error(`[cron/calendar] user ${userId}:`, err.message);
-      }
-    }));
+  // 7 AM calendar check: every 5 minutes, run it for whoever's own 7 AM has just
+  // passed (see runDueCalendarChecks), not at 7 AM server time for everyone.
+  cron.schedule('*/5 * * * *', () => {
+    runDueCalendarChecks().catch(err => console.error('[cron/calendar]', err.message));
   });
 
   // Pre-meeting briefs: every 5 min, check each connected user's next few
