@@ -19,6 +19,8 @@ Personal AI Command Center — an autonomous agent that manages Gmail, Google Ca
 | Frontend  | React 19 + Vite 6                       |
 | Backend   | Node.js 20+ + Express 5 (ES modules)   |
 | AI        | Gemini 2.5 Flash (free) + Groq (free)  |
+| Agent     | LangChain + LangGraph (tool-calling agent) |
+| Tracing   | LangSmith (optional, off by default)    |
 | Tasks     | Notion API                              |
 | Email     | Gmail API (Google OAuth2)               |
 | Calendar  | Google Calendar API (same OAuth token)  |
@@ -127,7 +129,9 @@ devos-agent/
 ├── server/                      # Node.js + Express backend
 │   ├── index.js                 # routes + digest orchestrator + cron
 │   └── services/
-│       ├── llm.js               # smart router: Gemini / Groq / Ollama
+│       ├── llm.js               # LangChain LLM router: Gemini / Groq / Ollama
+│       ├── langchain-agent.js   # LangGraph tool-calling agent for chat
+│       ├── tracing.js           # optional LangSmith setup (imported first)
 │       ├── auth.js              # Google OAuth2 singleton
 │       ├── notion.js            # tasks + notes CRUD
 │       ├── gmail.js             # inbox + triage + draft/send
