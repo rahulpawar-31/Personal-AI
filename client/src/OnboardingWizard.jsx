@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { apiFetch, clearToken } from './api.js';
 import Logo from './components/Logo.jsx';
+import RolePicker from './components/RolePicker.jsx';
 
 const STEPS = [
   { id: 'welcome',      title: 'Welcome to Dayhand' },
+  { id: 'role',         title: 'Your role' },
   { id: 'google',       title: 'Connect Google' },
   { id: 'dev-tools',    title: 'Dev tools' },
   { id: 'productivity', title: 'Productivity tools' },
@@ -11,13 +13,13 @@ const STEPS = [
   { id: 'done',         title: "You're all set" },
 ];
 
-export default function OnboardingWizard({ user, onComplete }) {
+export default function OnboardingWizard({ user, onUserChange, onComplete }) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('connected') === 'true') {
       window.history.replaceState({}, '', '/');
-      setStep(2); // after Google, go to dev tools
+      setStep(STEPS.findIndex(s => s.id === 'dev-tools')); // after Google, go to dev tools
     }
   }, []);
 
@@ -63,6 +65,7 @@ export default function OnboardingWizard({ user, onComplete }) {
           border: 'var(--border-hairline)',
         }}>
         {current.id === 'welcome'      && <WelcomeStep      username={user.username} onNext={next} />}
+        {current.id === 'role'         && <RoleStep user={user} onUserChange={onUserChange} onNext={next} />}
         {current.id === 'google'       && <GoogleStep        onNext={next} />}
         {current.id === 'dev-tools'    && <DevToolsStep      onNext={next} />}
         {current.id === 'productivity' && <ProductivityStep  onNext={next} />}
@@ -179,12 +182,59 @@ function WelcomeStep({ username, onNext }) {
   );
 }
 
-// ─── Step 2: Google ───────────────────────────────────────────────────────────
+// ─── Step 2: Role ─────────────────────────────────────────────────────────────
+
+function RoleStep({ user, onUserChange, onNext }) {
+  const [role, setRole]     = useState(user.role ?? null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  async function save() {
+    setSaving(true);
+    setError('');
+    try {
+      const r = await apiFetch('/api/users/me/role', { method: 'PUT', body: JSON.stringify({ role }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'Could not save your role');
+      onUserChange?.({ ...user, role });
+      onNext();
+    } catch (err) {
+      setError(err.message || 'Could not save your role. Try again.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <StepLabel n={1} of={5} />
+      <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>What do you do?</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 16px' }}>
+        We use this to suggest the right tools first. You can change it later in Settings.
+      </p>
+      <RolePicker value={role} onChange={setRole} disabled={saving} />
+      {error && (
+        <p role="alert" style={{ fontSize: 13, color: 'var(--tag-danger-fg)', margin: '12px 0 0' }}>{error}</p>
+      )}
+      <div style={{ display: 'flex', gap: 10, marginTop: 24, alignItems: 'center' }}>
+        <button className="primary" onClick={save} disabled={!role || saving}
+          style={{ flex: 1, padding: '11px 16px', fontSize: 14 }}>
+          {saving ? 'Saving…' : 'Continue →'}
+        </button>
+        <button onClick={onNext} disabled={saving}
+          style={{ padding: '11px 14px', fontSize: 14, background: 'transparent', border: 'none', color: 'var(--muted)' }}>
+          Skip for now
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Step 3: Google ───────────────────────────────────────────────────────────
 
 function GoogleStep({ onNext }) {
   return (
     <>
-      <StepLabel n={1} of={4} />
+      <StepLabel n={2} of={5} />
       <h2 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Connect Google</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7, margin: '0 0 16px' }}>
         Unlocks Gmail triage, calendar management, and conflict detection.
@@ -254,7 +304,7 @@ function DevToolsStep({ onNext }) {
 
   return (
     <>
-      <StepLabel n={2} of={4} />
+      <StepLabel n={3} of={5} />
       <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Dev tools</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
         Connect GitHub and Slack — or skip and add them later in Settings.
@@ -349,7 +399,7 @@ function ProductivityStep({ onNext }) {
 
   return (
     <>
-      <StepLabel n={3} of={4} />
+      <StepLabel n={4} of={5} />
       <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>Productivity tools</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
         Connect Notion and Todoist for task and note management.
@@ -434,7 +484,7 @@ function AIKeysStep({ onNext }) {
 
   return (
     <>
-      <StepLabel n={4} of={4} />
+      <StepLabel n={5} of={5} />
       <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em' }}>AI engine</h2>
       <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6, margin: '0 0 6px' }}>
         Dayhand needs at least one AI key for chat and digest to work.

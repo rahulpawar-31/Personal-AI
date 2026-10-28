@@ -67,6 +67,8 @@ export async function initDB() {
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin   BOOLEAN DEFAULT FALSE`);
       // Raised to end a user's sessions (logout, password change); see services/users.js.
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`);
+      // Picked in onboarding; NULL for accounts that have not chosen one. See lib/roles.js.
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT`);
 
       // ── User integrations table ───────────────────────────────────────────────
       // Stores one encrypted key/value per row, keyed by (user_id, service, key_name).
@@ -143,6 +145,7 @@ export async function dbCreateUser(args)                    { return userStore.c
 export async function dbFindByUsername(username)             { return userStore.findByUsername(username); }
 export async function dbFindById(id)                         { return userStore.findById(id); }
 export async function dbUpdateEmail(userId, email)           { return userStore.updateEmail(userId, email); }
+export async function dbUpdateRole(userId, role)             { return userStore.updateRole(userId, role); }
 export async function dbUpdatePasswordHash(userId, hash)     { return userStore.updatePasswordHash(userId, hash); }
 export async function dbDeleteUser(userId)                   { return userStore.deleteUser(userId); }
 export async function dbBumpTokenVersion(userId)             { return userStore.bumpTokenVersion(userId); }

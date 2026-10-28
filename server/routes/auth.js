@@ -221,7 +221,7 @@ router.post('/api/auth/signup', authLimiter, async (req, res) => {
     const user  = await userService.createUser(username, password, email);
     const token = userService.signToken(user);
     userService.setRefreshCookie(res, user);
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role ?? null } });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -233,7 +233,7 @@ router.post('/api/auth/login', authLimiter, loginAccountLimiter, async (req, res
     const user  = await userService.loginUser(username, password);
     const token = userService.signToken(user);
     userService.setRefreshCookie(res, user);
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role ?? null } });
   } catch (err) {
     // Only a real credential failure is a 401 (and counts against the account's
     // limit). A server-side failure, such as a database outage, is a 503 with a
@@ -314,7 +314,7 @@ router.get('/api/users/me', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { dbIsAdmin } = await import('../services/db.js');
     const isAdmin = await dbIsAdmin(payload.userId);
-    res.json({ id: user.id, username: user.username, email: user.email, isAdmin });
+    res.json({ id: user.id, username: user.username, email: user.email, isAdmin, role: user.role ?? null });
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }

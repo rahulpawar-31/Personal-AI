@@ -2,8 +2,9 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdatePasswordHash, dbDeleteUser, dbBumpTokenVersion, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
+import { dbCreateUser, dbFindByUsername, dbFindById, dbUpdateEmail, dbUpdateRole, dbUpdatePasswordHash, dbDeleteUser, dbBumpTokenVersion, dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser } from './db.js';
 import { isHttps } from '../lib/env.js';
+import { isValidRole } from '../lib/roles.js';
 
 export { dbFindByGoogleId, dbFindByEmail, dbLinkGoogleId, dbCreateGoogleUser };
 
@@ -163,6 +164,11 @@ export async function updateEmail(userId, email) {
     throw new Error('Invalid email format');
   }
   await dbUpdateEmail(userId, email?.trim() || null);
+}
+
+export async function updateRole(userId, role, deps = { saveRole: dbUpdateRole }) {
+  if (!isValidRole(role)) throw new Error('Invalid role');
+  await deps.saveRole(userId, role);
 }
 
 // Ends the other sessions BEFORE saving the new password. If the second step

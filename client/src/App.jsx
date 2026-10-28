@@ -274,7 +274,7 @@ export default function App() {
   }
   // The toast container is needed here too: the sign-out warning appears after the sign-in page is showing.
   if (!user) return <><AuthPage onAuth={handleAuth} /><ToastContainer /></>;
-  if (showOnboarding) return <OnboardingWizard user={user} onComplete={handleOnboardingComplete} />;
+  if (showOnboarding) return <OnboardingWizard user={user} onUserChange={applyUser} onComplete={handleOnboardingComplete} />;
 
   const isTasksView = view === 'tasks';
   const isChatView  = view === 'chat';
@@ -324,7 +324,7 @@ export default function App() {
           <div style={{ display: view === 'linkedin' ? 'block' : 'none' }}><LinkedInPanel health={health} /></div>
           <div style={{ display: view === 'slack'    ? 'block' : 'none' }}><SlackPanel health={health} onGoToSettings={() => handleViewChange('settings')} /></div>
           <div style={{ display: isChatView ? 'flex' : 'none', flex: 1, flexDirection: 'column', minHeight: 0 }}><ChatPanel onAction={handleChatAction} health={health} connected={connected} user={user} prompt={chatPrompt} onPromptUsed={() => setChatPrompt('')} /></div>
-          {view === 'settings' && <SettingsPage user={user} onLogout={handleLogout} health={health} />}
+          {view === 'settings' && <SettingsPage user={user} onLogout={handleLogout} onUserChange={applyUser} health={health} />}
           {view === 'admin'    && <AdminPage user={user} />}
         </div>
         <MobileTabBar view={view} setView={navigateTo} onOpenMore={() => setSidebarOpen(true)} />
