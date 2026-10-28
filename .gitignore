@@ -16,3 +16,4 @@ dist/
 .vercel
 server/brief_prefs.json
 server/digests.json
+.nodeterm/
