@@ -75,7 +75,7 @@ export default function WrapupCard({ refreshKey }) {
           {wrapup.done.map(t => <span key={`${t.source}-${t.id}`} style={{ fontSize: 14.5 }}>{t.title}</span>)}
           {wrapup.done.some(t => t.source === 'notion') && (
             <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-              Notion does not record when a task was finished, so its tasks are counted when they were last edited today.
+              Notion does not record when a task was finished, so its tasks are counted when they were last edited today. They are left out of the standup draft.
             </span>
           )}
         </div>

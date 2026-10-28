@@ -5,7 +5,7 @@ process.env.JWT_SECRET = 'wrapup-test-secret-32-characters-long-ok';
 
 const {
   dayStartISO, completedSince, meetingsSoFar, nextDate, standupDraft, composeWrapup, withoutOpenTask,
-  formatWrapupSlack, buildWrapup, runWrapup, runDueWrapups, MAX_LISTED,
+  formatWrapupSlack, buildWrapup, withoutDoneRecurring, NOTION_DONE_NOTE, runWrapup, runDueWrapups, MAX_LISTED,
 } = await import('../lib/wrapup.js');
 const { createInMemoryBriefStore } = await import('../services/stores/briefStore.js');
 const { effectiveSettings, validateBriefSettings, DEFAULT_BRIEF } = await import('../lib/briefSchedule.js');
@@ -76,6 +76,32 @@ test('the standup draft covers done, meetings and what carries over', () => {
     open: [{ title: 'Write docs' }],
   });
   assert.equal(text, 'Done: Ship settings; Fix timezone bug\nMeetings: Planning\nCarrying over: Write docs');
+});
+
+test('Notion tasks are not in the standup draft, because their done time is a guess', () => {
+  const done = [{ id: 1, source: 'todoist', title: 'Shipped' }, { id: 'n', source: 'notion', title: 'Edited today' }];
+  const w = composeWrapup({ date: '2026-10-28', done });
+  assert.equal(w.standup, 'Done: Shipped');
+  assert.equal(w.done.length, 2, 'still shown in the app');
+  assert.equal(composeWrapup({ date: '2026-10-28', done: [done[1]] }).standup, '');
+});
+
+test('the Slack message says when Notion tasks are counted by last edit', () => {
+  const withNotion = formatWrapupSlack(composeWrapup({ date: '2026-10-28', done: [{ id: 'n', source: 'notion', title: 'x' }] }));
+  assert.ok(withNotion.includes(NOTION_DONE_NOTE));
+  const without = formatWrapupSlack(composeWrapup({ date: '2026-10-28', done: [{ id: 1, source: 'todoist', title: 'x' }] }));
+  assert.ok(!without.includes(NOTION_DONE_NOTE));
+});
+
+test('a recurring task finished today is not also listed as still open', () => {
+  const done = [{ id: 'c1', source: 'todoist', title: 'standup notes' }];
+  const open = [
+    { id: 5, source: 'todoist', title: 'standup notes', recurring: true },
+    { id: 6, source: 'todoist', title: 'standup notes', recurring: false },
+    { id: 7, source: 'todoist', title: 'other', recurring: true },
+  ];
+  assert.deepEqual(withoutDoneRecurring(open, done).map(t => t.id), [6, 7]);
+  assert.deepEqual(withoutDoneRecurring([{ id: 'c1', source: 'todoist', title: 'renamed', recurring: true }], done), []);
 });
 
 test('the standup draft leaves out empty parts and caps long lists', () => {
