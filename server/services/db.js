@@ -139,6 +139,8 @@ export async function initDB() {
           updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      // Added after the table first shipped: the once-a-day record for the 7 AM calendar check.
+      await pool.query(`ALTER TABLE user_brief_prefs ADD COLUMN IF NOT EXISTS last_calendar_check_date TEXT`);
       await pool.query(`
         CREATE TABLE IF NOT EXISTS user_digests (
           user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -194,6 +196,7 @@ export async function dbGetBriefPrefs(userId)                 { return briefStor
 export async function dbSaveBriefPrefs(userId, patch)         { return briefStore.savePrefs(userId, patch); }
 export async function dbListBriefPrefs()                      { return briefStore.listPrefs(); }
 export async function dbClaimBrief(userId, date)              { return briefStore.claimBrief(userId, date); }
+export async function dbClaimCalendarCheck(userId, date)      { return briefStore.claimCalendarCheck(userId, date); }
 export async function dbSaveDigest(userId, digest)            { return briefStore.saveDigest(userId, digest); }
 export async function dbGetDigest(userId)                     { return briefStore.getDigest(userId); }
 
