@@ -3,6 +3,7 @@ import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { LoadingState } from './ui/States.jsx';
 import SnoozeMenu from './SnoozeMenu.jsx';
+import WrapupCard from './WrapupCard.jsx';
 import { itemKeys, applySnoozes, returnLabel } from '../snooze.js';
 
 const KIND = {
@@ -338,6 +339,8 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
               </details>
             )}
           </section>
+
+          <WrapupCard refreshKey={refreshKey} />
 
           {/* Three small cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>

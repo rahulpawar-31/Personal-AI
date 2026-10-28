@@ -10,6 +10,7 @@ import content  from '../services/content.js';
 import { getUserCreds, notionReady } from './creds.js';
 import { dbListUsers, dbListBriefPrefs, dbClaimBrief, dbClaimCalendarCheck, dbSaveDigest, dbGetDigest } from '../services/db.js';
 import { dueBriefDate, effectiveSettings } from './briefSchedule.js';
+import { runDueWrapups } from './wrapup.js';
 
 async function getTasksForDigest(creds) {
   if (notionReady(creds)) return notion.getTasks(creds);
@@ -192,6 +193,12 @@ export function setupCronJobs() {
   // passed (see runDueCalendarChecks), not at 7 AM server time for everyone.
   cron.schedule('*/5 * * * *', () => {
     runDueCalendarChecks().catch(err => console.error('[cron/calendar]', err.message));
+  });
+
+  // End-of-day wrap-up: every 5 minutes, for users who turned it on and whose
+  // chosen local time has just passed (see runDueWrapups in wrapup.js).
+  cron.schedule('*/5 * * * *', () => {
+    runDueWrapups().catch(err => console.error('[cron/wrapup]', err.message));
   });
 
   // Pre-meeting briefs: every 5 min, check each connected user's next few

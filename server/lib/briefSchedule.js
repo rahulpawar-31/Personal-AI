@@ -8,7 +8,13 @@ export const CHANNELS = ['slack', 'app'];
 // A user with no saved settings gets these. A null timezone means "the server's
 // timezone" (USER_TIMEZONE, else the host's), which is how the 9 AM job behaved
 // before settings existed.
-export const DEFAULT_BRIEF = { enabled: true, time: '09:00', timezone: null, channel: 'slack' };
+//
+// The end-of-day wrap-up is new, so it is off until a user turns it on. It uses
+// the same timezone and channel as the morning brief.
+export const DEFAULT_BRIEF = {
+  enabled: true, time: '09:00', timezone: null, channel: 'slack',
+  wrapupEnabled: false, wrapupTime: '17:30',
+};
 
 // How long after the chosen time a brief can still go out. If the server was
 // down at 9:00 it sends at 9:20, but it does not send a "morning" brief at 8 PM.
@@ -68,6 +74,8 @@ export function effectiveSettings(row) {
     time:     row?.time     ?? DEFAULT_BRIEF.time,
     timezone: row?.timezone ?? DEFAULT_BRIEF.timezone,
     channel:  row?.channel  ?? DEFAULT_BRIEF.channel,
+    wrapupEnabled: row?.wrapupEnabled ?? DEFAULT_BRIEF.wrapupEnabled,
+    wrapupTime:    row?.wrapupTime    ?? DEFAULT_BRIEF.wrapupTime,
   };
 }
 
@@ -87,6 +95,14 @@ export function validateBriefSettings(body) {
   if ('timezone' in src) {
     if (!isValidTimezone(src.timezone)) throw new Error('Unknown timezone');
     patch.timezone = src.timezone;
+  }
+  if ('wrapupEnabled' in src) {
+    if (typeof src.wrapupEnabled !== 'boolean') throw new Error('wrapupEnabled must be true or false');
+    patch.wrapupEnabled = src.wrapupEnabled;
+  }
+  if ('wrapupTime' in src) {
+    if (parseTime(src.wrapupTime) === null) throw new Error('Wrap-up time must look like 17:30');
+    patch.wrapupTime = src.wrapupTime;
   }
   if ('channel' in src) {
     if (!CHANNELS.includes(src.channel)) throw new Error('Channel must be slack or app');

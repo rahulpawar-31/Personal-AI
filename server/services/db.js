@@ -27,6 +27,7 @@ const PENDING_ACTIONS_FILE = path.join(__dirname, '..', 'pending_actions.json');
 const BRIEF_PREFS_FILE = path.join(__dirname, '..', 'brief_prefs.json');
 const DIGESTS_FILE = path.join(__dirname, '..', 'digests.json');
 const SNOOZES_FILE = path.join(__dirname, '..', 'snoozes.json');
+const WRAPUPS_FILE = path.join(__dirname, '..', 'wrapups.json');
 
 let pool = null;
 
@@ -34,7 +35,7 @@ let pool = null;
 // null (JSON-file) behavior for any dbX call that happens before initDB() runs.
 let userStore          = createJsonFileUserStore(USERS_FILE);
 let pendingActionStore = createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
-let briefStore         = createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
+let briefStore         = createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE, WRAPUPS_FILE);
 let snoozeStore        = createJsonFileSnoozeStore(SNOOZES_FILE);
 
 export function getPool() { return pool; }
@@ -146,6 +147,17 @@ export async function initDB() {
       `);
       // Added after the table first shipped: the once-a-day record for the 7 AM calendar check.
       await pool.query(`ALTER TABLE user_brief_prefs ADD COLUMN IF NOT EXISTS last_calendar_check_date TEXT`);
+      // End-of-day wrap-up: off until a user turns it on, and its once-a-day record.
+      await pool.query(`ALTER TABLE user_brief_prefs ADD COLUMN IF NOT EXISTS wrapup_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
+      await pool.query(`ALTER TABLE user_brief_prefs ADD COLUMN IF NOT EXISTS wrapup_time TEXT NOT NULL DEFAULT '17:30'`);
+      await pool.query(`ALTER TABLE user_brief_prefs ADD COLUMN IF NOT EXISTS last_wrapup_date TEXT`);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_wrapups (
+          user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          data         JSONB NOT NULL,
+          generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
       await pool.query(`
         CREATE TABLE IF NOT EXISTS user_digests (
           user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -183,7 +195,7 @@ export async function initDB() {
 
   userStore          = pool ? createPostgresUserStore(pool) : createJsonFileUserStore(USERS_FILE);
   pendingActionStore  = pool ? createPostgresPendingActionStore(pool) : createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
-  briefStore          = pool ? createPostgresBriefStore(pool) : createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
+  briefStore          = pool ? createPostgresBriefStore(pool) : createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE, WRAPUPS_FILE);
   snoozeStore         = pool ? createPostgresSnoozeStore(pool) : createJsonFileSnoozeStore(SNOOZES_FILE);
 }
 
@@ -215,6 +227,10 @@ export async function dbSaveBriefPrefs(userId, patch)         { return briefStor
 export async function dbListBriefPrefs()                      { return briefStore.listPrefs(); }
 export async function dbClaimBrief(userId, date)              { return briefStore.claimBrief(userId, date); }
 export async function dbClaimCalendarCheck(userId, date)      { return briefStore.claimCalendarCheck(userId, date); }
+export async function dbClaimWrapup(userId, date)             { return briefStore.claimWrapup(userId, date); }
+export async function dbReleaseWrapup(userId, date)           { return briefStore.releaseWrapup(userId, date); }
+export async function dbSaveWrapup(userId, wrapup)            { return briefStore.saveWrapup(userId, wrapup); }
+export async function dbGetWrapup(userId)                     { return briefStore.getWrapup(userId); }
 export async function dbSaveDigest(userId, digest)            { return briefStore.saveDigest(userId, digest); }
 export async function dbGetDigest(userId)                     { return briefStore.getDigest(userId); }
 

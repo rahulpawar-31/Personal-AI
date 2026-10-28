@@ -40,7 +40,10 @@ export default function BriefSection() {
           const saved = await apiFetch('/api/digest/settings', { method: 'PUT', body: JSON.stringify({ timezone: tz }) });
           if (saved.ok) d = await saved.json();
         }
-        if (alive) setForm({ enabled: d.enabled, time: d.time, timezone: d.timezone ?? d.serverTimezone, channel: d.channel });
+        if (alive) setForm({
+          enabled: d.enabled, time: d.time, timezone: d.timezone ?? d.serverTimezone, channel: d.channel,
+          wrapupEnabled: d.wrapupEnabled, wrapupTime: d.wrapupTime,
+        });
       } catch (err) {
         if (alive) setStatus({ type: 'error', msg: err.message || 'Could not load your brief settings' });
       }
@@ -60,7 +63,11 @@ export default function BriefSection() {
       const r = await apiFetch('/api/digest/settings', { method: 'PUT', body: JSON.stringify(form) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not save your brief settings');
-      setStatus({ type: 'success', msg: form.enabled ? `Saved. Your next brief arrives at ${form.time} (${form.timezone}).` : 'Saved. The morning brief is off.' });
+      const parts = [
+        form.enabled ? `morning brief at ${form.time}` : null,
+        form.wrapupEnabled ? `end-of-day wrap-up at ${form.wrapupTime}` : null,
+      ].filter(Boolean);
+      setStatus({ type: 'success', msg: parts.length ? `Saved. Next up: ${parts.join(' and ')} (${form.timezone}).` : 'Saved. Both are off.' });
     } catch (err) {
       setStatus({ type: 'error', msg: err.message || 'Could not save your brief settings. Try again.' });
     }
@@ -101,12 +108,28 @@ export default function BriefSection() {
             </div>
           </div>
 
-          <div style={{ ...rowStyle, opacity: form.enabled ? 1 : 0.5 }}>
-            <span style={labelStyle} id="brief-channel-label">Where it goes</span>
+          <div style={{ ...rowStyle, display: 'flex', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text)', cursor: 'pointer', flex: '1 1 260px' }}>
+              <input id="wrapup-enabled" type="checkbox" checked={form.wrapupEnabled}
+                onChange={e => set('wrapupEnabled', e.target.checked)} style={{ margin: 0, accentColor: 'var(--accent)' }} />
+              Send me an end-of-day wrap-up
+            </label>
+            <div style={{ opacity: form.wrapupEnabled ? 1 : 0.5 }}>
+              <label htmlFor="wrapup-time" style={labelStyle}>Time</label>
+              <input id="wrapup-time" type="time" value={form.wrapupTime} disabled={!form.wrapupEnabled}
+                onChange={e => set('wrapupTime', e.target.value)} />
+            </div>
+            <span style={{ flexBasis: '100%', fontSize: 12.5, color: 'var(--muted)' }}>
+              What you finished, what is still open, today's meetings, and a standup note to copy.
+            </span>
+          </div>
+
+          <div style={{ ...rowStyle, opacity: form.enabled || form.wrapupEnabled ? 1 : 0.5 }}>
+            <span style={labelStyle} id="brief-channel-label">Where they go</span>
             <div role="radiogroup" aria-labelledby="brief-channel-label" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {CHANNELS.map(c => (
-                <label key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: form.enabled ? 'pointer' : 'default' }}>
-                  <input type="radio" name="brief-channel" value={c.id} checked={form.channel === c.id} disabled={!form.enabled}
+                <label key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: form.enabled || form.wrapupEnabled ? 'pointer' : 'default' }}>
+                  <input type="radio" name="brief-channel" value={c.id} checked={form.channel === c.id} disabled={!form.enabled && !form.wrapupEnabled}
                     onChange={() => set('channel', c.id)} style={{ margin: '3px 0 0', accentColor: 'var(--accent)' }} />
                   <span style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: 14, color: 'var(--text)' }}>{c.label}</span>
@@ -128,7 +151,7 @@ export default function BriefSection() {
           )}
 
           <div style={{ padding: '14px 20px' }}>
-            <button className="primary" onClick={save} disabled={saving || !form.time}
+            <button className="primary" onClick={save} disabled={saving || !form.time || !form.wrapupTime}
               style={{ padding: '7px 16px', fontSize: 14 }}>
               {saving ? 'Saving…' : 'Save'}
             </button>
