@@ -59,6 +59,26 @@ export async function getWeekEvents(userId) {
   }
 }
 
+// Events that start between two instants, oldest first. Used by the end-of-day
+// wrap-up to list the meetings that already happened today.
+export async function getEventsBetween(userId, startISO, endISO) {
+  try {
+    const c   = await cal(userId);
+    const res = await c.events.list({
+      calendarId:   'primary',
+      timeMin:      startISO,
+      timeMax:      endISO,
+      singleEvents: true,
+      orderBy:      'startTime',
+      maxResults:   50,
+    });
+    return (res.data.items ?? []).map(formatEvent);
+  } catch (err) {
+    console.error('[calendar] getEventsBetween:', err.message);
+    return [];
+  }
+}
+
 function formatEvent(e) {
   return {
     id:          e.id,
@@ -300,4 +320,4 @@ export async function updateEvent(userId, idOrTitle, patches = {}) {
   }
 }
 
-export default { getUpcoming, getWeekEvents, createEvent, createRecurringEvent, deleteEvent, updateEvent, scanConflicts, blockFocusTime, generateMeetingBrief };
+export default { getUpcoming, getWeekEvents, getEventsBetween, createEvent, createRecurringEvent, deleteEvent, updateEvent, scanConflicts, blockFocusTime, generateMeetingBrief };

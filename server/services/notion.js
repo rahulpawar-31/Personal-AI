@@ -54,6 +54,37 @@ export async function getTasks(creds = {}, { throwOnError = false } = {}) {
   }
 }
 
+// Tasks marked Done and edited since `sinceISO`. Notion does not record when a
+// task was completed, so "edited since" stands in for it: a finished task that
+// was also edited for another reason today still counts. A Status column that is
+// not a select (or any other query problem) gives an empty list, not an error.
+export async function getCompletedSince(creds = {}, sinceISO) {
+  try {
+    const res = await getClient(creds).databases.query({
+      database_id: tasksDb(creds),
+      filter: {
+        and: [
+          { property: 'Status', select: { equals: 'Done' } },
+          { timestamp: 'last_edited_time', last_edited_time: { on_or_after: sinceISO } },
+        ],
+      },
+      sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
+      page_size: 50,
+    });
+    return res.results.map(page => ({
+      id:          page.id,
+      title:       page.properties.Name?.title?.[0]?.plain_text ?? 'Untitled',
+      status:      'Done',
+      url:         page.url,
+      source:      'notion',
+      completedAt: page.last_edited_time ?? null,
+    }));
+  } catch (err) {
+    console.error('[notion] getCompletedSince:', err.message);
+    return [];
+  }
+}
+
 export async function createTask(title, status = 'Not started', creds = {}) {
   const notion = getClient(creds);
   try {

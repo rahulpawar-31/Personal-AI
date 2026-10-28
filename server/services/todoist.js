@@ -25,6 +25,7 @@ function formatTask(t) {
     priority:   t.priority ?? 1,              // 1=normal 2=medium 3=high 4=urgent
     project_id: t.project_id ?? null,
     labels:     t.labels ?? [],
+    completedAt: t.completed_at ?? null,      // ISO instant; only on completed tasks
   };
 }
 

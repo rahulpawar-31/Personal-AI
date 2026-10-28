@@ -348,7 +348,7 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
       </IntegrationGroup>
 
       {/* Morning brief */}
-      <SectionLabel label="Morning brief" tag="optional" />
+      <SectionLabel label="Daily summaries" tag="optional" />
       <BriefSection />
 
       {/* Account */}
