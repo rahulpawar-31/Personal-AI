@@ -9,7 +9,7 @@ import AccountSection from './components/settings/AccountSection.jsx';
 import { LoadingState } from './components/ui/States.jsx';
 import { isUsableKey } from './lib/keyStatus.js';
 
-export default function SettingsPage({ user, onLogout, health = {} }) {
+export default function SettingsPage({ user, onLogout, onUserChange, health = {} }) {
   const [saved,        setSaved]        = useState({});
   const [testing,      setTesting]      = useState(null);
   const [errors,       setErrors]       = useState({});
@@ -348,7 +348,7 @@ export default function SettingsPage({ user, onLogout, health = {} }) {
 
       {/* Account */}
       <SectionLabel label="Account" tag="optional" />
-      <AccountSection user={user} onLogout={onLogout} />
+      <AccountSection user={user} onLogout={onLogout} onUserChange={onUserChange} />
 
         </div>
         <aside aria-label="Account" style={{ flex: '1 1 280px', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>

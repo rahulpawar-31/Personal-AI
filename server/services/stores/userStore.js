@@ -1,6 +1,6 @@
 // server/services/stores/userStore.js
 // UserStore: one interface (createUser, findByUsername, findById, updateEmail,
-// updatePasswordHash, deleteUser, bumpTokenVersion, findByGoogleId, findByEmail, linkGoogleId,
+// updateRole, updatePasswordHash, deleteUser, bumpTokenVersion, findByGoogleId, findByEmail, linkGoogleId,
 // createGoogleUser, listUsers, setAdmin, isAdmin), three adapters. Callers
 // (server/services/db.js) select one adapter once, at initDB() time — no
 // per-call backend branching.
@@ -29,7 +29,7 @@ export function createPostgresUserStore(pool) {
     async findById(id) {
       const r = await pool.query(
         `SELECT id, username, email, is_active AS "isActive", created_at AS "createdAt",
-                token_version AS "tokenVersion"
+                token_version AS "tokenVersion", role
          FROM users WHERE id = $1`,
         [id]
       );
@@ -38,6 +38,10 @@ export function createPostgresUserStore(pool) {
 
     async updateEmail(userId, email) {
       await pool.query('UPDATE users SET email = $1 WHERE id = $2', [email || null, userId]);
+    },
+
+    async updateRole(userId, role) {
+      await pool.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
     },
 
     async updatePasswordHash(userId, passwordHash) {
@@ -111,7 +115,7 @@ function createArrayBackedUserStore({ read, write }) {
   }
 
   function toPublicShape(u) {
-    return { id: u.id, username: u.username, email: u.email ?? null, isActive: u.isActive ?? true, createdAt: u.createdAt, tokenVersion: u.tokenVersion ?? 0 };
+    return { id: u.id, username: u.username, email: u.email ?? null, isActive: u.isActive ?? true, createdAt: u.createdAt, tokenVersion: u.tokenVersion ?? 0, role: u.role ?? null };
   }
 
   return {
@@ -142,6 +146,14 @@ function createArrayBackedUserStore({ read, write }) {
       const idx = users.findIndex(u => String(u.id) === String(userId));
       if (idx < 0) throw new Error('User not found');
       users[idx].email = email || null;
+      write(users);
+    },
+
+    async updateRole(userId, role) {
+      const users = read();
+      const idx = users.findIndex(u => String(u.id) === String(userId));
+      if (idx < 0) throw new Error('User not found');
+      users[idx].role = role;
       write(users);
     },
 

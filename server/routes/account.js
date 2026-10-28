@@ -31,6 +31,15 @@ router.put('/api/users/me/email', requireAuth, async (req, res) => {
   }
 });
 
+router.put('/api/users/me/role', requireAuth, async (req, res) => {
+  try {
+    await userService.updateRole(req.user.userId, req.body.role);
+    res.json({ ok: true, role: req.body.role });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.put('/api/users/me/password', requireAuth, accountLimiter, async (req, res) => {
   try {
     const updated = await userService.updatePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);

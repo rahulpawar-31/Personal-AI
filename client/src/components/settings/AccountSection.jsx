@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { apiFetch, clearToken, clearCachedData } from '../../api.js';
+import RolePicker from '../RolePicker.jsx';
 
-export default function AccountSection({ user, onLogout }) {
+export default function AccountSection({ user, onLogout, onUserChange }) {
   const [email, setEmail]           = useState(user.email || '');
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass]         = useState('');
@@ -18,6 +19,21 @@ export default function AccountSection({ user, onLogout }) {
     const d = await r.json();
     setSaving(false);
     setStatus(d.ok ? { type: 'success', msg: 'Email updated.' } : { type: 'error', msg: d.error });
+  }
+
+  async function saveRole(role) {
+    setSaving('role');
+    setStatus(null);
+    try {
+      const r = await apiFetch('/api/users/me/role', { method: 'PUT', body: JSON.stringify({ role }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'Could not save your role');
+      onUserChange?.({ ...user, role });
+      setStatus({ type: 'success', msg: 'Role updated.' });
+    } catch (err) {
+      setStatus({ type: 'error', msg: err.message || 'Could not save your role. Try again.' });
+    }
+    setSaving(false);
   }
 
   async function changePassword() {
@@ -77,6 +93,14 @@ export default function AccountSection({ user, onLogout }) {
           >
             {saving === 'email' ? 'Saving…' : 'Save'}
           </button>
+        </div>
+      </div>
+
+      {/* Role */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Your role</div>
+        <div style={{ maxWidth: 400 }}>
+          <RolePicker name="settings-role" value={user.role ?? null} onChange={saveRole} disabled={saving === 'role'} />
         </div>
       </div>
 
