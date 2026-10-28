@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../api.js';
 import { toast } from '../toast.jsx';
 import { LoadingState } from './ui/States.jsx';
+import SnoozeMenu from './SnoozeMenu.jsx';
+import { itemKeys, applySnoozes, returnLabel } from '../snooze.js';
 
 const KIND = {
   mail: { bg: 'var(--tag-info-bg)',   fg: 'var(--tag-info-fg)',   label: 'mail' },
@@ -60,6 +62,14 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
   const [filter,  setFilter]  = useState('all');
   const [ask,     setAsk]     = useState('');
 
+  const [snoozes, setSnoozes] = useState([]);
+  // Re-render each minute so a snoozed item comes back on time without a reload.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const now = new Date();
 
   const connectedCount = [connected, health.notion, health.todoist, health.github, health.slack, health.trello, health.gemini || health.groq].filter(Boolean).length;
@@ -97,6 +107,41 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
       .then(list => { setPrs(Array.isArray(list) ? list : []); return undefined; })
       .catch(() => {});
   }, [health.github, refreshKey]);
+
+  useEffect(() => {
+    apiFetch('/api/snoozes')
+      .then(r => (r.ok ? r.json() : []))
+      .then(list => { setSnoozes(Array.isArray(list) ? list : []); return undefined; })
+      .catch(() => {});
+  }, [refreshKey]);
+
+  async function snoozeItem(item, choice) {
+    try {
+      const r = await apiFetch('/api/snoozes', { method: 'PUT', body: JSON.stringify({ key: item.key, title: item.title, ...choice }) });
+      const d = await r.json();
+      if (!r.ok) { toast(d.error || 'Could not snooze that item', 'error'); return; }
+      setSnoozes(list => [...list.filter(s => s.key !== d.key), d]);
+      toast(`Snoozed until ${returnLabel(d.until, Date.now())}`);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function unsnooze(key) {
+    setSnoozes(list => list.filter(s => s.key !== key));
+    try {
+      const r = await apiFetch('/api/snoozes', { method: 'DELETE', body: JSON.stringify({ key }) });
+      if (!r.ok) toast('Could not bring that item back', 'error');
+    } catch {
+      toast('Could not bring that item back', 'error');
+    }
+  }
+
+  // Acting on an item that came back from a snooze ends that snooze.
+  function act(item) {
+    if (item.backFromSnooze && item.key) unsnooze(item.key);
+    onNavigate?.(item.to);
+  }
 
   async function runDigest() {
     setRunning(true);
@@ -137,19 +182,20 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
   const openTasks   = tasks.filter(t => !isDone(t));
 
   const queue = [
-    ...mailPending.slice(0, 5).map(e => ({ kind: 'mail', title: e.subject, meta: [e.from, e.intent].filter(Boolean).join(' · '), action: 'Open', to: 'comms' })),
-    ...prs.slice(0, 4).map(p => ({ kind: 'code', title: p.title, meta: `GitHub · #${p.id}${p.daysStale >= 3 ? ` · ${p.daysStale}d stale` : ''}`, action: 'Review', to: 'github' })),
-    ...blockers.map(b => ({ kind: 'task', title: b.title, meta: `${b.source ?? 'Tasks'} · blocked`, action: 'Open', to: 'tasks' })),
-    ...openTasks.filter(t => t.priority >= 3).slice(0, 3).map(t => ({ kind: 'task', title: t.title, meta: `Tasks${t.due ? ' · due ' + t.due : ''}`, action: 'Start', to: 'tasks' })),
-    ...conflicts.map(c => ({ kind: 'cal', title: `${c.eventA?.title} ↔ ${c.eventB?.title}`, meta: c.type === 'overlap' ? `Calendar · ${Math.round(c.overlapMin)} min overlap` : `Calendar · ${Math.round(c.gapMin)} min gap`, action: 'View', to: 'calendar' })),
+    ...mailPending.slice(0, 5).map(e => ({ key: itemKeys.mail(e), kind: 'mail', title: e.subject, meta: [e.from, e.intent].filter(Boolean).join(' · '), action: 'Open', to: 'comms' })),
+    ...prs.slice(0, 4).map(p => ({ key: itemKeys.pr(p), kind: 'code', title: p.title, meta: `GitHub · #${p.id}${p.daysStale >= 3 ? ` · ${p.daysStale}d stale` : ''}`, action: 'Review', to: 'github' })),
+    ...blockers.map(b => ({ key: itemKeys.blocker(b), kind: 'task', title: b.title, meta: `${b.source ?? 'Tasks'} · blocked`, action: 'Open', to: 'tasks' })),
+    ...openTasks.filter(t => t.priority >= 3).slice(0, 3).map(t => ({ key: itemKeys.task(t), kind: 'task', title: t.title, meta: `Tasks${t.due ? ' · due ' + t.due : ''}`, action: 'Start', to: 'tasks' })),
+    ...conflicts.map(c => ({ key: itemKeys.conflict(c), kind: 'cal', title: `${c.eventA?.title} ↔ ${c.eventB?.title}`, meta: c.type === 'overlap' ? `Calendar · ${Math.round(c.overlapMin)} min overlap` : `Calendar · ${Math.round(c.gapMin)} min gap`, action: 'View', to: 'calendar' })),
   ];
-  const shown = queue.filter(q => filter === 'all' || q.kind === filter);
+  const { list: visibleQueue, waiting } = applySnoozes(queue, snoozes, now.getTime());
+  const shown = visibleQueue.filter(q => filter === 'all' || q.kind === filter);
 
   const name = userName ? userName.charAt(0).toUpperCase() + userName.slice(1) : '';
   const nextMeeting = nextEvent ? ` Your next meeting is at ${clock(nextEvent.start)}.` : '';
-  const summary = queue.length === 0
+  const summary = visibleQueue.length === 0
     ? `Nothing needs you right now.${nextMeeting}`
-    : `${queue.length} ${queue.length === 1 ? 'thing needs' : 'things need'} you today.${nextMeeting}`;
+    : `${visibleQueue.length} ${visibleQueue.length === 1 ? 'thing needs' : 'things need'} you today.${nextMeeting}`;
 
   const services = [
     { name: 'Gmail',    ok: connected },
@@ -257,20 +303,40 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
             {running && <LoadingState label="Running 4 sub-agents in parallel…" />}
             {!running && shown.length === 0 && (
               <p style={{ padding: '18px 0 6px', borderTop: '1px solid var(--border)', color: 'var(--muted)', fontSize: 15 }}>
-                {digest || queue.length === 0 ? 'Nothing here. A clear day.' : 'Nothing matches this filter.'}
+                {digest || visibleQueue.length === 0 ? 'Nothing here. A clear day.' : 'Nothing matches this filter.'}
                 {!digest && ' Run your digest to scan mail and tasks.'}
               </p>
             )}
             {!running && shown.map((q, i) => (
-              <div key={`${q.kind}-${i}`} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px', padding: '14px 0', borderTop: '1px solid var(--border)' }}>
+              <div key={q.key ?? `${q.kind}-${i}`} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px', padding: '14px 0', borderTop: '1px solid var(--border)' }}>
                 <span style={{ flex: 'none', width: 64, textAlign: 'center', padding: '4px 0', borderRadius: 6, background: KIND[q.kind].bg, color: KIND[q.kind].fg, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{KIND[q.kind].label}</span>
                 <div style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.3 }}>{q.title}</span>
+                  <span style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.3 }}>
+                    {q.title}
+                    {q.backFromSnooze && <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 999, background: 'var(--tag-info-bg)', color: 'var(--tag-info-fg)', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>Back from snooze</span>}
+                  </span>
                   <span style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.4 }}>{q.meta}</span>
                 </div>
-                <button type="button" onClick={() => onNavigate?.(q.to)} style={{ flex: 'none', minHeight: 40, padding: '0 16px', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, fontWeight: 600 }}>{q.action}</button>
+                <button type="button" onClick={() => act(q)} style={{ flex: 'none', minHeight: 40, padding: '0 16px', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, fontWeight: 600 }}>{q.action}</button>
+                {q.key && <SnoozeMenu title={q.title} onChoose={choice => snoozeItem(q, choice)} />}
               </div>
             ))}
+            {!running && waiting.length > 0 && (
+              <details style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <summary style={{ cursor: 'pointer', fontSize: 13.5, color: 'var(--muted)' }}>
+                  {waiting.length} snoozed
+                </summary>
+                {waiting.map(s => (
+                  <div key={s.key} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', padding: '10px 0' }}>
+                    <div style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 14.5, lineHeight: 1.3 }}>{s.title || 'Snoozed item'}</span>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>Comes back {returnLabel(s.until, now.getTime())}</span>
+                    </div>
+                    <button type="button" onClick={() => unsnooze(s.key)} style={{ flex: 'none', minHeight: 36, padding: '0 14px', border: '1px solid var(--border-strong)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, fontWeight: 500 }}>Bring back</button>
+                  </div>
+                ))}
+              </details>
+            )}
           </section>
 
           {/* Three small cards */}

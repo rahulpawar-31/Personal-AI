@@ -17,3 +17,4 @@ dist/
 server/brief_prefs.json
 server/digests.json
 .nodeterm/
+server/snoozes.json
