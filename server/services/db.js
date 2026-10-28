@@ -14,10 +14,15 @@ import {
 import {
   createPostgresPendingActionStore, createJsonFilePendingActionStore,
 } from './stores/pendingActionStore.js';
+import {
+  createPostgresBriefStore, createJsonFileBriefStore,
+} from './stores/briefStore.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
 const PENDING_ACTIONS_FILE = path.join(__dirname, '..', 'pending_actions.json');
+const BRIEF_PREFS_FILE = path.join(__dirname, '..', 'brief_prefs.json');
+const DIGESTS_FILE = path.join(__dirname, '..', 'digests.json');
 
 let pool = null;
 
@@ -25,6 +30,7 @@ let pool = null;
 // null (JSON-file) behavior for any dbX call that happens before initDB() runs.
 let userStore          = createJsonFileUserStore(USERS_FILE);
 let pendingActionStore = createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
+let briefStore         = createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
 
 export function getPool() { return pool; }
 
@@ -120,6 +126,27 @@ export async function initDB() {
         )
       `);
 
+      // ── Morning brief: per-user settings plus the date of the last brief sent
+      // (the once-a-day guard), and the latest digest so it survives a restart.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_brief_prefs (
+          user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          enabled        BOOLEAN NOT NULL DEFAULT TRUE,
+          brief_time     TEXT NOT NULL DEFAULT '09:00',
+          timezone       TEXT,
+          channel        TEXT NOT NULL DEFAULT 'slack',
+          last_sent_date TEXT,
+          updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_digests (
+          user_id      INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          data         JSONB NOT NULL,
+          generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
       console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations + user_memory)`);
     } catch (err) {
       // In production the JSON store would be empty (ephemeral filesystem), which
@@ -137,6 +164,7 @@ export async function initDB() {
 
   userStore          = pool ? createPostgresUserStore(pool) : createJsonFileUserStore(USERS_FILE);
   pendingActionStore  = pool ? createPostgresPendingActionStore(pool) : createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
+  briefStore          = pool ? createPostgresBriefStore(pool) : createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
 }
 
 // ─── User CRUD ────────────────────────────────────────────────────────────────
@@ -159,6 +187,15 @@ export async function dbCreateGoogleUser(args)                { return userStore
 export async function dbListUsers()                          { return userStore.listUsers(); }
 export async function dbSetAdmin(userId, isAdmin)             { return userStore.setAdmin(userId, isAdmin); }
 export async function dbIsAdmin(userId)                       { return userStore.isAdmin(userId); }
+
+// ─── Morning brief ────────────────────────────────────────────────────────────
+
+export async function dbGetBriefPrefs(userId)                 { return briefStore.getPrefs(userId); }
+export async function dbSaveBriefPrefs(userId, patch)         { return briefStore.savePrefs(userId, patch); }
+export async function dbListBriefPrefs()                      { return briefStore.listPrefs(); }
+export async function dbClaimBrief(userId, date)              { return briefStore.claimBrief(userId, date); }
+export async function dbSaveDigest(userId, digest)            { return briefStore.saveDigest(userId, digest); }
+export async function dbGetDigest(userId)                     { return briefStore.getDigest(userId); }
 
 // ─── Pending agent actions ────────────────────────────────────────────────────
 // Queued state-changing tool calls awaiting explicit human approval — see SEC-2.

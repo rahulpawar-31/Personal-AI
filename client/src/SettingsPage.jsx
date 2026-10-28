@@ -6,6 +6,7 @@ import SingleKeyRow from './components/settings/SingleKeyRow.jsx';
 import MultiKeyRow from './components/settings/MultiKeyRow.jsx';
 import GoogleRow from './components/settings/GoogleRow.jsx';
 import AccountSection from './components/settings/AccountSection.jsx';
+import BriefSection from './components/settings/BriefSection.jsx';
 import { LoadingState } from './components/ui/States.jsx';
 import { isUsableKey } from './lib/keyStatus.js';
 
@@ -345,6 +346,10 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
           ]}
         />
       </IntegrationGroup>
+
+      {/* Morning brief */}
+      <SectionLabel label="Morning brief" tag="optional" />
+      <BriefSection />
 
       {/* Account */}
       <SectionLabel label="Account" tag="optional" />

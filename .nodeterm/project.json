@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "rev": 693,
-  "savedAt": "2026-10-28T09:56:00.006Z",
+  "rev": 696,
+  "savedAt": "2026-10-28T11:26:23.015Z",
   "id": "project-1s0whim",
   "name": "devos",
   "color": "#ff9f0a",
   "viewport": {
-    "x": 476.7270918575492,
+    "x": 502.2339411726178,
     "y": 687.3029312675802,
     "zoom": 1
   },
@@ -34,12 +34,12 @@
       "id": "term-mvru5ws0-f0275b24",
       "kind": "terminal",
       "position": {
-        "x": -396.7270918575492,
-        "y": -135.8564745610831
+        "x": -422.2339411726178,
+        "y": -132.21263894464477
       },
       "size": {
-        "width": 776,
-        "height": 541
+        "width": 1019,
+        "height": 907
       },
       "title": "README missing LangChain",
       "titleAuto": true,

@@ -8,8 +8,8 @@ import trello   from '../services/trello.js';
 import slack    from '../services/slack.js';
 import content  from '../services/content.js';
 import { getUserCreds, notionReady } from './creds.js';
-
-export const _digestCache = new Map(); // uid → digest
+import { dbListUsers, dbListBriefPrefs, dbClaimBrief, dbSaveDigest, dbGetDigest } from '../services/db.js';
+import { dueBriefDate, effectiveSettings } from './briefSchedule.js';
 
 async function getTasksForDigest(creds) {
   if (notionReady(creds)) return notion.getTasks(creds);
@@ -20,7 +20,7 @@ async function getTasksForDigest(creds) {
   return [];
 }
 
-async function _runDigest(userId = null) {
+async function _runDigest(userId = null, { sendToSlack = false } = {}) {
   console.log('[digest] starting all sub-agents...');
   const creds = userId ? await getUserCreds(userId) : {};
 
@@ -72,22 +72,67 @@ async function _runDigest(userId = null) {
     blockers:  `${digest.tasks.blockers.length} blockers`,
   });
 
-  await slack.sendDigest(digest, creds);
+  if (sendToSlack) await slack.sendDigest(digest, creds);
   return digest;
 }
 
-export async function runDigest(userId = null) {
-  const digest = await _runDigest(userId);
-  if (userId !== null && userId !== undefined) _digestCache.set(String(userId), digest);
+// Builds a user's digest and saves it as their latest. It goes to Slack only
+// when the caller says so: the scheduled brief does for users who chose Slack,
+// and the Slack page's "Run now" does. A run from the Today page or the chat
+// agent only refreshes what the app shows.
+export async function runDigest(userId = null, { sendToSlack = false } = {}) {
+  const digest = await _runDigest(userId, { sendToSlack });
+  if (userId !== null && userId !== undefined) {
+    // A failed save must not lose a digest that was built (and maybe sent).
+    await dbSaveDigest(userId, digest).catch(err => console.error(`[digest] could not save digest for user ${userId}:`, err.message));
+  }
   return digest;
+}
+
+export async function getLatestDigest(userId) {
+  return dbGetDigest(userId);
+}
+
+const defaultBriefDeps = {
+  listUsers: dbListUsers,
+  listPrefs: dbListBriefPrefs,
+  claim:     dbClaimBrief,
+  run:       runDigest,
+};
+
+// Sends the morning brief to every user whose chosen local time has just
+// passed. Users come from the database (not the Google token files), so someone
+// with Slack or Notion but no Google still gets one. Each user is claimed for
+// their local date before the digest runs, so a restart or an overlapping tick
+// cannot send a second brief that day. Returns the ids that were sent a brief.
+export async function runDueBriefs({ now = new Date(), deps = defaultBriefDeps } = {}) {
+  const [users, prefRows] = await Promise.all([deps.listUsers(), deps.listPrefs()]);
+  const prefsById = new Map(prefRows.map(row => [String(row.userId), row]));
+
+  const due = [];
+  for (const user of users) {
+    if (user.isActive === false) continue;
+    const row  = prefsById.get(String(user.id));
+    const prefs = effectiveSettings(row);
+    if (!prefs.enabled) continue;
+    const date = dueBriefDate({ now, time: prefs.time, timezone: prefs.timezone, lastSentDate: row?.lastSentDate });
+    if (!date) continue;
+    if (!(await deps.claim(user.id, date))) continue;
+    due.push({ userId: user.id, sendToSlack: prefs.channel === 'slack' });
+  }
+
+  // Users in the same tick are independent; one failing must not stop the rest.
+  await Promise.allSettled(due.map(({ userId, sendToSlack }) =>
+    deps.run(userId, { sendToSlack }).catch(err => console.error(`[cron/brief] user ${userId}:`, err.message))
+  ));
+  return due.map(d => d.userId);
 }
 
 export function setupCronJobs() {
-  cron.schedule('0 9 * * *', () => {
-    console.log('[cron] 9 AM digest firing');
-    for (const userId of auth.getConnectedUserIds()) {
-      runDigest(userId).catch(console.error);
-    }
+  // Morning brief: every 5 minutes, send to whoever's chosen local time has just
+  // passed (see runDueBriefs). Replaces the old fixed 9 AM server-time job.
+  cron.schedule('*/5 * * * *', () => {
+    runDueBriefs().catch(err => console.error('[cron/brief]', err.message));
   });
 
   cron.schedule('0 7 * * *', async () => {
