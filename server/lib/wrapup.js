@@ -20,7 +20,7 @@ import { getUserTimezone } from './userTimezone.js';
 import { dueBriefDate, effectiveSettings } from './briefSchedule.js';
 import { zonedInstant, localDate } from './zonedTime.js';
 import {
-  dbListUsers, dbListBriefPrefs, dbClaimWrapup, dbSaveWrapup, dbGetWrapup,
+  dbListUsers, dbListBriefPrefs, dbClaimWrapup, dbReleaseWrapup, dbSaveWrapup, dbGetWrapup,
 } from '../services/db.js';
 
 // How many items of each kind a message lists before saying "and N more".
@@ -48,11 +48,34 @@ export function completedSince(tasks, startISO) {
     });
 }
 
-// Meetings that have finished: timed events (not all-day) that ended by `now`.
+// The app's own focus blocks (see calendar.blockFocusTime) are time the user
+// set aside, not meetings.
+const isFocusBlock = e => String(e.title ?? '').startsWith('Focus — ');
+
+// Meetings that have finished: timed events (not all-day) that ended by `now`,
+// leaving out ones the user declined and the app's own focus blocks.
 export function meetingsSoFar(events, now) {
   return events
     .filter(e => e?.start && String(e.start).includes('T') && e.end && Date.parse(e.end) <= now.getTime())
-    .map(e => ({ title: e.title, start: e.start, end: e.end }));
+    .filter(e => !e.declined && !isFocusBlock(e))
+    .map(e => ({ id: e.id, title: e.title, start: e.start, end: e.end }));
+}
+
+// The calendar date after `date` ('YYYY-MM-DD'), for "move to tomorrow": the
+// day after the wrap-up's own day, however long after it the button is pressed.
+export function nextDate(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+// Whether a task belongs in "still open". A Todoist task is open until it is
+// done, and the list is already limited to today and overdue. Notion tasks have
+// no due date, so the whole backlog would be "open"; only the ones the user is
+// working on (the board's In progress column) count as today's.
+export function isOpenToday(t) {
+  if (t?.status === 'Done') return false;
+  if (t?.source === 'notion') return /^in progress$/i.test(String(t.status ?? '').trim());
+  return true;
 }
 
 const more = (total, shown) => (total > shown ? ` (+${total - shown} more)` : '');
@@ -68,11 +91,13 @@ export function standupDraft({ done, open, meetings }) {
 }
 
 // The saved shape. Only Todoist tasks can move to tomorrow: Notion tasks here
-// have no due date to change.
+// have no due date to change. A recurring Todoist task stays put too, because
+// giving it a new due date would turn it into a one-off.
 export function composeWrapup({ date, now = new Date(), done = [], open = [], meetings = [] }) {
   const doneItems = done.map(t => ({ id: t.id, title: t.title, source: t.source }));
   const openItems = open.map(t => ({
-    id: t.id, title: t.title, source: t.source, due: t.due ?? null, canMove: t.source === 'todoist',
+    id: t.id, title: t.title, source: t.source, due: t.due ?? null,
+    canMove: t.source === 'todoist' && !t.recurring,
   }));
   return {
     date,
@@ -161,7 +186,7 @@ export async function buildWrapup(userId, { now = new Date(), deps = defaultGath
   return composeWrapup({
     date, now,
     done:     completedSince([...got.todoistDone, ...got.notionDone], startISO),
-    open:     [...got.todoistOpen, ...got.notionOpen].filter(t => t.status !== 'Done'),
+    open:     [...got.todoistOpen, ...got.notionOpen].filter(isOpenToday),
     meetings: meetingsSoFar(got.events, now),
   });
 }
@@ -179,7 +204,9 @@ export async function runWrapup(userId, { sendToSlack = false, now = new Date(),
   const wrapup = await deps.build(userId, { now });
   // A failed save must not lose a wrap-up that was built (and maybe sent).
   await deps.save(userId, wrapup).catch(err => console.error(`[wrapup] could not save for user ${userId}:`, err.message));
-  if (sendToSlack) await deps.send(formatWrapupSlack(wrapup), await deps.creds(userId));
+  // A day with nothing done and nothing open stays in the app: a DM saying so
+  // every weekend and holiday is noise.
+  if (sendToSlack && !wrapup.empty) await deps.send(formatWrapupSlack(wrapup), await deps.creds(userId));
   return wrapup;
 }
 
@@ -193,6 +220,7 @@ const defaultDueDeps = {
   listUsers: dbListUsers,
   listPrefs: dbListBriefPrefs,
   claim:     dbClaimWrapup,
+  release:   dbReleaseWrapup,
   run:       runWrapup,
 };
 
@@ -200,7 +228,9 @@ const defaultDueDeps = {
 // has just passed. Same rules as the morning brief (runDueBriefs): users come
 // from the database, the local date is claimed before the wrap-up is built so a
 // restart or overlapping tick cannot send a second one that day, and one user
-// failing does not stop the rest. Returns the ids it ran for.
+// failing does not stop the rest. A user whose wrap-up fails has the day's
+// claim given back, so a later tick in the window tries again. Returns the ids
+// it ran for.
 export async function runDueWrapups({ now = new Date(), deps = defaultDueDeps } = {}) {
   const [users, prefRows] = await Promise.all([deps.listUsers(), deps.listPrefs()]);
   const prefsById = new Map(prefRows.map(row => [String(row.userId), row]));
@@ -214,11 +244,14 @@ export async function runDueWrapups({ now = new Date(), deps = defaultDueDeps } 
     const date = dueBriefDate({ now, time: prefs.wrapupTime, timezone: prefs.timezone, lastSentDate: row?.lastWrapupDate });
     if (!date) continue;
     if (!(await deps.claim(user.id, date))) continue;
-    due.push({ userId: user.id, sendToSlack: prefs.channel === 'slack' });
+    due.push({ userId: user.id, date, sendToSlack: prefs.channel === 'slack' });
   }
 
-  await Promise.allSettled(due.map(({ userId, sendToSlack }) =>
-    deps.run(userId, { sendToSlack, now }).catch(err => console.error(`[cron/wrapup] user ${userId}:`, err.message))
+  await Promise.allSettled(due.map(({ userId, date, sendToSlack }) =>
+    deps.run(userId, { sendToSlack, now }).catch(async err => {
+      console.error(`[cron/wrapup] user ${userId}:`, err.message);
+      await deps.release?.(userId, date).catch(e => console.error(`[cron/wrapup] could not release user ${userId}:`, e.message));
+    })
   ));
   return due.map(d => d.userId);
 }

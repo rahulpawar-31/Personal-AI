@@ -86,6 +86,7 @@ function formatEvent(e) {
     start:       e.start?.dateTime ?? e.start?.date,
     end:         e.end?.dateTime   ?? e.end?.date,
     attendees:   (e.attendees ?? []).map(a => a.email),
+    declined:    (e.attendees ?? []).some(a => a.self && a.responseStatus === 'declined'),
     description: e.description ?? '',
     location:    e.location ?? '',
     htmlLink:    e.htmlLink,

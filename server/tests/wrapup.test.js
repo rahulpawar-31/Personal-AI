@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 process.env.JWT_SECRET = 'wrapup-test-secret-32-characters-long-ok';
 
 const {
-  dayStartISO, completedSince, meetingsSoFar, standupDraft, composeWrapup, withoutOpenTask,
+  dayStartISO, completedSince, meetingsSoFar, nextDate, standupDraft, composeWrapup, withoutOpenTask,
   formatWrapupSlack, buildWrapup, runWrapup, runDueWrapups, MAX_LISTED,
 } = await import('../lib/wrapup.js');
 const { createInMemoryBriefStore } = await import('../services/stores/briefStore.js');
@@ -51,6 +51,22 @@ test('meetingsSoFar lists only timed meetings that have ended', () => {
   assert.deepEqual(meetingsSoFar(events, now).map(m => m.title), ['Standup']);
 });
 
+test('meetingsSoFar leaves out declined meetings and the app\'s focus blocks, and keeps the id', () => {
+  const now = at('2026-10-28T12:00:00Z');
+  const events = [
+    { id: 'a', title: 'Standup',          start: '2026-10-28T09:00:00Z', end: '2026-10-28T09:15:00Z' },
+    { id: 'b', title: 'Declined sync',    start: '2026-10-28T10:00:00Z', end: '2026-10-28T10:30:00Z', declined: true },
+    { id: 'c', title: 'Focus — Deep work', start: '2026-10-28T10:30:00Z', end: '2026-10-28T11:30:00Z' },
+  ];
+  assert.deepEqual(meetingsSoFar(events, now).map(m => [m.id, m.title]), [['a', 'Standup']]);
+});
+
+test('nextDate is the day after the wrap-up\'s date, across month and year ends', () => {
+  assert.equal(nextDate('2026-10-28'), '2026-10-29');
+  assert.equal(nextDate('2026-10-31'), '2026-11-01');
+  assert.equal(nextDate('2026-12-31'), '2027-01-01');
+});
+
 // ─── Content ──────────────────────────────────────────────────────────────────
 
 test('the standup draft covers done, meetings and what carries over', () => {
@@ -74,6 +90,14 @@ test('only Todoist tasks can be moved to tomorrow', () => {
     open: [{ id: 1, source: 'todoist', title: 'a', due: '2026-10-28' }, { id: 'p', source: 'notion', title: 'b' }],
   });
   assert.deepEqual(w.open.map(t => [t.source, t.canMove]), [['todoist', true], ['notion', false]]);
+});
+
+test('a recurring Todoist task cannot be moved, because a new due date would end the recurrence', () => {
+  const w = composeWrapup({
+    date: '2026-10-28', now: at('2026-10-28T12:00:00Z'),
+    open: [{ id: 1, source: 'todoist', title: 'standup notes', due: '2026-10-28', recurring: true }],
+  });
+  assert.equal(w.open[0].canMove, false);
 });
 
 test('with nothing done and nothing open it is marked empty, even if there were meetings', () => {
@@ -145,7 +169,7 @@ test('buildWrapup combines Todoist, Notion and the calendar for today', async ()
     todoistDone: async () => [{ id: 1, source: 'todoist', title: 'Todoist done', completedAt: '2026-10-28T08:00:00Z' }],
     notionDone:  async () => [{ id: 'n1', source: 'notion', title: 'Notion done', completedAt: '2026-10-28T09:00:00Z' }],
     todoistOpen: async () => [{ id: 2, source: 'todoist', title: 'Overdue', status: 'Not started', due: '2026-10-27' }],
-    notionOpen:  async () => [{ id: 'n2', source: 'notion', title: 'Notion open', status: 'Not started' }],
+    notionOpen:  async () => [{ id: 'n2', source: 'notion', title: 'Notion open', status: 'In progress' }],
     events:      async () => [{ title: 'Standup', start: '2026-10-28T09:00:00Z', end: '2026-10-28T09:15:00Z' }],
   });
   const w = await buildWrapup(1, { now: at('2026-10-28T17:30:00Z'), deps });
@@ -153,6 +177,18 @@ test('buildWrapup combines Todoist, Notion and the calendar for today', async ()
   assert.deepEqual(w.open.map(t => t.title), ['Overdue', 'Notion open']);
   assert.deepEqual(w.meetings.map(m => m.title), ['Standup']);
   assert.equal(w.date, '2026-10-28');
+});
+
+test('of the Notion backlog, only tasks In progress count as still open', async () => {
+  const deps = gatherDeps({
+    notionOpen: async () => [
+      { id: 'a', source: 'notion', title: 'Working on it', status: 'In progress' },
+      { id: 'b', source: 'notion', title: 'Board spelling', status: 'In Progress' },
+      { id: 'c', source: 'notion', title: 'Next month', status: 'Not started' },
+    ],
+  });
+  const w = await buildWrapup(1, { now: at('2026-10-28T17:30:00Z'), deps });
+  assert.deepEqual(w.open.map(t => t.title), ['Working on it', 'Board spelling']);
 });
 
 test('"today" follows the user\'s timezone', async () => {
@@ -215,6 +251,19 @@ test('a wrap-up is saved, and sent to Slack only when asked', async () => {
   assert.deepEqual(loud.log.sent[0][1], { SLACK_BOT_TOKEN: 't' });
 });
 
+test('an empty wrap-up is saved but not sent to Slack', async () => {
+  const log = { saved: [], sent: [] };
+  const deps = {
+    build: async () => composeWrapup({ date: '2026-10-28' }),
+    save:  async (id, w) => { log.saved.push([id, w.date]); },
+    creds: async () => ({}),
+    send:  async text => { log.sent.push(text); },
+  };
+  await runWrapup(1, { sendToSlack: true, deps });
+  assert.equal(log.saved.length, 1);
+  assert.deepEqual(log.sent, []);
+});
+
 test('a failed save does not stop the wrap-up being sent', async () => {
   const { deps, log } = runDeps({ saveFails: true });
   const w = await runWrapup(1, { sendToSlack: true, deps });
@@ -234,6 +283,7 @@ function dueSetup({ users, prefs = {}, failFor = [] }) {
     listUsers: async () => { await ready; return users; },
     listPrefs: async () => { await ready; return store.listPrefs(); },
     claim: (id, date) => store.claimWrapup(id, date),
+    release: (id, date) => store.releaseWrapup(id, date),
     run: async (id, opts) => { if (failFor.includes(id)) throw new Error('boom'); ran.push({ id, sendToSlack: opts.sendToSlack }); },
   };
   return { deps, ran, store };
@@ -303,6 +353,15 @@ test('it does not block, or get blocked by, the morning brief', async () => {
   assert.equal(await store.claimBrief(1, '2026-10-28'), true);
   assert.equal(await store.claimWrapup(1, '2026-10-28'), true);
   assert.equal(await store.claimWrapup(1, '2026-10-28'), false);
+});
+
+test('a user whose wrap-up failed is tried again on a later tick the same day', async () => {
+  const { deps, ran } = dueSetup({ users: [{ id: 1 }], prefs: { 1: on() }, failFor: [1] });
+  await runDueWrapups({ now: FIVE_THIRTY_FIVE_UTC, deps });
+  assert.deepEqual(ran, []);
+  const retry = { ...deps, run: async (id, opts) => { ran.push({ id, sendToSlack: opts.sendToSlack }); } };
+  await runDueWrapups({ now: at('2026-10-28T17:45:00Z'), deps: retry });
+  assert.deepEqual(ran.map(r => r.id), [1]);
 });
 
 test('inactive accounts and one user failing do not stop the others', async () => {

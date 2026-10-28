@@ -92,6 +92,15 @@ export function createPostgresBriefStore(pool) {
       return r.rowCount === 1;
     },
 
+    // Gives the day back after a failed run so a later tick can try again. Does
+    // nothing if a newer date has been claimed since.
+    async releaseWrapup(userId, date) {
+      await pool.query(
+        'UPDATE user_brief_prefs SET last_wrapup_date = NULL WHERE user_id = $1 AND last_wrapup_date = $2',
+        [userId, date]
+      );
+    },
+
     async saveDigest(userId, digest) {
       await pool.query(
         `INSERT INTO user_digests (user_id, data, generated_at) VALUES ($1, $2, NOW())
@@ -157,6 +166,14 @@ function createFileBackedBriefStore({ readPrefs, writePrefs, readDigests, writeD
     claimBrief:         async (userId, date) => claim('lastSentDate', userId, date),
     claimCalendarCheck: async (userId, date) => claim('lastCalendarCheckDate', userId, date),
     claimWrapup:        async (userId, date) => claim('lastWrapupDate', userId, date),
+
+    async releaseWrapup(userId, date) {
+      const rows = readPrefs();
+      const idx  = rows.findIndex(sameUser(userId));
+      if (idx < 0 || rows[idx].lastWrapupDate !== date) return;
+      rows[idx] = { ...rows[idx], lastWrapupDate: null };
+      writePrefs(rows);
+    },
 
     async saveWrapup(userId, wrapup) {
       const all = readWrapups();

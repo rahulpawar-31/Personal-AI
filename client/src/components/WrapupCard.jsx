@@ -73,6 +73,11 @@ export default function WrapupCard({ refreshKey }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={label}>Done today · {wrapup.done.length}</span>
           {wrapup.done.map(t => <span key={`${t.source}-${t.id}`} style={{ fontSize: 14.5 }}>{t.title}</span>)}
+          {wrapup.done.some(t => t.source === 'notion') && (
+            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+              Notion does not record when a task was finished, so its tasks are counted when they were last edited today.
+            </span>
+          )}
         </div>
       )}
 
@@ -95,7 +100,7 @@ export default function WrapupCard({ refreshKey }) {
       {wrapup.meetings.length > 0 && !wrapup.empty && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={label}>Meetings · {wrapup.meetings.length}</span>
-          {wrapup.meetings.map(m => <span key={`${m.start}-${m.title}`} style={{ fontSize: 14.5 }}>{m.title}</span>)}
+          {wrapup.meetings.map(m => <span key={m.id ?? `${m.start}-${m.title}`} style={{ fontSize: 14.5 }}>{m.title}</span>)}
         </div>
       )}
 

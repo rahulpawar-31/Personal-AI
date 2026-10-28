@@ -228,6 +228,7 @@ export async function dbListBriefPrefs()                      { return briefStor
 export async function dbClaimBrief(userId, date)              { return briefStore.claimBrief(userId, date); }
 export async function dbClaimCalendarCheck(userId, date)      { return briefStore.claimCalendarCheck(userId, date); }
 export async function dbClaimWrapup(userId, date)             { return briefStore.claimWrapup(userId, date); }
+export async function dbReleaseWrapup(userId, date)           { return briefStore.releaseWrapup(userId, date); }
 export async function dbSaveWrapup(userId, wrapup)            { return briefStore.saveWrapup(userId, wrapup); }
 export async function dbGetWrapup(userId)                     { return briefStore.getWrapup(userId); }
 export async function dbSaveDigest(userId, digest)            { return briefStore.saveDigest(userId, digest); }
