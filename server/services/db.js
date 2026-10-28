@@ -17,12 +17,16 @@ import {
 import {
   createPostgresBriefStore, createJsonFileBriefStore,
 } from './stores/briefStore.js';
+import {
+  createPostgresSnoozeStore, createJsonFileSnoozeStore,
+} from './stores/snoozeStore.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
 const PENDING_ACTIONS_FILE = path.join(__dirname, '..', 'pending_actions.json');
 const BRIEF_PREFS_FILE = path.join(__dirname, '..', 'brief_prefs.json');
 const DIGESTS_FILE = path.join(__dirname, '..', 'digests.json');
+const SNOOZES_FILE = path.join(__dirname, '..', 'snoozes.json');
 
 let pool = null;
 
@@ -31,6 +35,7 @@ let pool = null;
 let userStore          = createJsonFileUserStore(USERS_FILE);
 let pendingActionStore = createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
 let briefStore         = createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
+let snoozeStore        = createJsonFileSnoozeStore(SNOOZES_FILE);
 
 export function getPool() { return pool; }
 
@@ -149,6 +154,18 @@ export async function initDB() {
         )
       `);
 
+      // ── Snoozed "Needs you" items: which item, and when it comes back.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_snoozes (
+          user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          item_key   TEXT NOT NULL,
+          until      TIMESTAMPTZ NOT NULL,
+          title      TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (user_id, item_key)
+        )
+      `);
+
       console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations + user_memory)`);
     } catch (err) {
       // In production the JSON store would be empty (ephemeral filesystem), which
@@ -167,6 +184,7 @@ export async function initDB() {
   userStore          = pool ? createPostgresUserStore(pool) : createJsonFileUserStore(USERS_FILE);
   pendingActionStore  = pool ? createPostgresPendingActionStore(pool) : createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
   briefStore          = pool ? createPostgresBriefStore(pool) : createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE);
+  snoozeStore         = pool ? createPostgresSnoozeStore(pool) : createJsonFileSnoozeStore(SNOOZES_FILE);
 }
 
 // ─── User CRUD ────────────────────────────────────────────────────────────────
@@ -199,6 +217,13 @@ export async function dbClaimBrief(userId, date)              { return briefStor
 export async function dbClaimCalendarCheck(userId, date)      { return briefStore.claimCalendarCheck(userId, date); }
 export async function dbSaveDigest(userId, digest)            { return briefStore.saveDigest(userId, digest); }
 export async function dbGetDigest(userId)                     { return briefStore.getDigest(userId); }
+
+// ─── Snoozed items ────────────────────────────────────────────────────────────
+
+export async function dbUpsertSnooze(userId, snooze)          { return snoozeStore.upsertSnooze(userId, snooze); }
+export async function dbListSnoozes(userId)                   { return snoozeStore.listSnoozes(userId); }
+export async function dbRemoveSnooze(userId, key)             { return snoozeStore.removeSnooze(userId, key); }
+export async function dbRemoveReturnedSnoozes(userId, cutoff) { return snoozeStore.removeReturnedBefore(userId, cutoff); }
 
 // ─── Pending agent actions ────────────────────────────────────────────────────
 // Queued state-changing tool calls awaiting explicit human approval — see SEC-2.
