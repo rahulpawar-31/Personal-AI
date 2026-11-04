@@ -78,13 +78,41 @@ export function isOpenToday(t) {
   return true;
 }
 
+// A recurring Todoist task you finished today comes back as the next occurrence,
+// which can still be due today or overdue. It is done for today, so it is not
+// "still open". Matched by id first. Todoist's completed list does not always
+// carry the open task's id, so a done item whose id matched nothing falls back to
+// its title, and then hides at most one open recurring task: two different
+// recurring tasks with the same title are not both hidden by finishing one.
+export function withoutDoneRecurring(open, done) {
+  const doneTodoist = done.filter(t => t.source === 'todoist');
+  const isRecurring = t => t.source === 'todoist' && t.recurring;
+  const doneIds     = new Set(doneTodoist.map(t => String(t.id)));
+  const openIds     = new Set(open.filter(isRecurring).map(t => String(t.id)));
+  const hidden      = new Set(open.filter(t => isRecurring(t) && doneIds.has(String(t.id))));
+  // Done items that matched an open task by id are accounted for; the rest are
+  // matched by title, one open recurring task per done item.
+  const byTitle = doneTodoist.filter(t => !openIds.has(String(t.id)));
+  for (const d of byTitle) {
+    const match = open.find(t => isRecurring(t) && !hidden.has(t) && t.title === d.title);
+    if (match) hidden.add(match);
+  }
+  return open.filter(t => !hidden.has(t));
+}
+
 const more = (total, shown) => (total > shown ? ` (+${total - shown} more)` : '');
 const titles = (list, n = MAX_LISTED) => list.slice(0, n).map(i => i.title).join('; ') + more(list.length, n);
+
+// Notion does not record when a task was finished, so its "done today" is "edited
+// today" (see notion.getCompletedSince). That is fine to show with a caveat, but
+// not to put in a note that gets pasted to other people as fact.
+export const NOTION_DONE_NOTE = 'Notion does not record when a task was finished, so its tasks are counted when they were last edited today.';
 
 // A short note to paste into a standup channel. Empty when there is nothing to say.
 export function standupDraft({ done, open, meetings }) {
   const lines = [];
-  if (done.length)     lines.push(`Done: ${titles(done)}`);
+  const doneForStandup = done.filter(t => t.source !== 'notion');
+  if (doneForStandup.length) lines.push(`Done: ${titles(doneForStandup)}`);
   if (meetings.length) lines.push(`Meetings: ${titles(meetings)}`);
   if (open.length)     lines.push(`Carrying over: ${titles(open)}`);
   return lines.join('\n');
@@ -141,6 +169,7 @@ export function formatWrapupSlack(w) {
   }
   const parts = [head];
   if (w.done.length)     parts.push(`*Done today (${w.done.length})*`, ...bullets(w.done));
+  if (w.done.some(t => t.source === 'notion')) parts.push(`_${NOTION_DONE_NOTE}_`);
   if (w.open.length)     parts.push(`*Still open (${w.open.length})*`, ...bullets(w.open));
   if (w.meetings.length) parts.push(`*Meetings (${w.meetings.length})*`, ...bullets(w.meetings));
   if (w.standup)         parts.push('*Standup draft*', ...w.standup.split('\n').map(l => `> ${l}`));
@@ -183,10 +212,11 @@ export async function buildWrapup(userId, { now = new Date(), deps = defaultGath
     got[names[i]] = r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : [];
   });
 
+  const done = completedSince([...got.todoistDone, ...got.notionDone], startISO);
   return composeWrapup({
     date, now,
-    done:     completedSince([...got.todoistDone, ...got.notionDone], startISO),
-    open:     [...got.todoistOpen, ...got.notionOpen].filter(isOpenToday),
+    done,
+    open:     withoutDoneRecurring([...got.todoistOpen, ...got.notionOpen].filter(isOpenToday), done),
     meetings: meetingsSoFar(got.events, now),
   });
 }
