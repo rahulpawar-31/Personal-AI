@@ -3,14 +3,19 @@
 //   Gemini (large context)  → @langchain/google-genai
 //   Groq   (fast triage)    → @langchain/groq
 // Model names come from lib/models.js (and its environment overrides) so a
-// provider retiring a model is a one-line change. Provider selection is task-based; cross-provider failover uses LangChain's
-// native .withFallbacks(). Public function signatures are unchanged so every
-// existing caller (index.js, gmail.js, content.js, calendar.js) keeps working.
+// provider retiring a model is a one-line change. Provider selection is task-based.
+// Failover between providers is lib/aiFallback.js, the same one the chat agent
+// uses: every call has a time limit, and a provider that times out, errors or
+// returns an empty reply is skipped in favour of the next (#417). Public function
+// signatures are unchanged so every existing caller (index.js, gmail.js,
+// content.js, calendar.js) keeps working.
 
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatGroq } from '@langchain/groq';
 import { SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import crypto from 'node:crypto';
 import { modelId } from '../lib/models.js';
+import { runWithFallback, streamWithFallback, timeoutsFromEnv, emptyReplyError } from '../lib/aiFallback.js';
 
 // Task type → preferred provider (the other becomes the fallback)
 const TASK_ROUTING = {
@@ -37,38 +42,54 @@ export function resolveKey(provider, apiKeys = {}) {
   return null;
 }
 
+// The client libraries retry a failed call up to 6 times with growing pauses by
+// default, which on a rate-limited key keeps a request open for minutes. One retry
+// covers a blip; after that the next provider is tried (see lib/aiFallback.js).
+const MODEL_MAX_RETRIES = 1;
+
+function modelName(provider) {
+  return provider === 'gemini' ? modelId('gemini') : modelId('groqFast');
+}
+
 function buildModel(provider, apiKey, maxTokens, streaming) {
   if (provider === 'gemini') {
     return new ChatGoogleGenerativeAI({
-      model: modelId('gemini'), apiKey, maxOutputTokens: maxTokens, streaming,
+      model: modelName(provider), apiKey, maxOutputTokens: maxTokens, streaming, maxRetries: MODEL_MAX_RETRIES,
     });
   }
   return new ChatGroq({
-    model: modelId('groqFast'), apiKey, maxTokens, streaming,
+    model: modelName(provider), apiKey, maxTokens, streaming, maxRetries: MODEL_MAX_RETRIES,
   });
 }
 
-// Build a runnable for a task: preferred provider first, the other as fallback.
-// Skips any provider without a key. Throws MISSING_API_KEY if none configured.
-function buildChain(taskType, { maxTokens, apiKeys, streaming = false }) {
+// Which key a call uses, without keeping the key itself: a short fingerprint, so
+// one key going quiet does not demote a different key for the same provider.
+const fingerprint = key => crypto.createHash('sha256').update(String(key)).digest('hex').slice(0, 8);
+
+// The providers to try for a task, in order: the preferred one first, the other
+// after it. Skips any provider without a key. Throws MISSING_API_KEY if none.
+function buildCandidates(taskType, { maxTokens, apiKeys, streaming = false }) {
   const provider = TASK_ROUTING[taskType] ?? 'gemini';
   const order    = [provider, ...['gemini', 'groq'].filter(p => p !== provider)];
 
-  const models = order
+  const candidates = order
     .map(p => ({ p, key: resolveKey(p, apiKeys) }))
     .filter(x => x.key)
-    .map(x => ({ p: x.p, model: buildModel(x.p, x.key, maxTokens, streaming) }));
+    .map(({ p, key }) => ({
+      provider: p,
+      model: modelName(p),
+      healthKey: `llm:${p}:${modelName(p)}:${fingerprint(key)}`,
+      make: () => buildModel(p, key, maxTokens, streaming),
+    }));
 
-  if (!models.length) {
+  if (!candidates.length) {
     const err = new Error('No LLM API key configured — set GEMINI_API_KEY or GROQ_API_KEY (or add one in Settings)');
     err.code = 'MISSING_API_KEY';
     throw err;
   }
 
-  console.log(`[llm] ${taskType} → ${models.map(m => m.p).join(' → ')}`);
-
-  const [primary, ...rest] = models.map(m => m.model);
-  return rest.length ? primary.withFallbacks({ fallbacks: rest }) : primary;
+  console.log(`[llm] ${taskType} → ${candidates.map(c => c.provider).join(' → ')}`);
+  return candidates;
 }
 
 // Convert our { role, content } messages into LangChain message instances.
@@ -83,6 +104,9 @@ function toLC(messages) {
 function textOf(content) {
   return typeof content === 'string' ? content : JSON.stringify(content);
 }
+
+// No text at all: an empty string, or the stringified empty parts list.
+const isEmptyReply = text => !text.trim() || text.trim() === '[]';
 
 function parseJSON(raw, provider = 'llm') {
   try {
@@ -102,10 +126,19 @@ export async function call(messages, options = {}) {
     apiKeys   = {},
   } = options;
 
-  const chain = buildChain(taskType, { maxTokens, apiKeys });
-  const res   = await chain.invoke(toLC(messages), { runName: `llm:${taskType}`, tags: ['devos', taskType] });
-  const out   = textOf(res.content);
-  return json ? parseJSON(out, taskType) : out;
+  // options.candidates / options.fallback replace the real providers and the time
+  // limits; they exist so tests can use fake models and short timeouts.
+  const candidates = options.candidates ?? buildCandidates(taskType, { maxTokens, apiKeys });
+  const lcMessages = toLC(messages);
+
+  // A reply that is empty, or (for json) not parseable, is a failed attempt like any
+  // other, so the next provider gets a go instead of the caller getting nothing.
+  return runWithFallback(candidates, async (model, _candidate, { signal } = {}) => {
+    const res = await model.invoke(lcMessages, { runName: `llm:${taskType}`, tags: ['devos', taskType], signal });
+    const out = textOf(res.content);
+    if (isEmptyReply(out)) throw emptyReplyError();
+    return json ? parseJSON(out, taskType) : out;
+  }, { ...timeoutsFromEnv(process.env, 'LLM'), label: 'llm', ...options.fallback });
 }
 
 // Backwards-compatible simple chat helper
@@ -165,14 +198,22 @@ export async function generate(prompt, context = '', taskType = 'digest', apiKey
 }
 
 // Streaming call — yields text tokens via async generator (LangChain .stream()).
+// The first token must arrive in time and the stream must not go quiet; a provider
+// that fails before sending anything is replaced by the next (see streamWithFallback).
 export async function* streamTokens(messages, options = {}) {
   const { taskType = 'chat', maxTokens = 600, apiKeys = {} } = options;
-  const chain  = buildChain(taskType, { maxTokens, apiKeys, streaming: true });
-  const stream = await chain.stream(toLC(messages), { runName: `llm:${taskType}`, tags: ['devos', taskType] });
-  for await (const chunk of stream) {
-    const t = chunk?.content;
-    if (typeof t === 'string' && t) yield t;
+  const candidates = options.candidates ?? buildCandidates(taskType, { maxTokens, apiKeys, streaming: true });
+  const lcMessages = toLC(messages);
+
+  async function* textChunks(model, _candidate, { signal } = {}) {
+    const stream = await model.stream(lcMessages, { runName: `llm:${taskType}`, tags: ['devos', taskType], signal });
+    for await (const chunk of stream) {
+      const t = chunk?.content;
+      if (typeof t === 'string' && t) yield t;
+    }
   }
+
+  yield* streamWithFallback(candidates, textChunks, { ...timeoutsFromEnv(process.env, 'LLM'), label: 'llm', ...options.fallback });
 }
 
 export default { call, chat, classify, generate, streamTokens };
