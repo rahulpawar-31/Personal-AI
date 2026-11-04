@@ -17,7 +17,13 @@ import { resolveKey } from './llm.js';
 import { dbCreatePendingAction } from './db.js';
 import { CONFIRM_REQUIRED_INTENTS } from '../lib/actions.js';
 import { modelId } from '../lib/models.js';
-import { runWithFallback } from '../lib/aiFallback.js';
+import { runWithFallback, timeoutsFromEnv } from '../lib/aiFallback.js';
+
+// The client libraries retry a failed call up to 6 times with growing pauses, which
+// on a rate-limited key is what kept requests hanging for minutes (#409). One
+// retry covers a transient blip; anything longer falls through to the other
+// provider (see runWithFallback) instead.
+const MODEL_MAX_RETRIES = 1;
 
 // Returns an ordered list of { provider, model, make } to try for tool calling.
 // Gemini first (reliable tool-call JSON); Groq as fallback (useful when Gemini
@@ -29,11 +35,11 @@ function modelCandidates(apiKeys = {}) {
   const groqKey   = resolveKey('groq',   apiKeys);
   if (geminiKey) {
     const model = modelId('gemini');
-    candidates.push({ provider: 'gemini', model, make: () => new ChatGoogleGenerativeAI({ model, apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0 }) });
+    candidates.push({ provider: 'gemini', model, make: () => new ChatGoogleGenerativeAI({ model, apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
   }
   if (groqKey) {
     const model = modelId('groq');
-    candidates.push({ provider: 'groq', model, make: () => new ChatGroq({ model, apiKey: groqKey, maxTokens: 800, temperature: 0 }) });
+    candidates.push({ provider: 'groq', model, make: () => new ChatGroq({ model, apiKey: groqKey, maxTokens: 800, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
   }
   if (!candidates.length) {
     const err = new Error('No LLM API key configured — add a Groq or Gemini key in Settings.');
@@ -190,7 +196,7 @@ const rollingMemory = new Map();
  * overflow together with any existing summary, so older context is always
  * compressed rather than dropped.
  */
-async function buildContext(history, userId, model) {
+async function buildContext(history, userId, model, signal) {
   if (history.length <= WINDOW) {
     return history.map(m =>
       ((m.role === 'assistant' || m.role === 'ai') ? new AIMessage(m.content) : new HumanMessage(m.content))
@@ -216,7 +222,7 @@ async function buildContext(history, userId, model) {
       new HumanMessage(
         `Summarise the following conversation in 2–3 sentences, preserving key facts, decisions, and user preferences. Be concise:\n\n${block}`
       ),
-    ]);
+    ], { signal });
     summary = typeof res.content === 'string' ? res.content : prevSummary;
     rollingMemory.set(String(userId), summary);
   } catch {
@@ -246,14 +252,14 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
   const systemPrompt = SYSTEM_PROMPT(connectedTools, memContext);
 
   // Try Gemini, then Groq (see lib/aiFallback.js); if both fail the error says why each did.
-  return runWithFallback(candidates, async (model) => {
+  return runWithFallback(candidates, async (model, _candidate, { signal } = {}) => {
     const agent       = createAgent({ model, tools, systemPrompt });
-    const contextMsgs = await buildContext(history, userId, model);
+    const contextMsgs = await buildContext(history, userId, model, signal);
     const messages    = [...contextMsgs, new HumanMessage(message)];
 
     const result    = await agent.invoke(
       { messages },
-      { runName: 'devos-agent', tags: ['devos', 'agent'], metadata: { userId: String(userId ?? 'anon') } }
+      { runName: 'devos-agent', tags: ['devos', 'agent'], metadata: { userId: String(userId ?? 'anon') }, signal }
     );
     const msgs = result.messages ?? [];
     const last = msgs[msgs.length - 1];
@@ -263,7 +269,7 @@ export async function runAgent({ message, history = [], creds = {}, userId, exec
     }
     const toolsUsed = msgs.flatMap(m => (m.tool_calls ?? []).map(tc => tc.name));
     return { reply, toolsUsed };
-  });
+  }, timeoutsFromEnv());
 }
 
 /** Clear the rolling summary for a user (called when they hit "Clear" in the chat). */

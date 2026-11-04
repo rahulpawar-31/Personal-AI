@@ -94,3 +94,101 @@ test('only "no provider could answer" becomes a 503; a stray err.status never re
   assert.equal(aiErrorStatus(new Error('plain')), 500);
   assert.equal(aiErrorStatus(null), 500);
 });
+
+// ─── A model that never answers must not hang the request (#409) ─────────────
+
+import { timeoutsFromEnv, ATTEMPT_TIMEOUT_MS, TOTAL_TIMEOUT_MS } from '../lib/aiFallback.js';
+
+const hangs = () => new Promise(() => {});                       // never settles
+const fast  = { ...quiet, attemptTimeoutMs: 40, totalTimeoutMs: 400 };
+
+test('a provider that never answers times out and the next one answers', async () => {
+  const started = Date.now();
+  const out = await runWithFallback([gemini, groq], async (m) => (m.provider === 'gemini' ? hangs() : { reply: 'from groq' }), fast);
+  assert.deepEqual(out, { reply: 'from groq' });
+  assert.ok(Date.now() - started < 300, 'did not wait for the hanging provider');
+});
+
+test('the hanging attempt is cancelled, not just ignored', async () => {
+  let firstSignal;
+  await runWithFallback([gemini, groq], async (m, _c, { signal }) => {
+    if (m.provider === 'gemini') { firstSignal = signal; return hangs(); }
+    return { reply: 'ok' };
+  }, fast);
+  assert.equal(firstSignal.aborted, true);
+});
+
+test('a provider that answers in time is given a live signal and nothing is left running', async () => {
+  let signal;
+  const out = await runWithFallback([gemini], async (m, _c, ctx) => { signal = ctx.signal; return { reply: 'quick' }; }, fast);
+  assert.deepEqual(out, { reply: 'quick' });
+  await new Promise(r => setTimeout(r, 80)); // longer than the attempt timeout
+  assert.equal(signal.aborted, false, 'the timer was cleared once it answered');
+});
+
+test('when every provider hangs the request ends with a 503 that says the AI took too long', async () => {
+  const started = Date.now();
+  await assert.rejects(
+    () => runWithFallback([gemini, groq], async () => hangs(), fast),
+    err => {
+      assert.equal(err.status, 503);
+      assert.equal(err.code, 'AI_UNAVAILABLE');
+      assert.match(err.message, /took too long to answer/);
+      assert.match(err.message, /turn Agent OFF/i);
+      return true;
+    },
+  );
+  assert.ok(Date.now() - started < 300, 'ended within the budget, not minutes later');
+});
+
+test('a mix of timeout and another failure names each provider\'s cause', async () => {
+  await assert.rejects(
+    () => runWithFallback([gemini, groq], async (m) => { if (m.provider === 'gemini') return hangs(); throw GROQ_GONE; }, fast),
+    err => {
+      assert.match(err.message, /Gemini: did not answer in time/);
+      assert.match(err.message, /Groq: the model "llama-3\.3-70b-versatile" is no longer available/);
+      return true;
+    },
+  );
+});
+
+test('a timeout is not retried on the same model', async () => {
+  let calls = 0;
+  await assert.rejects(() => runWithFallback([gemini], async () => { calls += 1; return hangs(); }, fast));
+  assert.equal(calls, 1);
+});
+
+test('the overall limit stops the chain: once it is spent, later providers are not tried', async () => {
+  let clock = 0;
+  let builtSecond = false;
+  const second = { ...groq, make: () => { builtSecond = true; return {}; } };
+  await assert.rejects(
+    () => runWithFallback([gemini, second], async () => { clock = 10_000; throw new Error('boom'); }, { ...quiet, attemptTimeoutMs: 40, totalTimeoutMs: 500, now: () => clock }),
+    err => err.code === 'AI_UNAVAILABLE',
+  );
+  assert.equal(builtSecond, false);
+});
+
+test('each attempt only gets what is left of the overall limit', async () => {
+  let clock = 0;
+  const started = Date.now();
+  // First attempt "uses" 460 of the 500 ms; the second is capped to the remaining 40, not the 5000 it would get alone.
+  await assert.rejects(() => runWithFallback([gemini, groq], async (m) => {
+    if (m.provider === 'gemini') { clock = 460; throw new Error('slow failure'); }
+    return hangs();
+  }, { ...quiet, attemptTimeoutMs: 5000, totalTimeoutMs: 500, now: () => clock }));
+  assert.ok(Date.now() - started < 1000, 'the second attempt was cut off at the remaining budget');
+});
+
+test('timeoutsFromEnv uses the defaults, and accepts only positive whole milliseconds', () => {
+  assert.deepEqual(timeoutsFromEnv({}), { attemptTimeoutMs: ATTEMPT_TIMEOUT_MS, totalTimeoutMs: TOTAL_TIMEOUT_MS });
+  assert.deepEqual(timeoutsFromEnv({ AGENT_ATTEMPT_TIMEOUT_MS: '20000', AGENT_TOTAL_TIMEOUT_MS: '50000' }), { attemptTimeoutMs: 20000, totalTimeoutMs: 50000 });
+  for (const bad of ['0', '-5', '1.5', 'abc', '']) {
+    assert.deepEqual(timeoutsFromEnv({ AGENT_ATTEMPT_TIMEOUT_MS: bad }), { attemptTimeoutMs: ATTEMPT_TIMEOUT_MS, totalTimeoutMs: TOTAL_TIMEOUT_MS }, bad);
+  }
+});
+
+test('the defaults leave room for a fallback: one attempt is shorter than the whole', () => {
+  assert.ok(ATTEMPT_TIMEOUT_MS < TOTAL_TIMEOUT_MS);
+  assert.ok(TOTAL_TIMEOUT_MS < 120_000, 'under the client backstop');
+});
