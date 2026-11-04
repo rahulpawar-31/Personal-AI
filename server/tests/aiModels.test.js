@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MODEL_DEFAULTS, modelId, classifyAiFailure, isModelUnavailableError, describeAiFailure, friendlyAiError,
+  MODEL_DEFAULTS, modelId, classifyAiFailure, failureOf, isModelUnavailableError, describeAiFailure, friendlyAiError,
 } from '../lib/models.js';
 
 // Messages shaped like what each provider returns for a retired model.
@@ -81,4 +81,14 @@ test('friendlyAiError explains a retired model and passes other errors through',
   assert.match(friendlyAiError(Object.assign(new Error(GROQ_GONE.message), { status: 404 })), /no longer available.*GROQ_MODEL/);
   assert.equal(friendlyAiError(new Error('socket hang up')), 'socket hang up');
   assert.match(friendlyAiError({ message: 'x', status: 429 }), /rate-limited/);
+});
+
+test('a timeout is classified as its own kind, whatever its message says', () => {
+  assert.equal(classifyAiFailure({ message: 'no answer within 40s', code: 'AI_TIMEOUT' }), 'timeout');
+  assert.equal(classifyAiFailure({ message: '429 rate limit', code: 'AI_TIMEOUT' }), 'timeout');
+  assert.equal(classifyAiFailure({ message: 'no answer within 40s' }), 'other', 'the code is what marks it');
+});
+
+test('failureOf keeps the error code', () => {
+  assert.equal(failureOf(Object.assign(new Error('x'), { code: 'AI_TIMEOUT' })).code, 'AI_TIMEOUT');
 });

@@ -6,6 +6,11 @@ import { streamChat } from '../lib/chatStream.js';
 import { toast } from '../toast.jsx';
 import { useMediaQuery } from '../useMediaQuery.js';
 
+// Longer than the server's own limit on a whole agent request (75 s, lib/aiFallback.js),
+// so the server's explanation normally wins and this only fires when nothing arrives.
+const AGENT_CLIENT_TIMEOUT_MS = 100_000;
+const AGENT_TIMEOUT_MESSAGE = 'No answer came back in time. Try again, or turn Agent OFF for a quicker reply.';
+
 const STORAGE_KEY = 'devos_chat_history';
 const storageKeyFor = userId => userId ? `devos_chat_history_${userId}` : STORAGE_KEY;
 
@@ -236,10 +241,16 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
     // ── LangChain agent path (non-streaming JSON) ──
     if (useAgent) {
       setStatusText('Agent thinking…');
+      // The server gives up on a silent model after about 75 s and answers with an
+      // error. This is the backstop for when no answer arrives at all, so the
+      // "thinking" bubble can never last for ever.
+      const controller = new AbortController();
+      const giveUp = setTimeout(() => controller.abort(), AGENT_CLIENT_TIMEOUT_MS);
       try {
         const r = await apiFetch('/api/chat/agent', {
           method: 'POST',
           body:   JSON.stringify({ message: text, history: messages.slice(-12) }),
+          signal: controller.signal,
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error ?? 'Server error');
@@ -247,8 +258,10 @@ export default function ChatPanel({ onAction, health = {}, connected = false, us
         (data.affectedPanels ?? []).forEach(panel => onAction?.(panel));
         refreshPending();
       } catch (err) {
-        setMessages(m => [...m, { role: 'assistant', content: `Agent error: ${err.message}`, at: Date.now() }]);
+        const message = err.name === 'AbortError' ? AGENT_TIMEOUT_MESSAGE : err.message;
+        setMessages(m => [...m, { role: 'assistant', content: `Agent error: ${message}`, at: Date.now() }]);
       } finally {
+        clearTimeout(giveUp);
         setLoading(false);
         setStatusText('');
       }
