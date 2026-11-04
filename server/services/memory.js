@@ -136,10 +136,27 @@ export async function getMemory(userId) {
   return load(userId);
 }
 
+// Reduce a From-style value ("Bob <Bob@Acme.com>" or "bob@acme.com") to the bare,
+// lowercased address so addresses can be compared for equality.
+export function bareAddress(value) {
+  if (typeof value !== 'string') return '';
+  const angled = value.match(/<([^<>]*)>\s*$/);
+  return (angled ? angled[1] : value).trim().toLowerCase();
+}
+
+// Exact (case-insensitive) match against the VIP list. Entries saved before this
+// normalisation may be mixed-case, so both sides are normalised here.
+export function matchesVIP(vipContacts, emailAddress) {
+  const addr = bareAddress(emailAddress);
+  if (!addr) return false;
+  return (vipContacts || []).some(v => bareAddress(v.email) === addr);
+}
+
 export async function addVIP(userId, email, name = '') {
   const mem = await load(userId);
-  if (!mem.vipContacts.find(v => v.email === email)) {
-    mem.vipContacts.push({ email, name, addedAt: new Date().toISOString() });
+  const addr = bareAddress(email);
+  if (addr && !matchesVIP(mem.vipContacts, addr)) {
+    mem.vipContacts.push({ email: addr, name, addedAt: new Date().toISOString() });
     await save(userId, mem);
   }
   return mem.vipContacts;
@@ -147,7 +164,8 @@ export async function addVIP(userId, email, name = '') {
 
 export async function removeVIP(userId, email) {
   const mem = await load(userId);
-  mem.vipContacts = mem.vipContacts.filter(v => v.email !== email);
+  const addr = bareAddress(email);
+  mem.vipContacts = mem.vipContacts.filter(v => bareAddress(v.email) !== addr);
   await save(userId, mem);
   return mem.vipContacts;
 }
@@ -207,9 +225,7 @@ export async function buildContextSummary(userId) {
 
 export async function isVIP(userId, emailAddress) {
   const mem = await load(userId);
-  return mem.vipContacts.some(v =>
-    emailAddress.toLowerCase().includes(v.email.toLowerCase())
-  );
+  return matchesVIP(mem.vipContacts, emailAddress);
 }
 
 export async function logActivity(userId, intent, params = {}, status = 'success', error = null) {
