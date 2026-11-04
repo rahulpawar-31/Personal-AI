@@ -378,13 +378,22 @@ async function ghGetPages(path, creds, maxPages = 3, done = null) {
 export const REVIEW_PR_CAP = 100;
 const REVIEW_CONCURRENCY = 10;
 
+// Runs fn over items, `limit` at a time. Once any call fails no new call is started
+// (those already in flight finish), so a rate-limited token is not hit with the rest
+// of the list for results that will be thrown away. Rejects with the first failure.
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let next = 0;
+  let failed = false;
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
+    while (!failed && next < items.length) {
       const i = next; next += 1;
-      out[i] = await fn(items[i]);
+      try {
+        out[i] = await fn(items[i]);
+      } catch (err) {
+        failed = true;
+        throw err;
+      }
     }
   }));
   return out;

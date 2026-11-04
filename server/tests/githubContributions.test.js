@@ -151,6 +151,19 @@ test('a failing review request does not hide the commit numbers, and says why in
   });
 });
 
+test('once a review request fails the rest of the list is not requested', async () => {
+  // 50 recent PRs, the very first review request fails (as a rate limit would). Only the
+  // requests already in flight (10 at a time) may finish; the other ~40 must never be sent.
+  const pulls = Array.from({ length: 50 }, (_, i) => pr(3000 + i));
+  await withStub(repoStub({ pulls, failReviewsFor: 3000 }), async calls => {
+    const r = await github.getContributions('devos', creds);
+    const reviewCalls = calls.filter(c => /\/pulls\/\d+\/reviews/.test(c)).length;
+    assert.equal(r.reviewsDone, null);
+    assert.match(r.reviewsError, /GitHub 403/);
+    assert.ok(reviewCalls <= 10, `expected at most one batch of 10 review requests, got ${reviewCalls}`);
+  });
+});
+
 test('PRs opened are counted from the recently updated list too', async () => {
   await withStub(repoStub({ pulls: [pr(1, { created: 3, updated: 1 }), pr(2, { user: 'other', created: 3, updated: 1 }), pr(3, { created: 50, updated: 2 })] }), async () => {
     assert.equal((await github.getContributions('devos', creds)).prsOpened, 1);
