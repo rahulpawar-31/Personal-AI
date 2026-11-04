@@ -29,17 +29,17 @@ const MODEL_MAX_RETRIES = 1;
 // Gemini first (reliable tool-call JSON); Groq as fallback (useful when Gemini
 // quota is exhausted). runAgent tries each in sequence until one succeeds, and
 // remembers why each one failed. Model names come from lib/models.js.
-function modelCandidates(apiKeys = {}) {
+function modelCandidates(apiKeys = {}, userId = 'anon') {
   const candidates = [];
   const geminiKey = resolveKey('gemini', apiKeys);
   const groqKey   = resolveKey('groq',   apiKeys);
   if (geminiKey) {
     const model = modelId('gemini');
-    candidates.push({ provider: 'gemini', model, make: () => new ChatGoogleGenerativeAI({ model, apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
+    candidates.push({ provider: 'gemini', model, healthKey: `${userId}:gemini:${model}`, make: () => new ChatGoogleGenerativeAI({ model, apiKey: geminiKey, maxOutputTokens: 1200, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
   }
   if (groqKey) {
     const model = modelId('groq');
-    candidates.push({ provider: 'groq', model, make: () => new ChatGroq({ model, apiKey: groqKey, maxTokens: 800, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
+    candidates.push({ provider: 'groq', model, healthKey: `${userId}:groq:${model}`, make: () => new ChatGroq({ model, apiKey: groqKey, maxTokens: 800, temperature: 0, maxRetries: MODEL_MAX_RETRIES }) });
   }
   if (!candidates.length) {
     const err = new Error('No LLM API key configured — add a Groq or Gemini key in Settings.');
@@ -247,7 +247,7 @@ async function buildContext(history, userId, model, signal) {
  */
 export async function runAgent({ message, history = [], creds = {}, userId, executeAction, connectedTools = '', memContext = '' }) {
   const apiKeys    = { GEMINI_API_KEY: creds.GEMINI_API_KEY, GROQ_API_KEY: creds.GROQ_API_KEY };
-  const candidates = modelCandidates(apiKeys);
+  const candidates = modelCandidates(apiKeys, userId);
   const tools      = buildTools({ executeAction, message, creds, userId });
   const systemPrompt = SYSTEM_PROMPT(connectedTools, memContext);
 
