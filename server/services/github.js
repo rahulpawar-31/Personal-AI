@@ -399,14 +399,20 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-// Every review on the PRs updated in the window, plus whether the cap cut the
-// list short. `pulls` is newest-updated first. Throws if any request fails, so the
-// caller can report "could not read reviews" instead of a number that is too low.
+// Reviews are read as one page of this size per PR (no further pages).
+const REVIEWS_PER_PAGE = 100;
+
+// Every review on the PRs updated in the window, plus whether the count may be
+// short: the cap cut the PR list, or a PR came back with a full page of reviews
+// (so there may be more on a page that was not read). `pulls` is newest-updated
+// first. Throws if any request fails, so the caller can report "could not read
+// reviews" instead of a number that is too low.
 export async function getReviewsInWindow(repo, pulls, sinceMs, creds, { cap = REVIEW_PR_CAP } = {}) {
   const recent    = pulls.filter(p => Date.parse(p.updated_at) >= sinceMs);
   const checked   = recent.slice(0, cap);
-  const perPull   = await mapLimit(checked, REVIEW_CONCURRENCY, p => ghGet(`/repos/${repo}/pulls/${p.number}/reviews?per_page=100`, creds));
-  return { reviews: perPull.flat(), partial: recent.length > checked.length };
+  const perPull   = await mapLimit(checked, REVIEW_CONCURRENCY, p => ghGet(`/repos/${repo}/pulls/${p.number}/reviews?per_page=${REVIEWS_PER_PAGE}`, creds));
+  const fullPage  = perPull.some(reviews => reviews.length >= REVIEWS_PER_PAGE);
+  return { reviews: perPull.flat(), partial: recent.length > checked.length || fullPage };
 }
 
 // Pure: turns the raw GitHub lists into the numbers the panel shows. `reviews` is
