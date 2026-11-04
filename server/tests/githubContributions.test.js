@@ -200,6 +200,21 @@ test('past the cap only the most recently updated PRs are checked, and the count
   });
 });
 
+test('a PR whose reviews fill a whole page flags the count as possibly short; 99 does not', async () => {
+  const many = n => Array.from({ length: n }, () => review('ada', 2));
+  // 100 reviews is a full page: there may be more on a page that was not read.
+  await withStub(repoStub({ pulls: [pr(1)], reviewsByPr: { 1: many(100) } }), async () => {
+    const r = await github.getContributions('devos', creds);
+    assert.equal(r.reviewsDone, 100);
+    assert.equal(r.reviewsPartial, true);
+  });
+  await withStub(repoStub({ pulls: [pr(1)], reviewsByPr: { 1: many(99) } }), async () => {
+    const r = await github.getContributions('devos', creds);
+    assert.equal(r.reviewsDone, 99);
+    assert.equal(r.reviewsPartial, false);
+  });
+});
+
 test('with no repos configured it returns null, as before', async () => {
   assert.equal(await github.getContributions('x', { GITHUB_TOKEN: 'ghp_stub' }), null);
 });
