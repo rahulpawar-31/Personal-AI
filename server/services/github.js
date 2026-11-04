@@ -347,6 +347,9 @@ export async function closePR(prNumber, repoHint, creds = {}) {
 // version read the owner's public event feed, but GitHub's push events no longer
 // carry their commit list, the feed holds only the latest 100 events across every
 // repo, and any failure was swallowed into a screen of zeros with no name on it.
+// Reviews used to come from that feed too, so any review older than the latest 100
+// events (about a week for an active account) dropped out of the 30-day count
+// (#410). They are now read from the pull requests themselves.
 
 // Like ghFetch, but a failure is reported, not turned into null.
 async function ghGet(path, creds = {}) {
@@ -355,20 +358,51 @@ async function ghGet(path, creds = {}) {
   return res.json();
 }
 
-// Follows 100-item pages of a list endpoint, up to maxPages.
-async function ghGetPages(path, creds, maxPages = 3) {
+// Follows 100-item pages of a list endpoint, up to maxPages. `done(batch)` can end
+// it early, for a list sorted so that nothing after this page can matter.
+async function ghGetPages(path, creds, maxPages = 3, done = null) {
   const items = [];
   for (let page = 1; page <= maxPages; page += 1) {
     // Pages depend on each other (stop at the first short page), so this is sequential.
     const batch = await ghGet(`${path}&per_page=100&page=${page}`, creds);
     items.push(...batch);
-    if (batch.length < 100) break;
+    if (batch.length < 100 || done?.(batch)) break;
   }
   return items;
 }
 
-// Pure: turns the raw GitHub lists into the numbers the panel shows.
-export function summariseContributions({ commits, pulls, reviewEvents, login, repo, now = Date.now() }) {
+// How many recently updated pull requests are checked for the account's reviews
+// (one request each), and how many of those requests run at once. A review bumps
+// its PR's updated date, so a review in the last 30 days is always on a PR updated
+// in the last 30 days.
+export const REVIEW_PR_CAP = 100;
+const REVIEW_CONCURRENCY = 10;
+
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next; next += 1;
+      out[i] = await fn(items[i]);
+    }
+  }));
+  return out;
+}
+
+// Every review on the PRs updated in the window, plus whether the cap cut the
+// list short. `pulls` is newest-updated first. Throws if any request fails, so the
+// caller can report "could not read reviews" instead of a number that is too low.
+export async function getReviewsInWindow(repo, pulls, sinceMs, creds, { cap = REVIEW_PR_CAP } = {}) {
+  const recent    = pulls.filter(p => Date.parse(p.updated_at) >= sinceMs);
+  const checked   = recent.slice(0, cap);
+  const perPull   = await mapLimit(checked, REVIEW_CONCURRENCY, p => ghGet(`/repos/${repo}/pulls/${p.number}/reviews?per_page=100`, creds));
+  return { reviews: perPull.flat(), partial: recent.length > checked.length };
+}
+
+// Pure: turns the raw GitHub lists into the numbers the panel shows. `reviews` is
+// null when they could not be read, and reviewsDone is then null, not 0.
+export function summariseContributions({ commits, pulls, reviews = null, login, repo, now = Date.now() }) {
   const since = now - 30 * 86400000;
   const dayOf = ms => new Date(ms).toISOString().slice(0, 10);
 
@@ -401,7 +435,10 @@ export function summariseContributions({ commits, pulls, reviewEvents, login, re
     dailyActivity: days,
     streak,
     prsOpened:   pulls.filter(p => mine(p.user) && Date.parse(p.created_at) >= since).length,
-    reviewsDone: reviewEvents.filter(e => e.type === 'PullRequestReviewEvent' && e.repo?.name === repo && Date.parse(e.created_at) >= since).length,
+    // A review that was submitted (a PENDING one has no submitted_at) by this account in the window.
+    reviewsDone: reviews === null
+      ? null
+      : reviews.filter(r => mine(r.user) && r.state !== 'PENDING' && Date.parse(r.submitted_at) >= since).length,
     author: login,
     repo,
   };
@@ -415,13 +452,26 @@ export async function getContributions(repoHint, creds = {}) {
   // The token's own account, not the repo owner (which can be an organisation).
   const { login } = await ghGet('/user', creds);
 
-  const [commits, pulls, reviewEvents] = await Promise.all([
+  const [commits, pulls] = await Promise.all([
     ghGetPages(`/repos/${repo}/commits?author=${encodeURIComponent(login)}&since=${encodeURIComponent(since)}`, creds),
-    ghGetPages(`/repos/${repo}/pulls?state=all&sort=created&direction=desc`, creds, 1),
-    // Reviews only appear in the event feed. Best effort: a failure here must not hide the commit numbers.
-    ghGet(`/users/${encodeURIComponent(login)}/events?per_page=100`, creds).catch(() => []),
+    // Newest-updated first: a PR opened in the window was also updated in it, so
+    // this covers the PRs opened as well as the ones a review could be on.
+    // Sorted newest-updated first, so a page that already reaches back past the window is the last one needed.
+    ghGetPages(`/repos/${repo}/pulls?state=all&sort=updated&direction=desc`, creds, 3,
+      batch => Date.parse(batch.at(-1)?.updated_at) < Date.parse(since)),
   ]);
-  return summariseContributions({ commits, pulls, reviewEvents, login, repo });
+
+  // A failure reading reviews must not hide the commit and PR numbers, but it is
+  // reported (reviewsDone null plus the reason), never shown as 0.
+  let reviews = null;
+  let reviewsError = null;
+  let reviewsPartial = false;
+  try {
+    ({ reviews, partial: reviewsPartial } = await getReviewsInWindow(repo, pulls, Date.parse(since), creds));
+  } catch (err) {
+    reviewsError = err.message;
+  }
+  return { ...summariseContributions({ commits, pulls, reviews, login, repo }), reviewsError, reviewsPartial };
 }
 
 // ─── Branches with stale detection ───────────────────────────────────────────

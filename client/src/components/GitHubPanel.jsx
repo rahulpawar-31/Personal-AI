@@ -318,7 +318,7 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                 {[
                   { label: 'Commits (30d)',    value: contributions.totalCommits,  color: 'var(--accent)' },
                   { label: 'PRs opened',        value: contributions.prsOpened,     color: 'var(--success)' },
-                  { label: 'Reviews done',      value: contributions.reviewsDone,   color: 'var(--info)' },
+                  { label: 'Reviews done',      value: contributions.reviewsDone === null || contributions.reviewsDone === undefined ? '—' : `${contributions.reviewsDone}${contributions.reviewsPartial ? '+' : ''}`, color: 'var(--info)' },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 16px', textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontWeight: 500, color: s.color, lineHeight: 1 }}>{s.value}</div>
@@ -326,6 +326,12 @@ export default function GitHubPanel({ health = {}, refreshKey, onGoToSettings, u
                   </div>
                 ))}
               </div>
+
+              {contributions.reviewsError && (
+                <div role="status" style={{ background: 'var(--tag-danger-bg)', color: 'var(--tag-danger-fg)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 20, fontSize: 13 }}>
+                  Could not read your reviews, so that number is not shown: {contributions.reviewsError}
+                </div>
+              )}
 
               {/* Streak */}
               {contributions.streak > 0 && (
