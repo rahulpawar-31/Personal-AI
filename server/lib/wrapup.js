@@ -80,12 +80,24 @@ export function isOpenToday(t) {
 
 // A recurring Todoist task you finished today comes back as the next occurrence,
 // which can still be due today or overdue. It is done for today, so it is not
-// "still open". Matched by id and by title, because Todoist's completed list
-// does not always carry the open task's id.
+// "still open". Matched by id first. Todoist's completed list does not always
+// carry the open task's id, so a done item whose id matched nothing falls back to
+// its title, and then hides at most one open recurring task: two different
+// recurring tasks with the same title are not both hidden by finishing one.
 export function withoutDoneRecurring(open, done) {
-  const ids    = new Set(done.filter(t => t.source === 'todoist').map(t => String(t.id)));
-  const titles = new Set(done.filter(t => t.source === 'todoist').map(t => t.title));
-  return open.filter(t => !(t.source === 'todoist' && t.recurring && (ids.has(String(t.id)) || titles.has(t.title))));
+  const doneTodoist = done.filter(t => t.source === 'todoist');
+  const isRecurring = t => t.source === 'todoist' && t.recurring;
+  const doneIds     = new Set(doneTodoist.map(t => String(t.id)));
+  const openIds     = new Set(open.filter(isRecurring).map(t => String(t.id)));
+  const hidden      = new Set(open.filter(t => isRecurring(t) && doneIds.has(String(t.id))));
+  // Done items that matched an open task by id are accounted for; the rest are
+  // matched by title, one open recurring task per done item.
+  const byTitle = doneTodoist.filter(t => !openIds.has(String(t.id)));
+  for (const d of byTitle) {
+    const match = open.find(t => isRecurring(t) && !hidden.has(t) && t.title === d.title);
+    if (match) hidden.add(match);
+  }
+  return open.filter(t => !hidden.has(t));
 }
 
 const more = (total, shown) => (total > shown ? ` (+${total - shown} more)` : '');

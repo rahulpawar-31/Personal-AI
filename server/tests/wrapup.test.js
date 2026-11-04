@@ -104,6 +104,21 @@ test('a recurring task finished today is not also listed as still open', () => {
   assert.deepEqual(withoutDoneRecurring([{ id: 'c1', source: 'todoist', title: 'renamed', recurring: true }], done), []);
 });
 
+test('finishing one recurring task does not hide a different recurring task with the same title', () => {
+  const open = [
+    { id: 1, source: 'todoist', title: 'take meds', recurring: true },
+    { id: 2, source: 'todoist', title: 'take meds', recurring: true },
+  ];
+  // Matched by id: only task 2 was finished.
+  assert.deepEqual(withoutDoneRecurring(open, [{ id: 2, source: 'todoist', title: 'take meds' }]).map(t => t.id), [1]);
+  // No id match, so by title: one done item hides one open task, not both.
+  assert.deepEqual(withoutDoneRecurring(open, [{ id: 'c9', source: 'todoist', title: 'take meds' }]).map(t => t.id), [2]);
+  // Two done items hide both.
+  assert.deepEqual(withoutDoneRecurring(open, [
+    { id: 'c8', source: 'todoist', title: 'take meds' }, { id: 'c9', source: 'todoist', title: 'take meds' },
+  ]), []);
+});
+
 test('the standup draft leaves out empty parts and caps long lists', () => {
   assert.equal(standupDraft({ done: [], open: [], meetings: [] }), '');
   const many = Array.from({ length: MAX_LISTED + 3 }, (_, i) => ({ title: `t${i}` }));
