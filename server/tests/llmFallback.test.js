@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 process.env.JWT_SECRET = 'llm-fallback-test-secret-32-characters-ok';
 
 const llm = (await import('../services/llm.js')).default;
-const { createProviderHealth, streamWithFallback, runWithFallback, emptyReplyError } = await import('../lib/aiFallback.js');
+const {
+  createProviderHealth, streamWithFallback, runWithFallback, emptyReplyError,
+  timeoutsFromEnv, ATTEMPT_TIMEOUT_MS, TOTAL_TIMEOUT_MS,
+} = await import('../lib/aiFallback.js');
 const { friendlyAiError, describeAiFailure } = await import('../lib/models.js');
 
 // Fake providers. `invoke` is what a chat model does for call(); `stream` for streamTokens().
@@ -46,6 +49,37 @@ test('an empty reply goes to the next provider instead of being returned (the #4
   for (const empty of ['', '   \n', []]) {
     const out = await llm.call(msgs, { candidates: [gem(reply(empty)), groq(reply('real answer'))], fallback: fb() });
     assert.equal(out, 'real answer', JSON.stringify(empty));
+  }
+});
+
+test('the text "[]" is a real answer (an empty JSON list), not an empty reply', async () => {
+  const second = groq(reply('SHOULD NOT BE USED'));
+  assert.deepEqual(await llm.call(msgs, { json: true, candidates: [gem(reply('[]')), second], fallback: fb() }), []);
+  assert.equal(await llm.call(msgs, { candidates: [gem(reply('[]')), second], fallback: fb() }), '[]');
+});
+
+test('a reply with no content at all is an empty reply and goes to the next provider', async () => {
+  for (const missing of [undefined, null]) {
+    const out = await llm.call(msgs, { candidates: [gem(reply(missing)), groq(reply('real answer'))], fallback: fb() });
+    assert.equal(out, 'real answer', String(missing));
+  }
+});
+
+test('LLM_ATTEMPT_TIMEOUT_MS / LLM_TOTAL_TIMEOUT_MS set the limits for these calls, and AGENT_* does not', () => {
+  assert.deepEqual(timeoutsFromEnv({}, 'LLM'), { attemptTimeoutMs: ATTEMPT_TIMEOUT_MS, totalTimeoutMs: TOTAL_TIMEOUT_MS });
+  assert.deepEqual(
+    timeoutsFromEnv({ LLM_ATTEMPT_TIMEOUT_MS: '15000', LLM_TOTAL_TIMEOUT_MS: '30000' }, 'LLM'),
+    { attemptTimeoutMs: 15000, totalTimeoutMs: 30000 },
+  );
+  // The agent's own settings are a different prefix and must not leak across.
+  assert.deepEqual(
+    timeoutsFromEnv({ AGENT_ATTEMPT_TIMEOUT_MS: '15000', AGENT_TOTAL_TIMEOUT_MS: '30000' }, 'LLM'),
+    { attemptTimeoutMs: ATTEMPT_TIMEOUT_MS, totalTimeoutMs: TOTAL_TIMEOUT_MS },
+  );
+  // And the agent still reads AGENT_* when no prefix is given.
+  assert.deepEqual(timeoutsFromEnv({ AGENT_ATTEMPT_TIMEOUT_MS: '15000' }).attemptTimeoutMs, 15000);
+  for (const bad of ['0', '-5', '1.5', 'abc', '']) {
+    assert.equal(timeoutsFromEnv({ LLM_ATTEMPT_TIMEOUT_MS: bad }, 'LLM').attemptTimeoutMs, ATTEMPT_TIMEOUT_MS, bad);
   }
 });
 
@@ -152,6 +186,36 @@ test('a stream that goes quiet part-way ends with a timeout instead of hanging',
   }, err => err.code === 'AI_TIMEOUT');
   assert.deepEqual(got, ['a']);
   assert.ok(Date.now() - started < 300);
+});
+
+test('a stream that stalls part-way demotes its provider for the next call, like one that never started', async () => {
+  const health = createProviderHealth();
+  const stalls = gem({ stream: async () => (async function* () { yield { content: 'a' }; await hangs(); })() });
+  const opts = { ...quiet, attemptTimeoutMs: 40, totalTimeoutMs: 400, health };
+  await assert.rejects(() => collect(llm.streamTokens(msgs, { candidates: [stalls], fallback: opts })), err => err.code === 'AI_TIMEOUT');
+  assert.equal(health.isDemoted(stalls.healthKey, Date.now()), true);
+});
+
+test('a stream that fails part-way for another reason does not demote its provider', async () => {
+  const health = createProviderHealth();
+  const dies = gem({ stream: async () => (async function* () { yield { content: 'a' }; throw new Error('connection reset'); })() });
+  await assert.rejects(() => collect(llm.streamTokens(msgs, { candidates: [dies], fallback: { ...quiet, attemptTimeoutMs: 40, totalTimeoutMs: 400, health } })), /connection reset/);
+  assert.equal(health.isDemoted(dies.healthKey, Date.now()), false);
+});
+
+test('when the caller stops reading, the provider stream is closed and its request is aborted', async () => {
+  let signal, closed = false;
+  async function* endless(_model, _candidate, ctx) {
+    signal = ctx.signal;
+    try { for (let i = 0; ; i += 1) { yield `t${i}`; await new Promise(r => setTimeout(r, 5)); } } finally { closed = true; }
+  }
+  const it = streamWithFallback([gem({})], endless, fb());
+  assert.equal((await it.next()).value, 't0');
+  assert.equal(signal.aborted, false, 'still live while the caller is reading');
+  await it.return(); // the browser closed the chat stream
+  await new Promise(r => setTimeout(r, 30));
+  assert.equal(signal.aborted, true, 'the request was cancelled, not just left running');
+  assert.equal(closed, true);
 });
 
 test('when every stream fails the error is the 503 that names each provider', async () => {

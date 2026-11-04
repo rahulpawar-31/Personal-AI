@@ -195,12 +195,18 @@ export async function* streamWithFallback(candidates, makeStream, {
       if (yielded) return;
       throw emptyReplyError();
     } catch (err) {
-      if (yielded) throw err; // already partly shown: cannot start over elsewhere
       const failure = failureOf(err);
-      failures.set(candidate.provider, { provider: candidate.provider, model: candidate.model, ...failure });
+      // A stream that went quiet counts against the provider even part-way through,
+      // so the next call does not wait on it again.
       if (failure.code === 'AI_TIMEOUT') health.recordTimeout(keyOf(candidate), now());
+      if (yielded) throw err; // already partly shown: cannot start over elsewhere
+      failures.set(candidate.provider, { provider: candidate.provider, model: candidate.model, ...failure });
       warn(`[${label}] ${candidate.provider} (${candidate.model}) failed to stream — trying next (${failure.message.slice(0, 80)})`);
     } finally {
+      // Abort first, so the request itself is cancelled and not only the iteration:
+      // this is what happens when the caller stops reading (the browser closed the
+      // chat), as well as after a failure. Harmless once the stream has finished.
+      controller.abort();
       // Not awaited: on a stream that is stuck waiting, return() queues behind the
       // pending read and would never settle. The abort signal is what stops it.
       Promise.resolve(iterator?.return?.()).catch(() => {});

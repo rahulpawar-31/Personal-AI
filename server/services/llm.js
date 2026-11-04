@@ -105,8 +105,13 @@ function textOf(content) {
   return typeof content === 'string' ? content : JSON.stringify(content);
 }
 
-// No text at all: an empty string, or the stringified empty parts list.
-const isEmptyReply = text => !text.trim() || text.trim() === '[]';
+// No text at all: nothing, an empty or blank string, or an empty parts list. Judged on
+// what the model sent, not on its stringified form, so a model that really answers
+// with the text "[]" (a valid empty JSON list) is not mistaken for an empty reply.
+const isEmptyReply = content =>
+  content == null
+  || (typeof content === 'string' && !content.trim())
+  || (Array.isArray(content) && content.length === 0);
 
 function parseJSON(raw, provider = 'llm') {
   try {
@@ -135,8 +140,8 @@ export async function call(messages, options = {}) {
   // other, so the next provider gets a go instead of the caller getting nothing.
   return runWithFallback(candidates, async (model, _candidate, { signal } = {}) => {
     const res = await model.invoke(lcMessages, { runName: `llm:${taskType}`, tags: ['devos', taskType], signal });
+    if (isEmptyReply(res?.content)) throw emptyReplyError();
     const out = textOf(res.content);
-    if (isEmptyReply(out)) throw emptyReplyError();
     return json ? parseJSON(out, taskType) : out;
   }, { ...timeoutsFromEnv(process.env, 'LLM'), label: 'llm', ...options.fallback });
 }
