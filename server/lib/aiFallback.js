@@ -17,6 +17,43 @@ export const MAX_TOOL_RETRIES = 2;
 export const ATTEMPT_TIMEOUT_MS = 40_000;
 export const TOTAL_TIMEOUT_MS   = 75_000;
 
+// A provider that did not answer in time is tried last, not first, for the next
+// DEMOTE_FOR_MS (#415). Without this, a provider that never answers costs a full
+// ATTEMPT_TIMEOUT_MS on every single message before the working one is tried
+// (live: every agent reply took ~41 s because Gemini hung and Groq answered).
+// While demoted it is still tried if every other provider fails, so it is never
+// dropped for good; one success from it clears the demotion at once, and after
+// the cooldown it is first again.
+export const DEMOTE_FOR_MS = 10 * 60_000;
+
+// Remembers, in this process, which providers recently timed out. Keyed by a
+// string the caller chooses (see candidate.healthKey): the key should include
+// the user, since API keys are per user and one user's dead key must not slow
+// another user's replies.
+export function createProviderHealth({ demoteForMs = DEMOTE_FOR_MS } = {}) {
+  const timedOutAt = new Map(); // key -> ms timestamp of the last timeout
+  return {
+    recordTimeout: (key, at) => { timedOutAt.set(key, at); },
+    recordSuccess: key => { timedOutAt.delete(key); },
+    isDemoted(key, at) {
+      const t = timedOutAt.get(key);
+      if (t === undefined) return false;
+      if (at - t >= demoteForMs) { timedOutAt.delete(key); return false; }
+      return true;
+    },
+    // Anything that went quiet recently moves behind the ones that did not; the
+    // order within each group is kept.
+    order(candidates, at) {
+      const key = c => c.healthKey ?? c.provider;
+      return [...candidates.filter(c => !this.isDemoted(key(c), at)), ...candidates.filter(c => this.isDemoted(key(c), at))];
+    },
+    size: () => timedOutAt.size,
+  };
+}
+
+// One per process, shared by every request.
+export const providerHealth = createProviderHealth();
+
 // AGENT_ATTEMPT_TIMEOUT_MS / AGENT_TOTAL_TIMEOUT_MS override the defaults; a value
 // that is not a positive whole number of milliseconds is ignored.
 export function timeoutsFromEnv(env = process.env) {
@@ -57,25 +94,30 @@ async function withTimeout(fn, ms) {
 export async function runWithFallback(candidates, attempt, {
   maxToolRetries = MAX_TOOL_RETRIES, warn = console.warn,
   attemptTimeoutMs = ATTEMPT_TIMEOUT_MS, totalTimeoutMs = TOTAL_TIMEOUT_MS, now = Date.now,
+  health = providerHealth,
 } = {}) {
   const deadline = now() + totalTimeoutMs;
+  const keyOf = c => c.healthKey ?? c.provider;
   // Why each provider's last attempt failed, keyed by provider. Keeping all of
   // them (not just the last) is what stops a retired first model from hiding
   // behind a different error from the fallback.
   const failures = new Map();
 
-  for (const candidate of candidates) {
+  for (const candidate of health.order(candidates, now())) {
     for (let n = 0; n <= maxToolRetries; n += 1) {
       // Whatever is left of the overall budget, capped per attempt. None left: stop.
       const budget = Math.min(attemptTimeoutMs, deadline - now());
       if (budget <= 0) break;
       try {
-        return await withTimeout(signal => attempt(candidate.make(), candidate, { signal }), budget);
+        const result = await withTimeout(signal => attempt(candidate.make(), candidate, { signal }), budget);
+        health.recordSuccess(keyOf(candidate));
+        return result;
       } catch (err) {
         const failure = failureOf(err);
         failures.set(candidate.provider, { provider: candidate.provider, model: candidate.model, ...failure });
         if (failure.code === 'AI_TIMEOUT') {
-          warn(`[agent] ${candidate.provider} (${candidate.model}) did not answer in time — trying next`);
+          health.recordTimeout(keyOf(candidate), now());
+          warn(`[agent] ${candidate.provider} (${candidate.model}) did not answer in time — trying it last for the next ${Math.round(DEMOTE_FOR_MS / 60000)} min`);
           break; // a retry of the same model would likely hang again
         }
 
