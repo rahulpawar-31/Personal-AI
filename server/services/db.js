@@ -20,6 +20,9 @@ import {
 import {
   createPostgresSnoozeStore, createJsonFileSnoozeStore,
 } from './stores/snoozeStore.js';
+import {
+  createPostgresAlertStore, createJsonFileAlertStore,
+} from './stores/alertStore.js';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
@@ -28,6 +31,7 @@ const BRIEF_PREFS_FILE = path.join(__dirname, '..', 'brief_prefs.json');
 const DIGESTS_FILE = path.join(__dirname, '..', 'digests.json');
 const SNOOZES_FILE = path.join(__dirname, '..', 'snoozes.json');
 const WRAPUPS_FILE = path.join(__dirname, '..', 'wrapups.json');
+const ALERTS_FILE  = path.join(__dirname, '..', 'alerts.json');
 
 let pool = null;
 
@@ -37,6 +41,7 @@ let userStore          = createJsonFileUserStore(USERS_FILE);
 let pendingActionStore = createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
 let briefStore         = createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE, WRAPUPS_FILE);
 let snoozeStore        = createJsonFileSnoozeStore(SNOOZES_FILE);
+let alertStore         = createJsonFileAlertStore(ALERTS_FILE);
 
 export function getPool() { return pool; }
 
@@ -178,6 +183,35 @@ export async function initDB() {
         )
       `);
 
+      // ── Alerts (VIP mail, review requests): which alerts a user wants and the
+      // Telegram chat they linked, the one-time codes that link a chat to a
+      // user, and a record of every item already alerted so it alerts once.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_alert_prefs (
+          user_id            INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          vip_enabled        BOOLEAN NOT NULL DEFAULT TRUE,
+          review_enabled     BOOLEAN NOT NULL DEFAULT TRUE,
+          telegram_chat_id   TEXT,
+          telegram_linked_at TIMESTAMPTZ,
+          updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS alert_link_tokens (
+          token_hash TEXT PRIMARY KEY,
+          user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at TIMESTAMPTZ NOT NULL
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_alerts_sent (
+          user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          item_key TEXT NOT NULL,
+          sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (user_id, item_key)
+        )
+      `);
+
       console.log(`[db] ${isNeon ? 'Neon' : 'Postgres'} connected — schema ready (users + user_integrations + user_memory)`);
     } catch (err) {
       // In production the JSON store would be empty (ephemeral filesystem), which
@@ -197,6 +231,7 @@ export async function initDB() {
   pendingActionStore  = pool ? createPostgresPendingActionStore(pool) : createJsonFilePendingActionStore(PENDING_ACTIONS_FILE);
   briefStore          = pool ? createPostgresBriefStore(pool) : createJsonFileBriefStore(BRIEF_PREFS_FILE, DIGESTS_FILE, WRAPUPS_FILE);
   snoozeStore         = pool ? createPostgresSnoozeStore(pool) : createJsonFileSnoozeStore(SNOOZES_FILE);
+  alertStore          = pool ? createPostgresAlertStore(pool) : createJsonFileAlertStore(ALERTS_FILE);
 }
 
 // ─── User CRUD ────────────────────────────────────────────────────────────────
@@ -252,3 +287,17 @@ export async function dbListPendingActions(userId, status = 'pending') { return 
 export async function dbTransitionPendingAction(userId, id, fromStatus, toStatus, result = null) {
   return pendingActionStore.transitionPendingAction(userId, id, fromStatus, toStatus, result);
 }
+
+// ─── Alerts (VIP mail, review requests) ───────────────────────────────────────
+
+export async function dbGetAlertPrefs(userId)                 { return alertStore.getPrefs(userId); }
+export async function dbSaveAlertPrefs(userId, patch)         { return alertStore.savePrefs(userId, patch); }
+export async function dbLinkTelegram(userId, chatId, atISO)   { return alertStore.linkTelegram(userId, chatId, atISO); }
+export async function dbUnlinkTelegram(userId)                { return alertStore.unlinkTelegram(userId); }
+export async function dbListAlertUsers()                      { return alertStore.listLinked(); }
+export async function dbCreateAlertLinkToken(userId, hash, expiresAtISO) { return alertStore.createLinkToken(userId, hash, expiresAtISO); }
+export async function dbConsumeAlertLinkToken(hash, nowISO)   { return alertStore.consumeLinkToken(hash, nowISO); }
+export async function dbClaimAlert(userId, key, atISO)        { return alertStore.claimAlert(userId, key, atISO); }
+export async function dbReleaseAlert(userId, key)             { return alertStore.releaseAlert(userId, key); }
+export async function dbCountAlertsSince(userId, sinceISO)    { return alertStore.countSentSince(userId, sinceISO); }
+export async function dbPruneAlertsBefore(cutoffISO)          { return alertStore.pruneSentBefore(cutoffISO); }

@@ -11,6 +11,7 @@ import { getUserCreds, notionReady } from './creds.js';
 import { dbListUsers, dbListBriefPrefs, dbClaimBrief, dbClaimCalendarCheck, dbSaveDigest, dbGetDigest } from '../services/db.js';
 import { dueBriefDate, effectiveSettings } from './briefSchedule.js';
 import { runDueWrapups } from './wrapup.js';
+import { runDueAlerts } from './alerts.js';
 
 async function getTasksForDigest(creds) {
   if (notionReady(creds)) return notion.getTasks(creds);
@@ -199,6 +200,12 @@ export function setupCronJobs() {
   // chosen local time has just passed (see runDueWrapups in wrapup.js).
   cron.schedule('*/5 * * * *', () => {
     runDueWrapups().catch(err => console.error('[cron/wrapup]', err.message));
+  });
+
+  // Alerts for VIP mail and GitHub review requests: every 5 minutes, for users who
+  // linked a channel (see runDueAlerts in alerts.js). Users with none are skipped.
+  cron.schedule('*/5 * * * *', () => {
+    runDueAlerts().catch(err => console.error('[cron/alerts]', err.message));
   });
 
   // Pre-meeting briefs: every 5 min, check each connected user's next few

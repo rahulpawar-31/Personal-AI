@@ -7,6 +7,7 @@ import MultiKeyRow from './components/settings/MultiKeyRow.jsx';
 import GoogleRow from './components/settings/GoogleRow.jsx';
 import AccountSection from './components/settings/AccountSection.jsx';
 import BriefSection from './components/settings/BriefSection.jsx';
+import AlertsSection from './components/settings/AlertsSection.jsx';
 import { LoadingState } from './components/ui/States.jsx';
 import { isUsableKey } from './lib/keyStatus.js';
 
@@ -350,6 +351,10 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
       {/* Morning brief */}
       <SectionLabel label="Daily summaries" tag="optional" />
       <BriefSection />
+
+      {/* Alerts */}
+      <SectionLabel label="Alerts" tag="optional" />
+      <AlertsSection />
 
       {/* Account */}
       <SectionLabel label="Account" tag="optional" />
