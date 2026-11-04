@@ -35,8 +35,9 @@ const TOOL_FORMAT = /tool_use_failed|failed_generation/i;
 const QUOTA       = /\b429\b|quota|rate.?limit|too many requests|resource.?exhausted/i;
 const MODEL_GONE  = /model[_ ]not[_ ]found|model.{0,80}(does not exist|not found|no longer|not supported|decommission|deprecat|retired)|(does not exist|not found|decommission|deprecat|retired).{0,80}model/i;
 
-// 'model' | 'quota' | 'tool' | 'other'
-export function classifyAiFailure({ message = '', status } = {}) {
+// 'timeout' | 'model' | 'quota' | 'tool' | 'other'
+export function classifyAiFailure({ message = '', status, code } = {}) {
+  if (code === 'AI_TIMEOUT') return 'timeout';
   if (TOOL_FORMAT.test(message)) return 'tool';
   if (status === 429 || QUOTA.test(message)) return 'quota';
   if (status === 404 || MODEL_GONE.test(message)) return 'model';
@@ -44,7 +45,7 @@ export function classifyAiFailure({ message = '', status } = {}) {
 }
 
 export function failureOf(err) {
-  return { message: String(err?.message ?? err ?? ''), status: err?.status ?? err?.response?.status };
+  return { message: String(err?.message ?? err ?? ''), status: err?.status ?? err?.response?.status, code: err?.code };
 }
 
 // True when the provider reached the model lookup and said it is not available,
@@ -57,6 +58,7 @@ export function isModelUnavailableError(err) {
 
 const TOOL_MESSAGE  = 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.';
 const QUOTA_MESSAGE = 'All AI keys are currently rate-limited. Wait a minute then try again.';
+const TIMEOUT_MESSAGE = 'The AI took too long to answer. Try again, or turn Agent OFF for a quicker reply.';
 const LABELS = { gemini: 'Gemini', groq: 'Groq' };
 
 function oneLine(text, max = 140) {
@@ -72,11 +74,13 @@ export function describeAiFailure(failures) {
   const kinds = failures.map(classifyAiFailure);
   if (kinds.every(k => k === 'tool'))  return TOOL_MESSAGE;
   if (kinds.every(k => k === 'quota')) return QUOTA_MESSAGE;
+  if (kinds.every(k => k === 'timeout')) return TIMEOUT_MESSAGE;
 
   const parts = failures.map((f, i) => {
     const who = LABELS[f.provider] ?? f.provider;
     if (kinds[i] === 'model') return `${who}: the model "${f.model}" is no longer available`;
     if (kinds[i] === 'quota') return `${who}: rate-limited`;
+    if (kinds[i] === 'timeout') return `${who}: did not answer in time`;
     if (kinds[i] === 'tool')  return `${who}: failed to call a tool correctly`;
     return `${who}: ${oneLine(f.message)}`;
   });
