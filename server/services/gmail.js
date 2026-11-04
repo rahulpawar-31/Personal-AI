@@ -192,6 +192,29 @@ export async function archiveEmail(userId, messageId) {
   }
 }
 
+// ─── Unread mail from specific senders (alerts) ───────────────────────────────
+
+// Headers only, and only mail from the given addresses, so checking for VIP mail
+// every few minutes costs one list call plus a small metadata fetch per match.
+// `from:` in Gmail search is a loose match, so callers must still compare the
+// sender exactly (see matchesVIP in services/memory.js). Throws on an API error
+// so the caller can tell "no VIP mail" from "could not check".
+export async function getUnreadFrom(userId, addresses, { newerThanDays = 1, maxResults = 15 } = {}) {
+  const senders = [...new Set(addresses)].filter(a => /^[^\s()"{}<>]+$/.test(a)).slice(0, 50);
+  if (!senders.length) return [];
+  const g   = await gmail(userId);
+  const q   = `is:unread in:inbox newer_than:${newerThanDays}d from:(${senders.join(' OR ')})`;
+  const res = await g.users.messages.list({ userId: 'me', maxResults, q });
+  const ids = (res.data.messages ?? []).map(m => m.id);
+  const msgs = await Promise.all(ids.map(async id => {
+    const r = await g.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: ['From', 'Subject'] });
+    const headers = r.data.payload?.headers ?? [];
+    const get = name => headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value ?? '';
+    return { id, from: get('From'), subject: get('Subject'), receivedAt: new Date(Number(r.data.internalDate)).toISOString() };
+  }));
+  return msgs;
+}
+
 // ─── Emails by date range ─────────────────────────────────────────────────────
 
 export async function getEmailsByDateRange(userId, startDate, endDate, maxResults = 30) {
@@ -221,4 +244,4 @@ function toGmailDate(dateStr) {
   return `${y}/${mo}/${dd}`;
 }
 
-export default { getInbox, getEmail, getEmailsByDateRange, triageInbox, createDraft, sendEmail, archiveEmail };
+export default { getInbox, getUnreadFrom, getEmail, getEmailsByDateRange, triageInbox, createDraft, sendEmail, archiveEmail };

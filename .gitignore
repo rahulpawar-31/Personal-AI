@@ -19,3 +19,4 @@ server/digests.json
 .nodeterm/
 server/snoozes.json
 server/wrapups.json
+server/alerts.json

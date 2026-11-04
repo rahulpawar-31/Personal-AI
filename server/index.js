@@ -27,6 +27,7 @@ import snoozeRoutes      from './routes/snoozes.js';
 import webhooksRoutes    from './routes/webhooks.js';
 import contentRoutes     from './routes/content.js';
 import actionsRoutes     from './routes/actions.js';
+import alertsRoutes      from './routes/alerts.js';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3001;
@@ -65,6 +66,7 @@ app.use(snoozeRoutes);
 app.use(webhooksRoutes);
 app.use(contentRoutes);
 app.use(actionsRoutes);
+app.use(alertsRoutes);
 
 // ─── Serve React build in production ─────────────────────────────────────────
 

@@ -19,6 +19,7 @@ const PUBLIC = {
   'GET /api/users/me':              'checks the bearer token itself and returns 401 without one',
   'GET /api/webhook/info':          'static info about the webhook URL, no user data',
   'POST /api/webhook/github':       'authenticated by the HMAC signature of the body',
+  'POST /api/telegram/webhook':     'authenticated by the secret token Telegram echoes in a header',
 };
 
 function findRoutes() {

@@ -157,6 +157,27 @@ export async function getOpenPRs(repoHint, creds = {}) {
   }));
 }
 
+// Open PRs in the configured repos where the token's own user has been asked to
+// review. One search call (the 20-per-repo PR list would miss some), so this
+// stays cheap enough to run every few minutes. Throws on an API error so the
+// caller can tell "nothing to review" from "could not check".
+export async function getReviewRequests(creds = {}) {
+  if (!isConfigured(creds)) return [];
+  const repos = getRepos(creds).slice(0, 20);
+  const { login } = await ghGet('/user', creds);
+  const q = ['is:pr', 'is:open', 'archived:false', `review-requested:${login}`, ...repos.map(r => `repo:${r}`)].join(' ');
+  const data = await ghGet(`/search/issues?q=${encodeURIComponent(q)}&per_page=30&sort=updated`, creds);
+  return (data.items ?? []).map(pr => ({
+    id:        pr.number,
+    title:     pr.title,
+    author:    pr.user?.login ?? null,
+    url:       pr.html_url,
+    updatedAt: pr.updated_at,
+    // "https://api.github.com/repos/owner/name" -> "owner/name"
+    repo:      (pr.repository_url ?? '').replace(/^.*\/repos\//, ''),
+  }));
+}
+
 export async function scanStalePRs(repoHint, thresholdDays = 3, creds = {}) {
   const prs = await getOpenPRs(repoHint, creds);
   return prs.filter(pr => pr.daysStale >= thresholdDays);
@@ -448,4 +469,4 @@ export async function getBranches(repoHint, creds = {}) {
   });
 }
 
-export default { isConfigured, getRepos, forEachRepo, getOpenPRs, scanStalePRs, getMergedPRs, getIssues, createIssue, deleteIssue, closeIssue, reopenIssue, updateIssue, commentOnIssue, closePR, generateChangelog, getContributions, getBranches };
+export default { isConfigured, getRepos, forEachRepo, getOpenPRs, getReviewRequests, scanStalePRs, getMergedPRs, getIssues, createIssue, deleteIssue, closeIssue, reopenIssue, updateIssue, commentOnIssue, closePR, generateChangelog, getContributions, getBranches };
