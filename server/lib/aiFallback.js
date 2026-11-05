@@ -55,26 +55,30 @@ export function createProviderHealth({ demoteForMs = DEMOTE_FOR_MS } = {}) {
 export const providerHealth = createProviderHealth();
 
 // <PREFIX>_ATTEMPT_TIMEOUT_MS / <PREFIX>_TOTAL_TIMEOUT_MS override the defaults (the
-// chat agent uses AGENT, the digest / brief / content calls in llm.js use LLM); a
-// value that is not a positive whole number of milliseconds is ignored.
-export function timeoutsFromEnv(env = process.env, prefix = 'AGENT') {
+// chat agent uses AGENT, the digest / brief / content calls in llm.js use LLM, or
+// LLM_<TASK> for one task type); a value that is not a positive whole number of
+// milliseconds is ignored. `defaults` is what applies when the variable is unset.
+export function timeoutsFromEnv(env = process.env, prefix = 'AGENT', defaults = {}) {
   const read = (name, fallback) => {
     const n = Number(env[`${prefix}_${name}`]);
     return Number.isInteger(n) && n > 0 ? n : fallback;
   };
-  return { attemptTimeoutMs: read('ATTEMPT_TIMEOUT_MS', ATTEMPT_TIMEOUT_MS), totalTimeoutMs: read('TOTAL_TIMEOUT_MS', TOTAL_TIMEOUT_MS) };
+  return {
+    attemptTimeoutMs: read('ATTEMPT_TIMEOUT_MS', defaults.attemptTimeoutMs ?? ATTEMPT_TIMEOUT_MS),
+    totalTimeoutMs:   read('TOTAL_TIMEOUT_MS',   defaults.totalTimeoutMs   ?? TOTAL_TIMEOUT_MS),
+  };
 }
 
-// Runs fn(signal) and gives up after `ms`: the promise rejects with code
-// AI_TIMEOUT and the signal is aborted so the underlying request is cancelled,
-// not just ignored. fn must pass the signal on to the model call.
 function timeoutError(ms) {
   const err = new Error(`no answer within ${Math.max(1, Math.round(ms / 1000))}s`);
   err.code = 'AI_TIMEOUT';
   return err;
 }
 
-// Settles with `promise`, or rejects with AI_TIMEOUT after `ms` and aborts `controller`.
+// Settles with `promise`, or rejects with AI_TIMEOUT after `ms` and aborts `controller`
+// (so the underlying request is cancelled, not just ignored). The timer is always
+// cleared; `promise` itself is left alone, so a caller that wants it stopped must
+// pass the controller's signal to whatever produced it.
 async function within(promise, ms, controller) {
   let timer;
   const timedOut = new Promise((_, reject) => {
@@ -91,6 +95,9 @@ async function within(promise, ms, controller) {
   }
 }
 
+// Runs fn(signal) and gives up after `ms`: the promise rejects with code
+// AI_TIMEOUT and the signal is aborted so the underlying request is cancelled,
+// not just ignored. fn must pass the signal on to the model call.
 async function withTimeout(fn, ms) {
   const controller = new AbortController();
   return within(Promise.resolve().then(() => fn(controller.signal)), ms, controller);
@@ -113,7 +120,7 @@ export function emptyReplyError() {
 export async function runWithFallback(candidates, attempt, {
   maxToolRetries = MAX_TOOL_RETRIES, warn = console.warn,
   attemptTimeoutMs = ATTEMPT_TIMEOUT_MS, totalTimeoutMs = TOTAL_TIMEOUT_MS, now = Date.now,
-  health = providerHealth, label = 'agent',
+  health = providerHealth, label = 'agent', agentHint = label === 'agent',
 } = {}) {
   const deadline = now() + totalTimeoutMs;
   const keyOf = c => c.healthKey ?? c.provider;
@@ -152,7 +159,7 @@ export async function runWithFallback(candidates, attempt, {
   }
 
   // 503, not 500: the app is fine, the AI providers it depends on are not.
-  const exhausted = new Error(describeAiFailure([...failures.values()]));
+  const exhausted = new Error(describeAiFailure([...failures.values()], { agentHint }));
   exhausted.code = 'AI_UNAVAILABLE';
   exhausted.status = 503;
   throw exhausted;
@@ -161,14 +168,16 @@ export async function runWithFallback(candidates, attempt, {
 // Streaming twin of runWithFallback, for callers that forward tokens as they arrive.
 // makeStream(model, candidate, { signal }) returns an async iterable of text.
 //
-// The first token has to arrive within the attempt budget (and the overall limit),
-// and every later token within attemptTimeoutMs of the one before it, so a stream
-// that goes quiet ends. A provider that times out, errors, or finishes with no text
+// The first token has to arrive within the attempt budget, and every later token
+// within attemptTimeoutMs of the one before it, so a stream that goes quiet ends.
+// The overall limit (totalTimeoutMs) caps the whole reply too, not only the wait
+// for a first token: a provider that trickles one token every few seconds ends
+// when the limit is spent. A provider that times out, errors, or finishes with no text
 // before anything was sent is skipped and the next one is tried. Once a token has
 // been yielded the caller has already shown it, so a failure after that is thrown,
 // not retried on another provider.
 export async function* streamWithFallback(candidates, makeStream, {
-  warn = console.warn, label = 'llm',
+  warn = console.warn, label = 'llm', agentHint = false,
   attemptTimeoutMs = ATTEMPT_TIMEOUT_MS, totalTimeoutMs = TOTAL_TIMEOUT_MS, now = Date.now,
   health = providerHealth,
 } = {}) {
@@ -183,12 +192,15 @@ export async function* streamWithFallback(candidates, makeStream, {
     const controller = new AbortController();
     let iterator;
     let yielded = false;
+    let completed = false; // the provider's stream ran to its end by itself
     try {
       iterator = makeStream(candidate.make(), candidate, { signal: controller.signal })[Symbol.asyncIterator]();
       for (;;) {
-        const wait = yielded ? attemptTimeoutMs : firstTokenBudget;
+        // Each wait is also capped by what is left of the overall budget.
+        const wait = yielded ? Math.min(attemptTimeoutMs, deadline - now()) : firstTokenBudget;
+        if (wait <= 0) throw timeoutError(totalTimeoutMs);
         const step = await within(iterator.next(), wait, controller);
-        if (step.done) break;
+        if (step.done) { completed = true; break; }
         if (!yielded) { yielded = true; health.recordSuccess(keyOf(candidate)); }
         yield step.value;
       }
@@ -205,15 +217,19 @@ export async function* streamWithFallback(candidates, makeStream, {
     } finally {
       // Abort first, so the request itself is cancelled and not only the iteration:
       // this is what happens when the caller stops reading (the browser closed the
-      // chat), as well as after a failure. Harmless once the stream has finished.
-      controller.abort();
-      // Not awaited: on a stream that is stuck waiting, return() queues behind the
-      // pending read and would never settle. The abort signal is what stops it.
-      Promise.resolve(iterator?.return?.()).catch(() => {});
+      // chat), as well as after a failure. Not needed once the provider's stream has
+      // finished by itself: aborting then would only fire listeners on a request that
+      // is already over (and could cut off trailing callbacks such as tracing).
+      if (!completed) {
+        controller.abort();
+        // Not awaited: on a stream that is stuck waiting, return() queues behind the
+        // pending read and would never settle. The abort signal is what stops it.
+        Promise.resolve(iterator?.return?.()).catch(() => {});
+      }
     }
   }
 
-  const exhausted = new Error(describeAiFailure([...failures.values()]));
+  const exhausted = new Error(describeAiFailure([...failures.values()], { agentHint }));
   exhausted.code = 'AI_UNAVAILABLE';
   exhausted.status = 503;
   throw exhausted;

@@ -59,7 +59,10 @@ export function isModelUnavailableError(err) {
 
 const TOOL_MESSAGE  = 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.';
 const QUOTA_MESSAGE = 'All AI keys are currently rate-limited. Wait a minute then try again.';
-const TIMEOUT_MESSAGE = 'The AI took too long to answer. Try again, or turn Agent OFF for a quicker reply.';
+// "Turn Agent OFF" is only advice that helps when the agent was in play; everywhere
+// else (streaming chat, digest, briefs, content) it is already off or does not apply.
+const TIMEOUT_MESSAGE       = 'The AI took too long to answer. Try again in a moment.';
+const TIMEOUT_AGENT_MESSAGE = 'The AI took too long to answer. Try again, or turn Agent OFF for a quicker reply.';
 const EMPTY_MESSAGE   = 'The AI returned an empty reply. Try again.';
 const LABELS = { gemini: 'Gemini', groq: 'Groq' };
 
@@ -70,13 +73,14 @@ function oneLine(text, max = 140) {
 
 // failures: [{ provider, model, message, status }] — one per provider that was tried.
 // Reports every provider, so a dead model on the first cannot hide behind the
-// second one's different error.
-export function describeAiFailure(failures) {
+// second one's different error. agentHint: the call was the chat agent, so "turn
+// Agent OFF" is useful advice for a timeout.
+export function describeAiFailure(failures, { agentHint = false } = {}) {
   if (!failures?.length) return 'The AI request failed for an unknown reason.';
   const kinds = failures.map(classifyAiFailure);
   if (kinds.every(k => k === 'tool'))  return TOOL_MESSAGE;
   if (kinds.every(k => k === 'quota')) return QUOTA_MESSAGE;
-  if (kinds.every(k => k === 'timeout')) return TIMEOUT_MESSAGE;
+  if (kinds.every(k => k === 'timeout')) return agentHint ? TIMEOUT_AGENT_MESSAGE : TIMEOUT_MESSAGE;
   if (kinds.every(k => k === 'empty'))   return EMPTY_MESSAGE;
 
   const parts = failures.map((f, i) => {

@@ -101,17 +101,25 @@ function toLC(messages) {
   });
 }
 
-function textOf(content) {
-  return typeof content === 'string' ? content : JSON.stringify(content);
+// The text in a message's content. Some models (Gemini, and any model that thinks)
+// send a list of parts such as [{ type: 'text', text: '...' }, { type: 'thinking' }]
+// instead of a string; only the text parts count, joined in order.
+function partsText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map(part => (typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : '')).join('');
 }
 
-// No text at all: nothing, an empty or blank string, or an empty parts list. Judged on
-// what the model sent, not on its stringified form, so a model that really answers
-// with the text "[]" (a valid empty JSON list) is not mistaken for an empty reply.
-const isEmptyReply = content =>
-  content == null
-  || (typeof content === 'string' && !content.trim())
-  || (Array.isArray(content) && content.length === 0);
+function textOf(content) {
+  if (typeof content === 'string' || Array.isArray(content)) return partsText(content);
+  return content == null ? '' : JSON.stringify(content);
+}
+
+// No text at all: nothing, a blank string, or parts that carry no text (an empty list,
+// [{ type: 'text', text: '' }], thinking-only parts). Judged on what the model sent,
+// not on a stringified form, so a model that really answers with the text "[]" (a
+// valid empty JSON list) is not mistaken for an empty reply.
+const isEmptyReply = content => !textOf(content).trim();
 
 function parseJSON(raw, provider = 'llm') {
   try {
@@ -121,19 +129,27 @@ function parseJSON(raw, provider = 'llm') {
   }
 }
 
+// The time limits for a task type. LLM_ATTEMPT_TIMEOUT_MS / LLM_TOTAL_TIMEOUT_MS set
+// them for every task; LLM_<TASK>_ATTEMPT_TIMEOUT_MS / LLM_<TASK>_TOTAL_TIMEOUT_MS
+// (for example LLM_DIGEST_TOTAL_TIMEOUT_MS) raise or lower them for one, so a big
+// digest or content call on Gemini can be given longer than a quick classify.
+export function limitsFor(taskType, env = process.env) {
+  const task = String(taskType).toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+  return timeoutsFromEnv(env, `LLM_${task}`, timeoutsFromEnv(env, 'LLM'));
+}
+
 // ─── Public API (unchanged signatures) ───────────────────────────────────────
 
 export async function call(messages, options = {}) {
-  const {
-    taskType  = 'chat',
-    json      = false,
-    maxTokens = 500,
-    apiKeys   = {},
-  } = options;
+  const { taskType = 'chat', maxTokens = 500, apiKeys = {} } = options;
+  return callWith(buildCandidates(taskType, { maxTokens, apiKeys }), messages, options, limitsFor(taskType));
+}
 
-  // options.candidates / options.fallback replace the real providers and the time
-  // limits; they exist so tests can use fake models and short timeouts.
-  const candidates = options.candidates ?? buildCandidates(taskType, { maxTokens, apiKeys });
+// The real work of call(), with the providers and the time limits passed in. Not part
+// of the public API: it exists so tests can use fake models and short timeouts without
+// call() having options that could swap the providers out.
+export async function callWith(candidates, messages, options = {}, fallback = {}) {
+  const { taskType = 'chat', json = false } = options;
   const lcMessages = toLC(messages);
 
   // A reply that is empty, or (for json) not parseable, is a failed attempt like any
@@ -143,7 +159,7 @@ export async function call(messages, options = {}) {
     if (isEmptyReply(res?.content)) throw emptyReplyError();
     const out = textOf(res.content);
     return json ? parseJSON(out, taskType) : out;
-  }, { ...timeoutsFromEnv(process.env, 'LLM'), label: 'llm', ...options.fallback });
+  }, { label: 'llm', ...fallback });
 }
 
 // Backwards-compatible simple chat helper
@@ -207,18 +223,23 @@ export async function generate(prompt, context = '', taskType = 'digest', apiKey
 // that fails before sending anything is replaced by the next (see streamWithFallback).
 export async function* streamTokens(messages, options = {}) {
   const { taskType = 'chat', maxTokens = 600, apiKeys = {} } = options;
-  const candidates = options.candidates ?? buildCandidates(taskType, { maxTokens, apiKeys, streaming: true });
+  yield* streamWith(buildCandidates(taskType, { maxTokens, apiKeys, streaming: true }), messages, options, limitsFor(taskType));
+}
+
+// The real work of streamTokens(); see callWith for why it is separate.
+export async function* streamWith(candidates, messages, options = {}, fallback = {}) {
+  const { taskType = 'chat' } = options;
   const lcMessages = toLC(messages);
 
   async function* textChunks(model, _candidate, { signal } = {}) {
     const stream = await model.stream(lcMessages, { runName: `llm:${taskType}`, tags: ['devos', taskType], signal });
     for await (const chunk of stream) {
-      const t = chunk?.content;
-      if (typeof t === 'string' && t) yield t;
+      const t = partsText(chunk?.content); // a string, or the text parts of a list
+      if (t) yield t;
     }
   }
 
-  yield* streamWithFallback(candidates, textChunks, { ...timeoutsFromEnv(process.env, 'LLM'), label: 'llm', ...options.fallback });
+  yield* streamWithFallback(candidates, textChunks, { label: 'llm', ...fallback });
 }
 
 export default { call, chat, classify, generate, streamTokens };
