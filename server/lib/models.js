@@ -35,9 +35,10 @@ const TOOL_FORMAT = /tool_use_failed|failed_generation/i;
 const QUOTA       = /\b429\b|quota|rate.?limit|too many requests|resource.?exhausted/i;
 const MODEL_GONE  = /model[_ ]not[_ ]found|model.{0,80}(does not exist|not found|no longer|not supported|decommission|deprecat|retired)|(does not exist|not found|decommission|deprecat|retired).{0,80}model/i;
 
-// 'timeout' | 'model' | 'quota' | 'tool' | 'other'
+// 'timeout' | 'empty' | 'model' | 'quota' | 'tool' | 'other'
 export function classifyAiFailure({ message = '', status, code } = {}) {
   if (code === 'AI_TIMEOUT') return 'timeout';
+  if (code === 'AI_EMPTY') return 'empty';
   if (TOOL_FORMAT.test(message)) return 'tool';
   if (status === 429 || QUOTA.test(message)) return 'quota';
   if (status === 404 || MODEL_GONE.test(message)) return 'model';
@@ -59,6 +60,7 @@ export function isModelUnavailableError(err) {
 const TOOL_MESSAGE  = 'The AI model failed to call a tool correctly. Turn Agent OFF and try again, or wait and retry.';
 const QUOTA_MESSAGE = 'All AI keys are currently rate-limited. Wait a minute then try again.';
 const TIMEOUT_MESSAGE = 'The AI took too long to answer. Try again, or turn Agent OFF for a quicker reply.';
+const EMPTY_MESSAGE   = 'The AI returned an empty reply. Try again.';
 const LABELS = { gemini: 'Gemini', groq: 'Groq' };
 
 function oneLine(text, max = 140) {
@@ -75,12 +77,14 @@ export function describeAiFailure(failures) {
   if (kinds.every(k => k === 'tool'))  return TOOL_MESSAGE;
   if (kinds.every(k => k === 'quota')) return QUOTA_MESSAGE;
   if (kinds.every(k => k === 'timeout')) return TIMEOUT_MESSAGE;
+  if (kinds.every(k => k === 'empty'))   return EMPTY_MESSAGE;
 
   const parts = failures.map((f, i) => {
     const who = LABELS[f.provider] ?? f.provider;
     if (kinds[i] === 'model') return `${who}: the model "${f.model}" is no longer available`;
     if (kinds[i] === 'quota') return `${who}: rate-limited`;
     if (kinds[i] === 'timeout') return `${who}: did not answer in time`;
+    if (kinds[i] === 'empty')   return `${who}: returned an empty reply`;
     if (kinds[i] === 'tool')  return `${who}: failed to call a tool correctly`;
     return `${who}: ${oneLine(f.message)}`;
   });
@@ -96,6 +100,8 @@ export function describeAiFailure(failures) {
 
 // For a single caught error, e.g. from the streaming chat path.
 export function friendlyAiError(err) {
+  // Already worded for the user by describeAiFailure (every provider named).
+  if (err?.code === 'AI_UNAVAILABLE') return err.message;
   const failure = failureOf(err);
   const kind = classifyAiFailure(failure);
   if (kind === 'model') {
@@ -103,5 +109,7 @@ export function friendlyAiError(err) {
   }
   if (kind === 'quota') return QUOTA_MESSAGE;
   if (kind === 'tool')  return TOOL_MESSAGE;
+  if (kind === 'timeout') return TIMEOUT_MESSAGE;
+  if (kind === 'empty')   return EMPTY_MESSAGE;
   return failure.message || 'The AI request failed.';
 }
