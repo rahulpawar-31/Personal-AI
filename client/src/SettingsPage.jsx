@@ -1,7 +1,7 @@
 import PageHeader from './components/PageHeader.jsx';
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api.js';
-import { startGoogleConnect } from './googleConnect.js';
+import { startGoogleConnect, googleConnectInitPath } from './googleConnect.js';
 import { SectionLabel, IntegrationGroup, RowDivider } from './components/settings/primitives.jsx';
 import SingleKeyRow from './components/settings/SingleKeyRow.jsx';
 import MultiKeyRow from './components/settings/MultiKeyRow.jsx';
@@ -57,7 +57,7 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
   async function handleGoogleConnect() {
     setGoogleError(null);
     const out = await startGoogleConnect(() =>
-      apiFetch(`/api/auth/google/init?from=settings&origin=${encodeURIComponent(window.location.origin)}`));
+      apiFetch(googleConnectInitPath(window.location.origin, { fromSettings: true })));
     if (out.url) window.location.href = out.url;
     else setGoogleError(out.message);
   }

@@ -8,3 +8,15 @@
 export function googleReturnPath({ fromSettings } = {}) {
   return fromSettings ? '/?google_connected=true' : '/?connected=true';
 }
+
+// Called only after verifying the signed state and both trusted origins. Google
+// can keep its registered API callback while the browser completes the exchange
+// through the frontend's /api proxy, where the refresh cookie belongs. `state`
+// is a newly signed state with forwarded:true, so the second hop cannot loop.
+export function googleCallbackForward({ origin, callbackOrigin, forwarded, code, state }) {
+  if (origin === callbackOrigin || forwarded === true) return null;
+  const url = new URL('/api/auth/google/callback', origin);
+  url.searchParams.set('state', state);
+  if (typeof code === 'string') url.searchParams.set('code', code);
+  return url.href;
+}

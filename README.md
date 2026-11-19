@@ -180,6 +180,15 @@ Why both Vercel and Render: Vercel serves the static frontend and rewrites
 `vercel.json`). Render runs the actual Node/Express API and database access.
 Neither one is redundant with the other — removing either breaks the app.
 
+The hosted API/frontend origin pair is versioned in `server/lib/deployment.js`.
+`FRONTEND_URL` overrides the browser-facing origin for other deployments;
+`EXTRA_ALLOWED_ORIGINS` adds any other explicitly trusted origins. Google keeps
+the API's `/api/auth/google/callback` as its registered redirect URI. After
+validating the signed state, the API forwards a split-origin response through
+the frontend proxy before exchanging the code and setting the refresh cookie.
+The browser therefore returns to the frontend with its session cookie on that
+same domain. Neither request Host headers nor wildcard Vercel domains grant trust.
+
 `server/lib/env.js` is host-agnostic: a deploy counts as production when
 `NODE_ENV=production` (set in `render.yaml`), and its public URL comes from
 `PUBLIC_URL` or, on Render, `RENDER_EXTERNAL_URL`. Because that one variable

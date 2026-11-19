@@ -3,6 +3,7 @@
 // services/users.js, routes/auth.js and routes/webhooks.js.
 // Any host declares itself production via NODE_ENV=production, and its public
 // URL via PUBLIC_URL (e.g. http://1.2.3.4 or https://example.com).
+import { hostedDeployment } from './deployment.js';
 
 export function isProduction(env = process.env) {
   return env.NODE_ENV === 'production';
@@ -16,6 +17,16 @@ export function publicOrigin() {
   const url = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL;
   if (!url) return null;
   return url.replace(/\/+$/, '');
+}
+
+// The browser-facing origin may differ from the API's. FRONTEND_URL overrides
+// the versioned hosted pairing; unrelated/self-hosted deployments keep their own
+// public origin. This also makes the trusted frontend survive a missing optional
+// EXTRA_ALLOWED_ORIGINS setting on the current Render service.
+export function frontendOrigin() {
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/+$/, '');
+  const api = publicOrigin();
+  return api === hostedDeployment.apiOrigin ? hostedDeployment.frontendOrigin : api;
 }
 
 // How many reverse proxies sit in front of this server, for Express's
@@ -72,7 +83,7 @@ export function extraOrigins() {
 // program a visitor runs on their own machine act as an allowed origin.
 export function corsOrigins() {
   const dev = isProduction() ? [] : ['http://localhost:5173', 'http://localhost:3001'];
-  return [...dev, publicOrigin(), ...extraOrigins()].filter(Boolean);
+  return [...new Set([...dev, publicOrigin(), frontendOrigin(), ...extraOrigins()].filter(Boolean))];
 }
 
 // True if `origin` (scheme + host) is this server's own public origin or one
@@ -80,7 +91,7 @@ export function corsOrigins() {
 // origin before treating it as a redirect target (OAuth callback, etc.) —
 // never trust it unchecked, that's an open-redirect / host-injection risk.
 export function isAllowedOrigin(origin) {
-  if (!origin) return false;
+  if (typeof origin !== 'string' || !origin) return false;
   const clean = origin.replace(/\/+$/, '');
-  return clean === publicOrigin() || extraOrigins().includes(clean);
+  return clean === publicOrigin() || clean === frontendOrigin() || extraOrigins().includes(clean);
 }
