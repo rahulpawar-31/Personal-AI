@@ -20,6 +20,12 @@ export const GOOGLE_CONNECT_MESSAGES = {
 
 const fail = error => ({ error, message: GOOGLE_CONNECT_MESSAGES[error] });
 
+export function googleConnectInitPath(origin, { fromSettings = false } = {}) {
+  const params = new URLSearchParams({ origin });
+  if (fromSettings) params.set('from', 'settings');
+  return `/api/auth/google/init?${params}`;
+}
+
 export async function startGoogleConnect(fetchInit) {
   let r;
   try {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch, clearToken } from './api.js';
-import { startGoogleConnect } from './googleConnect.js';
+import { startGoogleConnect, googleConnectInitPath } from './googleConnect.js';
 import Logo from './components/Logo.jsx';
 import RolePicker from './components/RolePicker.jsx';
 
@@ -239,7 +239,7 @@ function GoogleStep({ onNext }) {
   async function connect() {
     setError(null);
     setBusy(true);
-    const out = await startGoogleConnect(() => apiFetch('/api/auth/google/init'));
+    const out = await startGoogleConnect(() => apiFetch(googleConnectInitPath(window.location.origin)));
     if (out.url) { window.location.href = out.url; return; } // leaving the page: stay busy
     setBusy(false);
     if (out.error === 'session') { clearToken(); window.location.reload(); return; }

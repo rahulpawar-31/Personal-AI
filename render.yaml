@@ -13,11 +13,14 @@ services:
       # PUBLIC_URL is not set here — Render's own RENDER_EXTERNAL_URL is picked
       # up automatically (see server/lib/env.js). Only set PUBLIC_URL if you
       # point a custom domain at this service.
+      - key: FRONTEND_URL
+        value: https://personal-ai-blue.vercel.app
+        # The same pairing is versioned in server/lib/deployment.js so the live
+        # service also works when it was not provisioned from this Blueprint.
       - key: EXTRA_ALLOWED_ORIGINS
         sync: false
-        # e.g. https://your-app.vercel.app — set if a separate frontend deploy
-        # proxies /api/* to this service. Also register
-        # <that-origin>/api/auth/google/callback in Google Cloud Console.
+        # Optional additional trusted origins, comma-separated. Google keeps the
+        # backend /api/auth/google/callback registered in Cloud Console.
 
       # ── Required ────────────────────────────────────────────────────────
       - key: DATABASE_URL

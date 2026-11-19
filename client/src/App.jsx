@@ -20,7 +20,7 @@ import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
-import { startGoogleConnect } from './googleConnect.js';
+import { startGoogleConnect, googleConnectInitPath } from './googleConnect.js';
 import { checkSession } from './sessionCheck.js';
 import SessionRetry from './components/SessionRetry.jsx';
 import { parseGoogleReturn } from './googleReturn.js';
@@ -123,7 +123,7 @@ export default function App() {
   }
 
   async function handleConnectGoogle() {
-    const out = await startGoogleConnect(() => apiFetch('/api/auth/google/init'));
+    const out = await startGoogleConnect(() => apiFetch(googleConnectInitPath(window.location.origin)));
     if (out.url) { window.location.href = out.url; return; }
     if (out.error === 'session') { handleLogout(); return; }
     // The sidebar button and the palette entry both end here, so say what went wrong

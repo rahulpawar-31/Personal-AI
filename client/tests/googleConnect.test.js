@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startGoogleConnect, GOOGLE_CONNECT_MESSAGES } from '../src/googleConnect.js';
+import { startGoogleConnect, googleConnectInitPath, GOOGLE_CONNECT_MESSAGES } from '../src/googleConnect.js';
 
 const reply = (status, body) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const URL_OK = 'https://accounts.google.com/o/oauth2/v2/auth?client_id=x';
+
+test('all connect entry points carry the browser origin and only Settings adds its return marker', () => {
+  for (const fromSettings of [false, true]) {
+    const url = new URL(googleConnectInitPath('https://app.example.com', { fromSettings }), 'https://app.example.com');
+    assert.equal(url.pathname, '/api/auth/google/init');
+    assert.equal(url.searchParams.get('origin'), 'https://app.example.com');
+    assert.equal(url.searchParams.get('from'), fromSettings ? 'settings' : null);
+  }
+});
 
 test('a good answer returns the consent URL to go to', async () => {
   assert.deepEqual(await startGoogleConnect(reply(200, { url: URL_OK })), { url: URL_OK });

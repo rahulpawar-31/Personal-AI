@@ -8,19 +8,19 @@ import { requireAuth } from '../middleware/auth.js';
 import { authLimiter, loginAccountLimiter, logoutLimiter } from '../middleware/rateLimiter.js';
 import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
-import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
+import { publicOrigin, frontendOrigin, isAllowedOrigin } from '../lib/env.js';
 import { trustedGoogleEmail } from '../lib/googleProfile.js';
-import { googleReturnPath } from '../lib/googleReturn.js';
+import { googleReturnPath, googleCallbackForward } from '../lib/googleReturn.js';
 
 const router = Router();
 
-const frontendURL = () => publicOrigin() ?? (process.env.APP_URL ?? 'http://localhost:5173');
+const frontendURL = () => frontendOrigin() ?? (process.env.APP_URL ?? 'http://localhost:5173');
 
 // The browser page that starts the OAuth flow may be on a different origin
 // than this server (e.g. Vercel proxying /api/* here). So the client tells us
 // its current origin, we validate it against the trusted allow-list, and if
-// valid we run the *entire* OAuth round-trip (redirect_uri + final redirect)
-// through that same origin instead of this server's own.
+// valid we return to that origin. Google's registered callback stays at the API;
+// its validated response is forwarded through the frontend before setting cookies.
 function resolveRequestOrigin(req) {
   const requested = req.query.origin;
   if (requested && isAllowedOrigin(requested)) return requested.replace(/\/+$/, '');
@@ -86,14 +86,16 @@ router.get('/api/health', requireAuth, async (req, res) => {
 router.get('/api/auth/google/init', requireAuth, (req, res) => {
   const fromSettings = req.query.from === 'settings';
   const origin = resolveRequestOrigin(req) ?? frontendURL();
-  const state  = signState({ mode: 'connect', uid: req.user.userId, fromSettings, origin });
-  res.json({ url: auth.getAuthUrl(origin, state) });
+  const callbackOrigin = publicOrigin() ?? origin;
+  const state  = signState({ mode: 'connect', uid: req.user.userId, fromSettings, origin, callbackOrigin });
+  res.json({ url: auth.getAuthUrl(callbackOrigin, state) });
 });
 
 router.get('/api/auth/google/signin', (req, res) => {
   const origin = resolveRequestOrigin(req) ?? frontendURL();
-  const state  = signState({ mode: 'signin', origin });
-  res.redirect(auth.getAuthUrl(origin, state));
+  const callbackOrigin = publicOrigin() ?? origin;
+  const state  = signState({ mode: 'signin', origin, callbackOrigin });
+  res.redirect(auth.getAuthUrl(callbackOrigin, state));
 });
 
 router.get('/api/auth/google/callback', async (req, res) => {
@@ -106,14 +108,24 @@ router.get('/api/auth/google/callback', async (req, res) => {
   // origin can't be used as an open-redirect target.
   const originAllowed = Boolean(state?.origin && isAllowedOrigin(state.origin));
   const redirectBase  = originAllowed ? state.origin : frontendURL();
+  // Old in-flight states used the return origin as their registered callback.
+  const callbackOrigin = state?.callbackOrigin ?? redirectBase;
 
-  if (!state) {
+  if (!state || !originAllowed || !isAllowedOrigin(callbackOrigin)) {
     console.warn('[auth/google/callback] invalid or expired OAuth state — possible CSRF attempt or a stale/reused link');
     return res.redirect(`${redirectBase}/?auth_error=google_failed&detail=invalid_state`);
   }
 
+  if (req.query.error) return res.redirect(`${redirectBase}/?auth_error=google_failed`);
+
+  const forward = googleCallbackForward({
+    origin: redirectBase, callbackOrigin, forwarded: state.forwarded,
+    code: req.query.code, state: signState({ ...state, forwarded: true }),
+  });
+  if (forward) return res.redirect(forward);
+
   try {
-    const client     = auth.createOAuth2Client(redirectBase);
+    const client     = auth.createOAuth2Client(callbackOrigin);
     const { tokens } = await client.getToken(req.query.code);
 
     if (state.mode === 'signin') {

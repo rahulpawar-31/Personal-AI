@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { googleReturnPath } from '../lib/googleReturn.js';
+import { googleReturnPath, googleCallbackForward } from '../lib/googleReturn.js';
 
 test('a connection started from Settings comes back to the app root, marked so Settings opens', () => {
   assert.equal(googleReturnPath({ fromSettings: true }), '/?google_connected=true');
@@ -17,4 +17,20 @@ test('the return path is never a page the deployed site does not serve (#421)', 
     const url = new URL(googleReturnPath({ fromSettings }), 'https://example.test');
     assert.equal(url.pathname, '/', 'the frontend only has a page at /');
   }
+});
+
+test('a split-origin callback reaches the frontend proxy with its code and newly signed state intact', () => {
+  const url = new URL(googleCallbackForward({
+    origin: 'https://app.example.com', callbackOrigin: 'https://api.example.com',
+    code: 'code/+?&=', state: 'new-signed-state.with-forwarded-flag',
+  }));
+  assert.equal(url.origin, 'https://app.example.com');
+  assert.equal(url.pathname, '/api/auth/google/callback');
+  assert.equal(url.searchParams.get('code'), 'code/+?&=');
+  assert.equal(url.searchParams.get('state'), 'new-signed-state.with-forwarded-flag');
+});
+
+test('a forwarded callback and a same-origin callback do not redirect again', () => {
+  assert.equal(googleCallbackForward({ origin: 'https://app.example.com', callbackOrigin: 'https://api.example.com', forwarded: true }), null);
+  assert.equal(googleCallbackForward({ origin: 'https://app.example.com', callbackOrigin: 'https://app.example.com' }), null);
 });
