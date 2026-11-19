@@ -21,6 +21,8 @@ import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
 import { startGoogleConnect } from './googleConnect.js';
+import { checkSession } from './sessionCheck.js';
+import SessionRetry from './components/SessionRetry.jsx';
 import { parseGoogleReturn } from './googleReturn.js';
 import { createHealthLoader } from './healthLoader.js';
 
@@ -73,6 +75,9 @@ export default function App() {
 
   const [user,           setUser]           = useState(null);
   const [authChecked,    setAuthChecked]    = useState(false);
+  // The server could not confirm the stored session (down, restarting, no network).
+  // The token is kept; the user gets a retry screen, not the sign-in form (#423).
+  const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen,    setSidebarOpen]    = useState(false);
   const [paletteOpen,    setPaletteOpen]    = useState(false);
@@ -219,32 +224,41 @@ export default function App() {
     ...(!connected ? [{ id: 'connect-google', label: 'Connect Google', section: 'Actions', onSelect: handleConnectGoogle }] : []),
   ];
 
+  // Only a 401 clears the token. A 502/503, a network failure or no answer in time
+  // keeps it and shows a retry screen, so the user is not asked for a password they
+  // may not need to type again.
+  async function restoreSession({ isRetry = false } = {}) {
+    setSessionUnavailable(false);
+    const result = await checkSession(() => apiFetch('/api/users/me'));
+    if (result.status === 'ok') {
+      applyUser(result.user);
+      if (localStorage.getItem('devos_onboarding') === 'true') setShowOnboarding(true);
+      if (isRetry) fetchHealth(); // start-up did not load it while the server was down
+    } else if (result.status === 'invalid') {
+      clearSession();
+    } else {
+      setSessionUnavailable(true);
+    }
+    setAuthChecked(true);
+  }
+
+  function handleRetrySession() {
+    setAuthChecked(false); // shows "Loading…" while it tries again
+    restoreSession({ isRetry: true });
+  }
+
+  function handleSignInAgain() {
+    clearSession();
+    setSessionUnavailable(false);
+  }
+
   useEffect(() => {
     const token = getToken();
     if (token) {
       // Use apiFetch (not raw fetch) so an expired 15m access token gets a
       // silent refresh attempt via the httpOnly refresh cookie before we
       // give up and treat the session as logged out.
-      apiFetch('/api/users/me')
-        .then(async r => {
-          if (r.ok) return r.json();
-          // Only clear the token on 401 (invalid/expired token).
-          // 502/503 means the server is restarting — keep the token so the
-          // user stays logged in once the server comes back up.
-          if (r.status === 401) {
-            clearSession();
-          }
-          return null;
-        })
-        .then(u => {
-          if (u) {
-            applyUser(u);
-            if (localStorage.getItem('devos_onboarding') === 'true') setShowOnboarding(true);
-          }
-          setAuthChecked(true);
-          return null;
-        })
-        .catch(() => setAuthChecked(true));
+      restoreSession();
     } else {
       setAuthChecked(true);
     }
@@ -284,6 +298,7 @@ export default function App() {
     );
   }
   // The toast container is needed here too: the sign-out warning appears after the sign-in page is showing.
+  if (!user && sessionUnavailable) return <><SessionRetry onRetry={handleRetrySession} onSignOut={handleSignInAgain} /><ToastContainer /></>;
   if (!user) return <><AuthPage onAuth={handleAuth} /><ToastContainer /></>;
   if (showOnboarding) return <OnboardingWizard user={user} onUserChange={applyUser} onComplete={handleOnboardingComplete} />;
 
