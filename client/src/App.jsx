@@ -20,6 +20,10 @@ import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
+import { checkSession } from './sessionCheck.js';
+import SessionRetry from './components/SessionRetry.jsx';
+import { parseGoogleReturn } from './googleReturn.js';
+import { createHealthLoader } from './healthLoader.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: 'Today',          dot: '#5F6064' },
@@ -53,6 +57,15 @@ export default function App() {
   useEffect(() => { viewRef.current = view; }, [view]);
   const [connected,      setConnected]      = useState(false);
   const [health,         setHealth]         = useState({});
+  // Connected-services status for whoever is signed in (see healthLoader.js): the
+  // newest request wins and reset() empties it, so one account never sees another's.
+  const healthLoaderRef = useRef(null);
+  if (!healthLoaderRef.current) {
+    healthLoaderRef.current = createHealthLoader(
+      () => apiFetch('/api/health').then(r => (r.ok ? r.json() : null)),
+      d => { setHealth(d); setConnected(Boolean(d.google)); },
+    );
+  }
   const [taskRefreshKey,     setTaskRefreshKey]     = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [githubRefreshKey,   setGithubRefreshKey]   = useState(0);
@@ -61,6 +74,9 @@ export default function App() {
 
   const [user,           setUser]           = useState(null);
   const [authChecked,    setAuthChecked]    = useState(false);
+  // The server could not confirm the stored session (down, restarting, no network).
+  // The token is kept; the user gets a retry screen, not the sign-in form (#423).
+  const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen,    setSidebarOpen]    = useState(false);
   const [paletteOpen,    setPaletteOpen]    = useState(false);
@@ -76,6 +92,10 @@ export default function App() {
 
   function handleAuth(newUser, isSignup) {
     applyUser(newUser);
+    // The status loaded at start-up (if any) belonged to a previous session, and a
+    // password sign-in does not remount the app: load this account's now (#420).
+    healthLoaderRef.current.reset();
+    fetchHealth();
     if (isSignup) {
       localStorage.setItem('devos_onboarding', 'true');
       setShowOnboarding(true);
@@ -85,6 +105,7 @@ export default function App() {
   function handleOnboardingComplete() {
     localStorage.removeItem('devos_onboarding');
     setShowOnboarding(false);
+    fetchHealth(); // tools connected during onboarding should show at once
   }
 
   function handleLogout() {
@@ -96,6 +117,7 @@ export default function App() {
       warn: () => toast('Signed out here, but your other sessions may still be active. Sign in and sign out again when you are online.', 'error', 9000),
     });
     clearSession();
+    healthLoaderRef.current.reset(); // the next account must not inherit these services
     setUser(null);
   }
 
@@ -110,10 +132,7 @@ export default function App() {
   }
 
   function fetchHealth() {
-    apiFetch('/api/health')
-      .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); return null; })
-      .catch(() => {});
+    return healthLoaderRef.current.load();
   }
 
   function handleViewChange(newView) {
@@ -154,10 +173,7 @@ export default function App() {
     setGithubRefreshKey(k => k + 1);
     setEmailRefreshKey(k => k + 1);
     setDigestRefreshKey(k => k + 1);
-    apiFetch('/api/health')
-      .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); return null; })
-      .catch(() => {});
+    healthLoaderRef.current.load();
   }, []);
 
   // Auto-refresh: on tab focus (if away >5 min) + every 10 min while active
@@ -208,32 +224,41 @@ export default function App() {
     ...(!connected ? [{ id: 'connect-google', label: 'Connect Google', section: 'Actions', onSelect: handleConnectGoogle }] : []),
   ];
 
+  // Only a 401 clears the token. A 502/503, a network failure or no answer in time
+  // keeps it and shows a retry screen, so the user is not asked for a password they
+  // may not need to type again.
+  async function restoreSession({ isRetry = false } = {}) {
+    setSessionUnavailable(false);
+    const result = await checkSession(() => apiFetch('/api/users/me'));
+    if (result.status === 'ok') {
+      applyUser(result.user);
+      if (localStorage.getItem('devos_onboarding') === 'true') setShowOnboarding(true);
+      if (isRetry) fetchHealth(); // start-up did not load it while the server was down
+    } else if (result.status === 'invalid') {
+      clearSession();
+    } else {
+      setSessionUnavailable(true);
+    }
+    setAuthChecked(true);
+  }
+
+  function handleRetrySession() {
+    setAuthChecked(false); // shows "Loading…" while it tries again
+    restoreSession({ isRetry: true });
+  }
+
+  function handleSignInAgain() {
+    clearSession();
+    setSessionUnavailable(false);
+  }
+
   useEffect(() => {
     const token = getToken();
     if (token) {
       // Use apiFetch (not raw fetch) so an expired 15m access token gets a
       // silent refresh attempt via the httpOnly refresh cookie before we
       // give up and treat the session as logged out.
-      apiFetch('/api/users/me')
-        .then(async r => {
-          if (r.ok) return r.json();
-          // Only clear the token on 401 (invalid/expired token).
-          // 502/503 means the server is restarting — keep the token so the
-          // user stays logged in once the server comes back up.
-          if (r.status === 401) {
-            clearSession();
-          }
-          return null;
-        })
-        .then(u => {
-          if (u) {
-            applyUser(u);
-            if (localStorage.getItem('devos_onboarding') === 'true') setShowOnboarding(true);
-          }
-          setAuthChecked(true);
-          return null;
-        })
-        .catch(() => setAuthChecked(true));
+      restoreSession();
     } else {
       setAuthChecked(true);
     }
@@ -253,15 +278,15 @@ export default function App() {
 
     if (getToken()) fetchHealth();
 
-    if (window.location.search.includes('connected=true')) {
+    const googleReturn = parseGoogleReturn(window.location.search);
+    if (googleReturn.connected) {
       setConnected(true);
-      if (localStorage.getItem('devos_onboarding') !== 'true') {
+      if (googleReturn.fromSettings) setView('settings'); // back to where they started
+      // Take the marker out of the address bar so a refresh does not repeat it. The
+      // onboarding wizard still reads ?connected=true, so it keeps its own marker.
+      if (googleReturn.fromSettings || localStorage.getItem('devos_onboarding') !== 'true') {
         window.history.replaceState({}, '', '/');
       }
-    }
-    if (window.location.search.includes('google_connected=true')) {
-      setConnected(true);
-      setView('settings');
     }
   }, []);
 
@@ -273,6 +298,7 @@ export default function App() {
     );
   }
   // The toast container is needed here too: the sign-out warning appears after the sign-in page is showing.
+  if (!user && sessionUnavailable) return <><SessionRetry onRetry={handleRetrySession} onSignOut={handleSignInAgain} /><ToastContainer /></>;
   if (!user) return <><AuthPage onAuth={handleAuth} /><ToastContainer /></>;
   if (showOnboarding) return <OnboardingWizard user={user} onUserChange={applyUser} onComplete={handleOnboardingComplete} />;
 
