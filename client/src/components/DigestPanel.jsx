@@ -5,6 +5,7 @@ import { LoadingState } from './ui/States.jsx';
 import SnoozeMenu from './SnoozeMenu.jsx';
 import WrapupCard from './WrapupCard.jsx';
 import { itemKeys, applySnoozes, returnLabel } from '../snooze.js';
+import { needsYouState } from '../dashboardState.js';
 
 const KIND = {
   mail: { bg: 'var(--tag-info-bg)',   fg: 'var(--tag-info-fg)',   label: 'mail' },
@@ -56,6 +57,9 @@ const isDone = t => t.status === 'Done';
 
 export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, onOpenPalette, onAsk, userName = '', health = {}, connected = false }) {
   const [digest,  setDigest]  = useState(null);
+  // 'loading' until /api/digest/latest answers, then 'none' | 'ready' | 'error' (see dashboardState.js)
+  const [digestStatus, setDigestStatus] = useState('loading');
+  const [runFailed, setRunFailed] = useState(false);
   const [running, setRunning] = useState(false);
   const [events,  setEvents]  = useState([]);
   const [tasks,   setTasks]   = useState([]);
@@ -73,11 +77,22 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
 
   const now = new Date();
 
-  const connectedCount = [connected, health.notion, health.todoist, health.github, health.slack, health.trello, health.gemini || health.groq].filter(Boolean).length;
+  // Work services only: the AI provider gives the dashboard nothing to scan, so it does
+  // not count towards "your tools are connected".
+  const workConnected = [connected, health.notion, health.todoist, health.github, health.slack, health.trello].filter(Boolean).length;
 
-  useEffect(() => {
-    apiFetch('/api/digest/latest').then(r => r.json()).then(d => { if (d) setDigest(d); return undefined; }).catch(() => {});
-  }, [refreshKey]);
+  function loadLatestDigest() {
+    return apiFetch('/api/digest/latest')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`digest ${r.status}`))))
+      .then(d => {
+        if (d) { setDigest(d); setDigestStatus('ready'); setRunFailed(false); }
+        else setDigestStatus(prev => (prev === 'ready' ? prev : 'none')); // never overwrite a digest we already have
+        return undefined;
+      })
+      .catch(() => { setDigestStatus(prev => (prev === 'ready' ? prev : 'error')); });
+  }
+
+  useEffect(() => { loadLatestDigest(); }, [refreshKey]);
 
   useEffect(() => {
     if (!connected) { setEvents([]); return; }
@@ -146,12 +161,14 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
 
   async function runDigest() {
     setRunning(true);
+    setRunFailed(false);
     try {
       const r = await apiFetch('/api/digest/run', { method: 'POST' });
       const d = await r.json();
-      if (r.ok) setDigest(d);
-      else toast(d.error || 'Could not run the digest', 'error');
+      if (r.ok) { setDigest(d); setDigestStatus('ready'); }
+      else { setRunFailed(true); toast(d.error || 'Could not run the digest', 'error'); }
     } catch (e) {
+      setRunFailed(true);
       toast(e.message, 'error');
     } finally {
       setRunning(false);
@@ -194,9 +211,16 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
 
   const name = userName ? userName.charAt(0).toUpperCase() + userName.slice(1) : '';
   const nextMeeting = nextEvent ? ` Your next meeting is at ${clock(nextEvent.start)}.` : '';
-  const summary = visibleQueue.length === 0
-    ? `Nothing needs you right now.${nextMeeting}`
-    : `${visibleQueue.length} ${visibleQueue.length === 1 ? 'thing needs' : 'things need'} you today.${nextMeeting}`;
+  // What the queue may claim depends on what has actually been checked (#426).
+  const state = needsYouState({ workConnected, digestStatus, running, runFailed, queueLength: visibleQueue.length });
+  const summary = `${state.summary}${nextMeeting}`;
+
+  // Retry repeats whatever failed: the scan, or loading the latest digest.
+  function runStateAction(id) {
+    if (id === 'settings') onGoToSettings?.();
+    else if (id === 'run') runDigest();
+    else if (id === 'retry') { if (runFailed) runDigest(); else { setDigestStatus('loading'); loadLatestDigest(); } }
+  }
 
   const services = [
     { name: 'Gmail',    ok: connected },
@@ -234,12 +258,12 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
         </div>
       </header>
 
-      {connectedCount < 2 && !digest && (
+      {workConnected < 2 && !digest && (
         <section style={{ ...card, padding: '22px 24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 560 }}>
             <h2 className="t-h2">Connect more tools to fill your day</h2>
             <p style={{ fontSize: 14.5, color: 'var(--muted)', lineHeight: 1.5 }}>
-              Today needs at least two connections, like Google and GitHub, to build a useful summary. You have {connectedCount} connected.
+              Today needs at least two connections, like Google and GitHub, to build a useful summary. You have {workConnected} connected.
             </p>
           </div>
           <button className="primary" onClick={onGoToSettings} style={{ minHeight: 44, padding: '0 20px', fontSize: 14.5 }}>Open Settings</button>
@@ -303,10 +327,16 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
             </div>
             {running && <LoadingState label="Running 4 sub-agents in parallel…" />}
             {!running && shown.length === 0 && (
-              <p style={{ padding: '18px 0 6px', borderTop: '1px solid var(--border)', color: 'var(--muted)', fontSize: 15 }}>
-                {digest || visibleQueue.length === 0 ? 'Nothing here. A clear day.' : 'Nothing matches this filter.'}
-                {!digest && ' Run your digest to scan mail and tasks.'}
-              </p>
+              <div style={{ padding: '18px 0 6px', borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+                <p role={state.kind === 'error' ? 'alert' : undefined} style={{ flex: '1 1 260px', margin: 0, color: 'var(--muted)', fontSize: 15 }}>
+                  {visibleQueue.length > 0 ? 'Nothing matches this filter.' : state.detail}
+                </p>
+                {visibleQueue.length === 0 && state.action && state.kind !== 'setup' && (
+                  <button type="button" className="primary" onClick={() => runStateAction(state.action.id)} style={{ minHeight: 40, padding: '0 16px', fontSize: 14 }}>
+                    {state.action.label}
+                  </button>
+                )}
+              </div>
             )}
             {!running && shown.map((q, i) => (
               <div key={q.key ?? `${q.kind}-${i}`} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 16px', padding: '14px 0', borderTop: '1px solid var(--border)' }}>
