@@ -27,10 +27,6 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
     loadSaved();
     loadGoogleStatus();
     loadWebhookInfo();
-    if (window.location.search.includes('google_connected=true')) {
-      window.history.replaceState({}, '', '/settings');
-      loadGoogleStatus();
-    }
   }, []);
 
   async function loadSaved() {
