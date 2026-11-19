@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { backdropKeyCloses, nextTabTarget } from '../paletteKeys.js';
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // ⌘K palette — jump to any panel or run a cross-panel action without
 // touching the mouse. Items are supplied by App.jsx (nav + a couple of
@@ -7,6 +10,7 @@ export default function CommandPalette({ open, onClose, items }) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef(null);
+  const boxRef = useRef(null);
 
   const filtered = items.filter(it => {
     const q = query.toLowerCase();
@@ -17,8 +21,21 @@ export default function CommandPalette({ open, onClose, items }) {
     if (!open) return;
     setQuery('');
     setActiveIndex(0);
+    // Restore the trigger, or the selected panel's navigation control if changing
+    // panels hid that trigger. Hidden desktop controls cannot be used on phones.
+    const invoker = document.activeElement;
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      const candidates = [invoker, ...document.querySelectorAll('[aria-current="page"]')];
+      for (const target of candidates) {
+        if (!target || target === document.body || !target.isConnected || target.disabled) continue;
+        const rect = target.getBoundingClientRect();
+        if (!rect.width || !rect.height || rect.right <= 0 || rect.bottom <= 0 || rect.left >= window.innerWidth || rect.top >= window.innerHeight) continue;
+        target.focus?.({ preventScroll: true });
+        if (document.activeElement === target) break;
+      }
+    };
   }, [open]);
 
   useEffect(() => { setActiveIndex(0); }, [query]);
@@ -36,7 +53,17 @@ export default function CommandPalette({ open, onClose, items }) {
     onClose();
   }
 
+  // Keeps Tab and Shift+Tab inside the dialog, so focus never reaches the page behind it.
+  function trapTab(e) {
+    if (e.key !== 'Tab') return;
+    const focusables = [...(boxRef.current?.querySelectorAll(FOCUSABLE) ?? [])];
+    const target = nextTabTarget({ shift: e.shiftKey, focusables, active: document.activeElement });
+    if (target) { e.preventDefault(); target.focus(); }
+    else if (!focusables.length) e.preventDefault();
+  }
+
   function handleKeyDown(e) {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, filtered.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); }
     if (e.key === 'Enter' && filtered[safeIndex]) { e.preventDefault(); select(filtered[safeIndex]); }
@@ -45,15 +72,8 @@ export default function CommandPalette({ open, onClose, items }) {
   let lastSection = null;
 
   return (
-    <div
-      className="cmdk-backdrop"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      aria-label="Close command palette"
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
-    >
-      <div className="cmdk-box" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
+    <div className="cmdk-backdrop" onClick={onClose} onKeyDown={e => { if (backdropKeyCloses(e)) onClose(); }}>
+      <div ref={boxRef} className="cmdk-box" onClick={e => e.stopPropagation()} onKeyDown={trapTab} role="dialog" aria-modal="true" aria-label="Command palette">
         <input
           ref={inputRef}
           className="cmdk-input"
