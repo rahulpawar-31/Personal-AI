@@ -20,6 +20,7 @@ import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
+import { createHealthLoader } from './healthLoader.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: 'Today',          dot: '#5F6064' },
@@ -53,6 +54,15 @@ export default function App() {
   useEffect(() => { viewRef.current = view; }, [view]);
   const [connected,      setConnected]      = useState(false);
   const [health,         setHealth]         = useState({});
+  // Connected-services status for whoever is signed in (see healthLoader.js): the
+  // newest request wins and reset() empties it, so one account never sees another's.
+  const healthLoaderRef = useRef(null);
+  if (!healthLoaderRef.current) {
+    healthLoaderRef.current = createHealthLoader(
+      () => apiFetch('/api/health').then(r => (r.ok ? r.json() : null)),
+      d => { setHealth(d); setConnected(Boolean(d.google)); },
+    );
+  }
   const [taskRefreshKey,     setTaskRefreshKey]     = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [githubRefreshKey,   setGithubRefreshKey]   = useState(0);
@@ -76,6 +86,10 @@ export default function App() {
 
   function handleAuth(newUser, isSignup) {
     applyUser(newUser);
+    // The status loaded at start-up (if any) belonged to a previous session, and a
+    // password sign-in does not remount the app: load this account's now (#420).
+    healthLoaderRef.current.reset();
+    fetchHealth();
     if (isSignup) {
       localStorage.setItem('devos_onboarding', 'true');
       setShowOnboarding(true);
@@ -85,6 +99,7 @@ export default function App() {
   function handleOnboardingComplete() {
     localStorage.removeItem('devos_onboarding');
     setShowOnboarding(false);
+    fetchHealth(); // tools connected during onboarding should show at once
   }
 
   function handleLogout() {
@@ -96,6 +111,7 @@ export default function App() {
       warn: () => toast('Signed out here, but your other sessions may still be active. Sign in and sign out again when you are online.', 'error', 9000),
     });
     clearSession();
+    healthLoaderRef.current.reset(); // the next account must not inherit these services
     setUser(null);
   }
 
@@ -110,10 +126,7 @@ export default function App() {
   }
 
   function fetchHealth() {
-    apiFetch('/api/health')
-      .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); return null; })
-      .catch(() => {});
+    return healthLoaderRef.current.load();
   }
 
   function handleViewChange(newView) {
@@ -154,10 +167,7 @@ export default function App() {
     setGithubRefreshKey(k => k + 1);
     setEmailRefreshKey(k => k + 1);
     setDigestRefreshKey(k => k + 1);
-    apiFetch('/api/health')
-      .then(r => r.json())
-      .then(d => { setHealth(d); setConnected(d.google); return null; })
-      .catch(() => {});
+    healthLoaderRef.current.load();
   }, []);
 
   // Auto-refresh: on tab focus (if away >5 min) + every 10 min while active
