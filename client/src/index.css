@@ -522,8 +522,11 @@ input::placeholder, textarea::placeholder { color: var(--hint); }
   padding: 56px 40px; display: flex; align-items: center; justify-content: center;
 }
 .auth-split__pitch--copy { display: flex; }
+/* One line of explanation for phones only; the full pitch above takes over on wide screens. */
+.auth-split__tagline { display: none; margin: 0; font-size: 16px; line-height: 1.4; color: #B9B8B1; overflow-wrap: anywhere; }
 @media (max-width: 768px) {
-  .auth-split__brand { flex-basis: auto; padding: 28px 24px; gap: 20px; }
+  .auth-split__brand { flex-basis: auto; padding: 24px 24px 28px; gap: 12px; }
   .auth-split__brand .auth-split__pitch { display: none; }
+  .auth-split__tagline { display: block; }
   .auth-split__form { padding: 28px 20px 40px; align-items: flex-start; }
 }
