@@ -20,6 +20,7 @@ import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
+import { parseGoogleReturn } from './googleReturn.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: 'Today',          dot: '#5F6064' },
@@ -253,15 +254,15 @@ export default function App() {
 
     if (getToken()) fetchHealth();
 
-    if (window.location.search.includes('connected=true')) {
+    const googleReturn = parseGoogleReturn(window.location.search);
+    if (googleReturn.connected) {
       setConnected(true);
-      if (localStorage.getItem('devos_onboarding') !== 'true') {
+      if (googleReturn.fromSettings) setView('settings'); // back to where they started
+      // Take the marker out of the address bar so a refresh does not repeat it. The
+      // onboarding wizard still reads ?connected=true, so it keeps its own marker.
+      if (googleReturn.fromSettings || localStorage.getItem('devos_onboarding') !== 'true') {
         window.history.replaceState({}, '', '/');
       }
-    }
-    if (window.location.search.includes('google_connected=true')) {
-      setConnected(true);
-      setView('settings');
     }
   }, []);
 
