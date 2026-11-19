@@ -10,6 +10,7 @@ import { getUserCreds } from '../lib/creds.js';
 import github from '../services/github.js';
 import { publicOrigin, isAllowedOrigin } from '../lib/env.js';
 import { trustedGoogleEmail } from '../lib/googleProfile.js';
+import { googleReturnPath } from '../lib/googleReturn.js';
 
 const router = Router();
 
@@ -176,7 +177,7 @@ router.get('/api/auth/google/callback', async (req, res) => {
       return res.redirect(`${redirectBase}/?auth_error=google_failed`);
     }
     await auth.saveTokens(tokens, userId);
-    res.redirect(`${redirectBase}${state.fromSettings ? '/settings?google_connected=true' : '/?connected=true'}`);
+    res.redirect(`${redirectBase}${googleReturnPath({ fromSettings: state.fromSettings })}`);
   } catch (err) {
     console.error('[auth/google/callback] FULL ERROR:', err);
     // A fixed code, never err.message: the redirect URL is visible in the
