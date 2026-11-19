@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch, clearToken } from './api.js';
+import { startGoogleConnect } from './googleConnect.js';
 import Logo from './components/Logo.jsx';
 import RolePicker from './components/RolePicker.jsx';
 
@@ -232,6 +233,19 @@ function RoleStep({ user, onUserChange, onNext }) {
 // ─── Step 3: Google ───────────────────────────────────────────────────────────
 
 function GoogleStep({ onNext }) {
+  const [error, setError] = useState(null);
+  const [busy,  setBusy]  = useState(false);
+
+  async function connect() {
+    setError(null);
+    setBusy(true);
+    const out = await startGoogleConnect(() => apiFetch('/api/auth/google/init'));
+    if (out.url) { window.location.href = out.url; return; } // leaving the page: stay busy
+    setBusy(false);
+    if (out.error === 'session') { clearToken(); window.location.reload(); return; }
+    setError(out.message);
+  }
+
   return (
     <>
       <StepLabel n={2} of={5} />
@@ -249,16 +263,10 @@ function GoogleStep({ onNext }) {
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13.5, lineHeight: 1.5 }}>{error}</div>}
         <button className="primary" style={{ width: '100%', padding: '11px 16px', fontSize: 14 }}
-          onClick={async () => {
-            try {
-              const r = await apiFetch('/api/auth/google/init');
-              if (!r.ok) { if (r.status === 401) { clearToken(); window.location.reload(); } return; }
-              const d = await r.json();
-              if (d.url) window.location.href = d.url;
-            } catch { /* network error */ }
-          }}>
-          Connect Gmail &amp; Calendar
+          onClick={connect} disabled={busy}>
+          {error ? 'Try again' : 'Connect Gmail & Calendar'}
         </button>
         <button onClick={onNext} style={{ width: '100%', padding: '9px 16px', color: 'var(--muted)',
           background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>

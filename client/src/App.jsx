@@ -20,6 +20,7 @@ import SettingsPage     from './SettingsPage.jsx';
 import AdminPage        from './AdminPage.jsx';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { flattenVisualOrder } from './navGroups.js';
+import { startGoogleConnect } from './googleConnect.js';
 
 const BASE_NAV = [
   { id: 'digest',   label: 'Today',          dot: '#5F6064' },
@@ -100,13 +101,12 @@ export default function App() {
   }
 
   async function handleConnectGoogle() {
-    try {
-      const r = await apiFetch('/api/auth/google/init');
-      if (r.status === 401) { handleLogout(); return; }
-      let data;
-      try { data = await r.json(); } catch { return; }
-      if (data.url) window.location.href = data.url;
-    } catch { /* network error */ }
+    const out = await startGoogleConnect(() => apiFetch('/api/auth/google/init'));
+    if (out.url) { window.location.href = out.url; return; }
+    if (out.error === 'session') { handleLogout(); return; }
+    // The sidebar button and the palette entry both end here, so say what went wrong
+    // and leave the button as it was so the user can simply try again.
+    toast(out.message, 'error', 7000);
   }
 
   function fetchHealth() {

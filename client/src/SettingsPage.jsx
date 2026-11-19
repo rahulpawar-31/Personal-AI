@@ -1,6 +1,7 @@
 import PageHeader from './components/PageHeader.jsx';
 import { useState, useEffect } from 'react';
 import { apiFetch } from './api.js';
+import { startGoogleConnect } from './googleConnect.js';
 import { SectionLabel, IntegrationGroup, RowDivider } from './components/settings/primitives.jsx';
 import SingleKeyRow from './components/settings/SingleKeyRow.jsx';
 import MultiKeyRow from './components/settings/MultiKeyRow.jsx';
@@ -59,21 +60,10 @@ export default function SettingsPage({ user, onLogout, onUserChange, health = {}
 
   async function handleGoogleConnect() {
     setGoogleError(null);
-    try {
-      const r = await apiFetch(`/api/auth/google/init?from=settings&origin=${encodeURIComponent(window.location.origin)}`);
-      if (r.status === 401) {
-        setGoogleError('Your session expired. Please sign out and sign back in, then try again.');
-        return;
-      }
-      if (!r.ok) {
-        setGoogleError('Could not start Google sign-in. Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set in your .env file.');
-        return;
-      }
-      const data = await r.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      setGoogleError('Network error — is the server running?');
-    }
+    const out = await startGoogleConnect(() =>
+      apiFetch(`/api/auth/google/init?from=settings&origin=${encodeURIComponent(window.location.origin)}`));
+    if (out.url) window.location.href = out.url;
+    else setGoogleError(out.message);
   }
 
   async function handleGoogleDisconnect() {
