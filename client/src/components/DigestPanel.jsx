@@ -89,7 +89,8 @@ export default function DigestPanel({ refreshKey, onGoToSettings, onNavigate, on
         else setDigestStatus(prev => (prev === 'ready' ? prev : 'none')); // never overwrite a digest we already have
         return undefined;
       })
-      .catch(() => { setDigestStatus(prev => (prev === 'ready' ? prev : 'error')); });
+      // Keep the cached digest, but do not describe it as a fresh successful check.
+      .catch(() => { setDigestStatus('error'); });
   }
 
   useEffect(() => { loadLatestDigest(); }, [refreshKey]);
