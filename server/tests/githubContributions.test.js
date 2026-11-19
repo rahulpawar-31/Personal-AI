@@ -74,7 +74,9 @@ async function withStub(handler, fn) {
 }
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
 
-test('it queries the SELECTED repo with the token\'s own login', async () => {
+test('it queries the SELECTED repo with the token\'s own login', async (t) => {
+  // This stub uses the fixed dates above; keep the service's rolling window on the same clock.
+  t.mock.method(Date, 'now', () => NOW);
   await withStub(path => {
     if (path === '/user') return json({ login: 'ada-token-owner' });
     if (path.startsWith('/repos/ada/other/commits')) return json([commit(0)]);
