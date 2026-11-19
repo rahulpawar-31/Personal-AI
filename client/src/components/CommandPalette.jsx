@@ -21,12 +21,20 @@ export default function CommandPalette({ open, onClose, items }) {
     if (!open) return;
     setQuery('');
     setActiveIndex(0);
-    // Whatever had focus when the palette opened gets it back when it closes.
+    // Restore the trigger, or the selected panel's navigation control if changing
+    // panels hid that trigger. Hidden desktop controls cannot be used on phones.
     const invoker = document.activeElement;
     const raf = requestAnimationFrame(() => inputRef.current?.focus());
     return () => {
       cancelAnimationFrame(raf);
-      if (invoker && invoker !== document.body && invoker.isConnected) invoker.focus?.();
+      const candidates = [invoker, ...document.querySelectorAll('[aria-current="page"]')];
+      for (const target of candidates) {
+        if (!target || target === document.body || !target.isConnected || target.disabled) continue;
+        const rect = target.getBoundingClientRect();
+        if (!rect.width || !rect.height || rect.right <= 0 || rect.bottom <= 0 || rect.left >= window.innerWidth || rect.top >= window.innerHeight) continue;
+        target.focus?.({ preventScroll: true });
+        if (document.activeElement === target) break;
+      }
     };
   }, [open]);
 
