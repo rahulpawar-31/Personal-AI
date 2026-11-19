@@ -10,9 +10,9 @@ function setup(request) {
 
 // A request whose answer the test hands over by hand.
 function deferred() {
-  let resolve;
-  const promise = new Promise(r => { resolve = r; });
-  return { promise, resolve };
+  let resolve, reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
 }
 
 test('load shows the connected services the server reports', async () => {
@@ -74,4 +74,38 @@ test('the newest load wins when two overlap', async () => {
   answers[0].resolve({ v: 1 });
   await Promise.all([a, b]);
   assert.deepEqual(shown, [{ v: 2 }]);
+});
+
+test('a failed newer refresh does not discard an overlapping successful answer', async () => {
+  for (const failFirst of [true, false]) {
+    const answers = [deferred(), deferred()];
+    let n = 0;
+    const { loader, shown } = setup(() => answers[n++].promise);
+    loader.reset();
+    const first = loader.load();
+    const second = loader.load();
+    if (failFirst) {
+      answers[1].reject(new Error('offline'));
+      await second;
+    }
+    answers[0].resolve({ google: true });
+    await first;
+    if (!failFirst) answers[1].resolve(null);
+    await second;
+    assert.deepEqual(shown, [{}, { google: true }]);
+  }
+});
+
+test('reset still rejects an old account answer when the new account request fails', async () => {
+  const answers = [deferred(), deferred()];
+  let n = 0;
+  const { loader, shown } = setup(() => answers[n++].promise);
+  const oldAccount = loader.load();
+  loader.reset();
+  const newAccount = loader.load();
+  answers[1].reject(new Error('offline'));
+  await newAccount;
+  answers[0].resolve({ google: true });
+  await oldAccount;
+  assert.deepEqual(shown, [{}]);
 });
