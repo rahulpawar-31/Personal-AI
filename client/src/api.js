@@ -51,8 +51,15 @@ function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = fetch('/api/auth/refresh', { method: 'POST' })
       .then(async r => {
-        if (!r.ok) throw new Error('refresh failed');
+        if (!r.ok) {
+          const error = new Error('Could not refresh your session. Try again.');
+          // Only an explicit rejection means the saved session is invalid. Server
+          // outages and rate limits must reach callers as temporary failures.
+          if (r.status === 401) error.code = 'SESSION_EXPIRED';
+          throw error;
+        }
         const data = await r.json();
+        if (typeof data?.token !== 'string' || !data.token) throw new Error('Could not refresh your session. Try again.');
         setToken(data.token);
         return data.token;
       })
@@ -72,8 +79,9 @@ export async function apiFetch(url, opts = {}) {
     try {
       const newToken = await refreshAccessToken();
       return fetch(url, { ...opts, headers: { ...headers, Authorization: `Bearer ${newToken}` } });
-    } catch {
-      // Refresh token is also gone — surface the original 401 to the caller.
+    } catch (error) {
+      if (error.code !== 'SESSION_EXPIRED') throw error;
+      // The refresh endpoint explicitly rejected the session: surface the 401.
     }
   }
 
