@@ -60,6 +60,8 @@ export default function AuthPage({ onAuth }) {
     <div className="auth-split">
       <section className="auth-split__brand">
         <Logo size={36} textSize={26} color="var(--bg)" />
+        {/* Phones hide the full pitch below to keep the form close; this one line stays so a first-time visitor still learns what the app is (#425). */}
+        <p className="auth-split__tagline">Your mail, calendar, tasks and code in one place.</p>
         <div className="auth-split__pitch auth-split__pitch--copy" style={{ flexDirection: 'column', gap: 18, maxWidth: 460 }}>
           <h1 style={{ fontSize: 44, lineHeight: 1.08, fontWeight: 600, letterSpacing: '-0.025em' }}>
             Your mail, calendar, tasks and code in one place.
